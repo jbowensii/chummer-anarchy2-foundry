@@ -19,13 +19,13 @@ const START_ONLY = ['controlMode']
 
 /**
  * The Replace update for a translated actor (runner or vehicle): its name, image, flags and the system fields the
- * translation produces, less START_ONLY. Play state (damage, anarchy, ownership, other token settings) is never in it.
+ * translation produces, less START_ONLY. Play state (damage, anarchy, ownership, token settings and token image) is never in it.
  * A world copy named like a new version ("Mara (2 Oct 2026)") keeps its dated name.
  */
 export function replaceUpdate(translated, existingName = '') {
   const system = structuredClone(translated.system)
   for (const k of START_ONLY) delete system[k]
   const u = { name: DATED.test(existingName) ? existingName : translated.name, flags: structuredClone(translated.flags), system }
-  if (translated.img) Object.assign(u, { img: translated.img, prototypeToken: { texture: { src: translated.img } } })
+  if (translated.img) u.img = translated.img
   return u
 }

@@ -87,8 +87,9 @@ export function registerQuench(quench) {
       it('has its metatype caps', () => {
         const m = itemsOf(mara, 'metatype')[0]
         assert.ok(m, 'metatype item')
-        assert.include(m.system, { maxStrength: 6, maxAgility: 6, maxWillpower: 6, maxLogic: 6, maxCharisma: 6 })
+        assert.include(m.system, { maxStrength: 6, maxAgility: 6, maxWillpower: 6, maxLogic: 6, maxCharisma: 6, anarchyBonus: 1 })
       })
+      it('has Foundry’s default artwork without a portrait', () => assert.ok(mara.img, 'actor img'))
       it('puts Risk Reduction on the cyberware feat, and escapes its text', () => {
         const cyber = byName(mara, 'Made-Up Reflex Wiring')
         assert.lengthOf(cyber.system.rrList, 1)

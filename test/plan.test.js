@@ -30,7 +30,8 @@ describe('planning an import', () => {
     expect(keys.some(k => k.startsWith('system.attributes.'))).toBe(true)
     expect(keys).toContain('system.bio.notes')
     expect(keys).toContain('system.resources.yens')
-    expect(keys).toContain('prototypeToken.texture.src')
+    expect(keys).toContain('img')
+    expect(keys.some(k => k.startsWith('prototypeToken'))).toBe(false) // a GM's custom token image stays
     expect(u.flags[MODULE_ID].id).toBe('r-mara')
     for (const bad of ['system.damage', 'system.anarchySpent', 'system.tempAnarchy', 'ownership', 'items', 'type'])
       expect(keys.some(k => k.startsWith(bad))).toBe(false)

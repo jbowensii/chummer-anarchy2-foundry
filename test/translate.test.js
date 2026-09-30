@@ -13,7 +13,8 @@ const flagId = d => d.flags?.[MODULE_ID]?.id
 describe('translating a runner', () => {
   test('actor basics', () => {
     const s = t.actor.system
-    expect(t.actor).toMatchObject({ name: 'Made-Up Mara', type: 'character', img: null })
+    expect(t.actor).toMatchObject({ name: 'Made-Up Mara', type: 'character' })
+    expect(t.actor).not.toHaveProperty('img') // Foundry's default artwork, not a null image
     expect(s.attributes).toEqual({ strength: 2, agility: 4, willpower: 3, logic: 2, charisma: 3 })
     expect(s.resources.yens).toBe(1200)
     expect(s.keywords).toEqual({ keyword1: 'Made-up alpha', keyword2: 'Made-up bravo', keyword3: 'Made-up charlie', keyword4: 'Made-up delta', keyword5: 'Made-up echo' })
@@ -31,7 +32,16 @@ describe('translating a runner', () => {
   test('one metatype item with the ranges', () => {
     const m = t.items.filter(i => i.type === 'metatype')
     expect(m).toHaveLength(1)
-    expect(m[0].system).toMatchObject({ maxAgility: 6, maxStrength: 6, anarchyBonus: 0 })
+    expect(m[0].system).toMatchObject({ maxAgility: 6, maxStrength: 6, anarchyBonus: 1 }) // sra2's Human
+  })
+
+  test('metatype Anarchy bonus from sra2, by English name', () => {
+    const as = name => { const r = structuredClone(mara); r.metatype.name = name; return translateRunner(r, opts) }
+    expect(as('Troll').items[0].system.anarchyBonus).toBe(0)
+    expect(as(' elf ').items[0].system.anarchyBonus).toBe(0)
+    const odd = as('Made-Up Sasquatch')
+    expect(odd.items[0].system.anarchyBonus).toBe(0)
+    expect(odd.textOnly).toContain('Metatype Made-Up Sasquatch: not an sra2 metatype → Anarchy bonus 0')
   })
 
   test('skills and specs', () => {
@@ -114,6 +124,8 @@ describe('translating a runner', () => {
     expect(weapon('4P').s).toMatchObject({ weaponType: 'custom-weapon', vdMode: 'custom', vdCustomValue: 4, damageValue: '4' })
     expect(weapon('STR+1').s).toMatchObject({ vdMode: 'attribute', vdAttribute: 'strength', vdBonus: 1, damageValue: 'FOR+1' })
     expect(weapon('FOR').s).toMatchObject({ vdMode: 'attribute', vdBonus: 0, damageValue: 'FOR' })
+    expect(weapon('STR+2P').s).toMatchObject({ vdMode: 'attribute', vdAttribute: 'strength', vdBonus: 2, damageValue: 'FOR+2' })
+    expect(weapon('FOR+1S').s).toMatchObject({ vdMode: 'attribute', vdBonus: 1, damageValue: 'FOR+1' })
     const odd = weapon('odd')
     expect(odd.s).toMatchObject({ vdMode: 'custom', vdCustomValue: 0 })
     expect(odd.s.description).toContain('Chummer DV: odd')
@@ -128,10 +140,23 @@ describe('translating a runner', () => {
     r.skills.push({ id: 'odd', name: 'Odd', attr: 'mag', rating: 1, specs: [{ id: 'odd.x', name: 'X', attr: 'res' }] })
     const x = translateRunner(r, opts)
     expect(x.items.find(i => i.name === 'Deck').system).toMatchObject({ featType: 'cyberdeck', cyberdeckBonusLightDamage: true })
-    expect(x.textOnly.some(l => l.startsWith('Made-Up Vest: worn over'))).toBe(true)
+    expect(x.textOnly).toContain('Made-Up Vest: worn over other armor → inactive')
+    expect(x.items.find(i => i.name === 'Made-Up Vest').system.active).toBe(false)
     expect(x.items.find(i => i.name === 'Odd').system.linkedAttribute).toBe('strength')
     expect(x.items.find(i => i.name === 'Spec: X').system.linkedAttribute).toBe('strength')
     expect(x.textOnly.filter(l => l.includes('attribute mag') || l.includes('attribute res'))).toHaveLength(2)
+  })
+
+  test('only one armor is active: layers and the lower spare are not', () => {
+    expect(byName('Made-Up Vest').system).not.toHaveProperty('active') // a single armor stays sra2's default (active)
+    const r = structuredClone(mara)
+    r.items.push({ uid: 'a2', kind: 'armor', name: 'Coat', price: 1, armor: { value: 3 } },
+      { uid: 'a3', kind: 'armor', name: 'Helmet', price: 1, armor: { value: 1, over: 'a2' } })
+    const x = translateRunner(r, opts), sys = n => x.items.find(i => i.name === n).system
+    expect(sys('Coat')).not.toHaveProperty('active')
+    expect(sys('Made-Up Vest').active).toBe(false)
+    expect(sys('Helmet').active).toBe(false)
+    expect(x.textOnly).toContain('Made-Up Vest: armor → inactive (only Coat is active)')
   })
 
   test('a runner with no amps, items or vehicles', () => {

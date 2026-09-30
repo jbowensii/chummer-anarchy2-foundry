@@ -30,6 +30,5 @@ function addButton(root) {
 Hooks.once('init', () => { ImportApp = createImportApp() })
 Hooks.on('renderActorDirectory', (app, html) => addButton(html))
 Hooks.on('changeSidebarTab', app => { if (app.tabName === 'actors') addButton() })
-Hooks.on('renderSidebarTab', app => { if (app.tabName === 'actors') addButton() })
 Hooks.once('ready', () => addButton())
 Hooks.on('quenchReady', quench => registerQuench(quench))

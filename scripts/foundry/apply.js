@@ -26,7 +26,7 @@ async function uploadPortrait(dataUrl, runnerId, exportedAt) {
   }
   const blob = await (await fetch(dataUrl)).blob()
   const ext = /jpe?g/i.test(blob.type) ? 'jpg' : 'png'
-  const file = new File([blob], `${runnerId}-${String(exportedAt).replace(/\D/g, '')}.${ext}`, { type: blob.type })
+  const file = new File([blob], `${String(runnerId).replace(/[^\w-]/g, '-')}-${String(exportedAt).replace(/\D/g, '')}.${ext}`, { type: blob.type })
   const res = await FP.upload('data', dir, file, {}, { notify: false })
   if (!res?.path) throw new Error(`Portrait upload failed for ${runnerId}`)
   return res.path
@@ -61,7 +61,8 @@ export async function applyRunner(t, choice, { portrait, exportedAt, folder = FO
     const actor = structuredClone(t.actor)
     if (portrait) actor.img = await uploadPortrait(portrait, runnerId, exportedAt ?? flagOf(t.actor).exportedAt)
     const root = typeof folder === 'string' ? await ensureFolder(folder) : folder
-    const vFolder = t.vehicles.length ? await ensureFolder(`${t.actor.name} vehicles`, root) : null
+    let vf = null  // the vehicles subfolder, made only when a vehicle is created
+    const vFolder = async () => (vf ??= await ensureFolder(`${t.actor.name} vehicles`, root))
 
     if (choice === 'replace') {
       doc = findExisting(runnerId)
@@ -74,7 +75,7 @@ export async function applyRunner(t, choice, { portrait, exportedAt, folder = FO
         const matches = game.actors.filter(a => flagOf(a)?.runner === vf.runner && flagOf(a)?.id === vf.id)
         const match = matches.find(a => links.includes(a.uuid)) ?? newest(matches)
         if (match) { matched.push([match, v]); ours.push(match.uuid) }
-        else { const nv = await createVehicle(v, v.actor.name, vFolder); created.push(nv); ours.push(nv.uuid) }
+        else { const nv = await createVehicle(v, v.actor.name, await vFolder()); created.push(nv); ours.push(nv.uuid) }
       }
       // keep links to the GM's own vehicles; drop ours not in this export and dangling ones
       const kept = links.filter(u => { const d = foundry.utils.fromUuidSync(u); return d && !flagOf(d) && !ours.includes(u) })
@@ -89,7 +90,7 @@ export async function applyRunner(t, choice, { portrait, exportedAt, folder = FO
     const suffix = choice === 'new' ? n => newVersionName(n, flagOf(t.actor).exportedAt) : n => n
     const vUuids = []
     for (const v of t.vehicles) {
-      const nv = await createVehicle(v, suffix(v.actor.name), vFolder)
+      const nv = await createVehicle(v, suffix(v.actor.name), await vFolder())
       created.push(nv); vUuids.push(nv.uuid)
     }
     actor.system.linkedVehicles = vUuids

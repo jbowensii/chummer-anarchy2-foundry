@@ -1,6 +1,6 @@
 // One Chummer runner (docs/export-format.md) -> sra2 v14.3.3 document data. Pure: no Foundry calls.
 import { MODULE_ID } from './constants.js'
-import { ATTR, featType, skillFor, specFor, vehicleType, weaponType } from './sra2.js'
+import { ATTR, featType, metatypeAnarchy, skillFor, specFor, vehicleType, weaponType } from './sra2.js'
 
 const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
 // Plain text -> HTML: escaped, one <p> per paragraph (blank-line separated).
@@ -17,9 +17,9 @@ const ref = x => (x.source ? `${x.source}${x.page ? ` p.${x.page}` : ''}` : '')
 const slots = (list, key, n) => Object.fromEntries(Array.from({ length: n }, (_, i) => [`${key}${i + 1}`, String(list?.[i] ?? '')]))
 // sra2 vehicle weapon mounts are 'none' | 'smg' | 'rifle' (config/vehicle-types.json, actor-vehicle.ts prepareDerivedData).
 const mountOf = t => (/\b(rifle|heavy)\b/i.test(t ?? '') ? 'rifle' : /\b(smg|light)\b/i.test(t ?? '') ? 'smg' : 'none')
-// A Chummer DV -> sra2 vd fields: "4P"/"4" -> custom 4; "STR+1"/"FOR+1"/"STR" -> strength + bonus; else null.
+// A Chummer DV -> sra2 vd fields: "4P"/"4" -> custom 4; "STR+1"/"FOR+1S"/"STR" -> strength + bonus; else null.
 function parseDv(dv) {
-  const s = String(dv ?? '').trim(), n = /^(\d+)/.exec(s), a = /^(STR|FOR)\s*(?:\+\s*(\d+))?$/i.exec(s)
+  const s = String(dv ?? '').trim(), n = /^(\d+)/.exec(s), a = /^(STR|FOR)\s*(?:\+\s*(\d+))?\s*[PS]?$/i.exec(s)
   if (n) return { damageValue: n[1], vdMode: 'custom', vdCustomValue: Number(n[1]) }
   if (a) { const b = Number(a[2] ?? 0); return { damageValue: b ? `FOR+${b}` : 'FOR', vdMode: 'attribute', vdAttribute: 'strength', vdBonus: b } }
   return null
@@ -42,9 +42,11 @@ export function translateRunner(runner, { exportedAt, appVersion, sanitize = esc
     return a
   }
 
-  items.push({ name: runner.metatype?.name ?? 'Metatype', type: 'metatype', flags: flag(runner.metatype?.id ?? 'metatype'),
+  const metaName = runner.metatype?.name ?? 'Metatype', anarchyBonus = metatypeAnarchy(metaName)
+  if (anarchyBonus == null) textOnly.push(`Metatype ${metaName}: not an sra2 metatype → Anarchy bonus 0`)
+  items.push({ name: metaName, type: 'metatype', flags: flag(runner.metatype?.id ?? 'metatype'),
     system: { maxStrength: ranges.str?.[1] ?? 6, maxAgility: ranges.agi?.[1] ?? 6, maxWillpower: ranges.wil?.[1] ?? 6,
-      maxLogic: ranges.log?.[1] ?? 6, maxCharisma: ranges.cha?.[1] ?? 6, anarchyBonus: 0 } })
+      maxLogic: ranges.log?.[1] ?? 6, maxCharisma: ranges.cha?.[1] ?? 6, anarchyBonus: anarchyBonus ?? 0 } })
 
   for (const sk of skills) {
     const s = skillFor(sk), name = s.known ? s.name : sk.name
@@ -107,6 +109,7 @@ export function translateRunner(runner, { exportedAt, appVersion, sanitize = esc
     items.push({ name: amp.name, type: 'feat', flags: flag(amp.uid), system })
   }
 
+  const worn = []  // armor feats not worn over another: [name, system]
   for (const it of runner.items ?? []) {
     let extra = ''
     const system = { featType: ITEM_FEAT[it.kind] ?? 'equipment', cost: it.starting ? 'free-equipment' : 'equipment', reference: ref(it) }
@@ -119,11 +122,19 @@ export function translateRunner(runner, { exportedAt, appVersion, sanitize = esc
     }
     if (it.kind === 'armor') {
       system.armorValue = Math.max(0, Math.min(5, it.armor?.value ?? 0))
-      if (it.armor?.over) textOnly.push(`${it.name}: worn over other armor (${it.armor.over}) → not imported`)
+      // sra2 sums every active armor feat; Chummer counts one main armor, so layers and spares are imported inactive.
+      if (it.armor?.over) { system.active = false; textOnly.push(`${it.name}: worn over other armor → inactive`) }
+      else worn.push([it.name, system])
     }
     if (it.kind === 'spell') system.spellType = 'direct'
     system.description = sanitize(it.description) + sanitize(it.note) + extra + sanitize(`Chummer price: ${it.price ?? 0}¥`)
     items.push({ name: it.name, type: 'feat', flags: flag(it.uid), system })
+  }
+
+  // The export doesn't say which armor is main and which alternate: only the highest stays active.
+  if (worn.length > 1) {
+    const best = worn.reduce((a, b) => (b[1].armorValue > a[1].armorValue ? b : a))
+    for (const w of worn) if (w !== best) { w[1].active = false; textOnly.push(`${w[0]}: armor → inactive (only ${best[0]} is active)`) }
   }
 
   // Always custom-vehicle: sra2 reads the custom* stats only then, and Chummer's numbers include upgrades.
@@ -153,7 +164,8 @@ export function translateRunner(runner, { exportedAt, appVersion, sanitize = esc
     ...textOnly,
   ]
   const n = runner.narrative ?? {}
-  const actor = { name: runner.streetName, type: 'character', img: null,
+  // no img: Foundry's default artwork applies (apply.js sets img only from a portrait)
+  const actor = { name: runner.streetName, type: 'character',
     flags: { [MODULE_ID]: { id: runner.id, exportedAt, appVersion } },
     system: {
       attributes: Object.fromEntries(Object.entries(ATTR).map(([k, v]) => [v, Math.max(1, runner.attributes?.[k] ?? 1)])),

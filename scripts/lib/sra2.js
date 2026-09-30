@@ -119,6 +119,11 @@ const slugify = s => norm(s).replace(/ /g, '-')
 // Slug from the name, falling back to the Chummer id when the name has nothing ASCII in it.
 const slugOf = (name, id) => slugify(name) || slugify(id) || 'unnamed'
 
+// anarchyBonus by English metatype name, from sra2 v14.3.3 src/packs/anarchy-items-en/metatype_*.json.
+const METATYPE_ANARCHY = { human: 1, elf: 0, dwarf: 0, ork: 0, troll: 0 }
+// undefined for a metatype sra2 doesn't have
+export const metatypeAnarchy = name => { const n = norm(name); return Object.hasOwn(METATYPE_ANARCHY, n) ? METATYPE_ANARCHY[n] : undefined }
+
 export function skillFor({ id, attr }) {
   if (Object.hasOwn(SKILLS, id)) return { ...SKILLS[id], known: true }
   return { slug: `chummer-${slugOf(id, id)}`, name: id, attr: attrKey(attr), known: false }
