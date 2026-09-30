@@ -5,7 +5,7 @@ import { planPack } from '../lib/plan.js'
 import { ensureFolder, FOLDER } from './apply.js'
 
 const CHUNK = 100
-const PACKS = { amps: ['Amps', 'Item'], weapons: ['Weapons', 'Item'], armor: ['Armor', 'Item'], gear: ['Gear', 'Item'],
+export const PACKS = { amps: ['Amps', 'Item'], weapons: ['Weapons', 'Item'], armor: ['Armor', 'Item'], gear: ['Gear', 'Item'],
   spells: ['Spells', 'Item'], vehicles: ['Vehicles', 'Actor'], skills: ['Skills & specializations', 'Item'], rules: ['Rules', 'JournalEntry'] }
 
 // World pack names may only hold [A-Za-z0-9-_] (BasePackage.validateId).
@@ -14,7 +14,11 @@ const packName = s => s.toLowerCase().replace(/[^a-z0-9_-]/g, '-')
 // The world pack `name`, created in `folder` when missing (the server fills path, system and package: 'world').
 async function getPack(name, label, type, folder) {
   const found = game.packs.get(`world.${name}`)
-  if (found) return found
+  if (found?.documentName === type) return found
+  if (found) {
+    const kind = game.i18n.localize(CONFIG[found.documentName]?.documentClass?.metadata?.labelPlural ?? found.documentName)
+    throw new Error(game.i18n.format('CA2I.PackTypeClash', { name: `${found.title} (${found.collection})`, type: kind }))
+  }
   const pack = await foundry.documents.collections.CompendiumCollection.createCompendium({ name, label, type })
   if (!pack?.collection) throw new Error(`Could not create the compendium ${label}`)
   await pack.setFolder(folder)
@@ -23,9 +27,11 @@ async function getPack(name, label, type, folder) {
 
 // Replace by id: delete the entries the file has, then create all of them with their ids, in chunks. If a create
 // fails, what this run made is deleted and the replaced entries are put back, so a failure never loses them.
-async function writePack(pack, docs, onProgress) {
+async function writePack(pack, incoming, onProgress) {
   const Doc = pack.documentClass, op = { pack: pack.collection }
-  const { replace, create } = planPack(new Set(pack.index.keys()), docs)
+  const { replace, create, docs, duplicates } = planPack(new Set(pack.index.keys()), incoming)
+  // V14 refuses writes to a locked pack (common/abstract/backend.mjs #assertCompendiumUnlocked, ~l.229), even a
+  // world pack the GM locked: unlock for this write and lock it again after.
   const locked = pack.locked
   if (locked) await pack.configure({ locked: false })
   try {
@@ -42,7 +48,7 @@ async function writePack(pack, docs, onProgress) {
       try { if (old.length) await Doc.createDocuments(old, { ...op, keepId: true }) } catch {}
       throw e
     }
-    return { created: create.length, replaced: replace.length }
+    return { label: pack.title, created: create.length, replaced: replace.length, duplicates: duplicates.map(d => d.name ?? d._id) }
   } finally {
     if (locked) await pack.configure({ locked: true })
   }
@@ -52,7 +58,7 @@ const fail = (pack, name, error) => { console.error(`${MODULE_ID} | ${name}`, er
 
 /**
  * t: translateBook output. Packs go in `<book name> (<source id>)` inside topFolder; pack names get `prefix` (Quench).
- * Returns { source, counts: { [pack name]: { created, replaced } }, failed: [{ pack, name, error }] }.
+ * Returns { source, counts: { [pack name]: { label, created, replaced, duplicates: [entry name] } }, failed: [{ pack, name, error }] }.
  */
 export async function importBook(t, { onProgress, prefix = '', topFolder = FOLDER } = {}) {
   const src = t.source, counts = {}, failed = []

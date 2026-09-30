@@ -35,9 +35,15 @@ export const tokenUpdate = (existing, img) =>
   img && existing?.prototypeToken?.texture?.src === existing?.img ? { 'prototypeToken.texture.src': img } : {}
 
 // Re-import by id: incoming entries already in the pack are replaced (deleted, then created with the same id), the
-// rest are created. Pack entries not in the file are never touched.
+// rest are created. Pack entries not in the file are never touched. An id the file has twice keeps its last entry
+// (`docs` is what to write); the dropped earlier ones are listed in `duplicates` for the report.
 export function planPack(existingIds, incoming) {
-  const replace = [], create = []
-  for (const { _id } of incoming) (existingIds.has(_id) ? replace : create).push(_id)
-  return { replace, create }
+  const byId = new Map(), duplicates = []
+  for (const d of incoming) {
+    if (byId.has(d._id)) duplicates.push(byId.get(d._id))
+    byId.set(d._id, d)
+  }
+  const docs = [...byId.values()], replace = [], create = []
+  for (const { _id } of docs) (existingIds.has(_id) ? replace : create).push(_id)
+  return { replace, create, docs, duplicates }
 }

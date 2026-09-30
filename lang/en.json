@@ -27,6 +27,21 @@
     "Failed": "Failed: {reason}",
     "TextOnly": "Turned into text:",
     "Open": "Open {name}",
-    "Close": "Close"
+    "Close": "Close",
+    "IncludeBook": "Import this book",
+    "Canon": "Canon",
+    "NonCanon": "Non-canon",
+    "DescriptionsIn": "descriptions included",
+    "DescriptionsOut": "no descriptions",
+    "TableRules": "Table rules ({n})",
+    "TableRulesName": "Table rules",
+    "BookProgress": "Importing {name} ({n} of {total})…",
+    "PackResult": "{label}: created {created}, replaced {replaced}",
+    "PackFailed": "{label}: failed: {reason}",
+    "Duplicate": "{label}: “{name}” is in this file more than once; the last one was kept.",
+    "NothingInBook": "Nothing in this book to import",
+    "LeftAlone": "Entries not in this file were left as they were.",
+    "OpenCompendiums": "Open compendiums",
+    "PackTypeClash": "A compendium named {name} already exists for {type}; rename it and import again."
   }
 }

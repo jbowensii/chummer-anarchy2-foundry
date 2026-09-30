@@ -75,10 +75,17 @@ describe('planning an import', () => {
 describe('planning a pack write', () => {
   test('entries already in the pack are replaced, the rest created; pack-only entries are left alone', () => {
     const p = planPack(new Set(['a', 'b', 'gm']), [{ _id: 'a' }, { _id: 'c' }, { _id: 'b' }])
-    expect(p).toEqual({ replace: ['a', 'b'], create: ['c'] })
+    expect(p).toMatchObject({ replace: ['a', 'b'], create: ['c'], duplicates: [] })
   })
 
   test('an empty pack: everything is created', () => {
-    expect(planPack(new Set(), [{ _id: 'x' }])).toEqual({ replace: [], create: ['x'] })
+    expect(planPack(new Set(), [{ _id: 'x' }])).toMatchObject({ replace: [], create: ['x'] })
+  })
+
+  test('an id the file has twice: the last entry is written once and the earlier one reported', () => {
+    const first = { _id: 'a', name: 'Old' }, last = { _id: 'a', name: 'New' }
+    const p = planPack(new Set(['a']), [first, { _id: 'b' }, last])
+    expect(p.docs).toEqual([last, { _id: 'b' }])
+    expect(p).toMatchObject({ replace: ['a'], create: ['b'], duplicates: [first] })
   })
 })

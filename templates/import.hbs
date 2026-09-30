@@ -7,7 +7,8 @@
     <ul class="ca2i-report">
       {{#each report}}
       <li>
-        <strong>{{name}}</strong>: <span class="{{#if failed}}ca2i-error{{/if}}">{{outcome}}</span>
+        <strong>{{name}}</strong>{{#if outcome}}: <span class="{{#if failed}}ca2i-error{{/if}}">{{outcome}}</span>{{/if}}
+        {{#each packs}}<div class="ca2i-pack {{#if failed}}ca2i-error{{/if}}">{{text}}</div>{{/each}}
         {{#if textOnly.length}}
           <div class="ca2i-textonly">{{localize "CA2I.TextOnly"}}
             <ul>{{#each textOnly}}<li>{{this}}</li>{{/each}}</ul>
@@ -16,7 +17,11 @@
       </li>
       {{/each}}
     </ul>
+    {{#if bookReport}}<p>{{localize "CA2I.LeftAlone"}}</p>{{/if}}
     <footer class="form-footer">
+      {{#if bookReport}}
+        <button type="button" data-action="openCompendiums"><i class="fa-solid fa-book-atlas"></i> {{localize "CA2I.OpenCompendiums"}}</button>
+      {{/if}}
       {{#each report}}{{#if actorId}}
         <button type="button" data-action="openActor" data-actor-id="{{actorId}}"><i class="fas fa-user"></i> {{openLabel}}</button>
       {{/if}}{{/each}}
@@ -29,6 +34,30 @@
       </label>
       {{#if refused}}<p class="ca2i-error" role="alert">{{refused}}</p>{{/if}}
     {{/unless}}
+
+    {{#if books}}
+      <ul class="ca2i-rows">
+        {{#each books}}
+        <li class="ca2i-row">
+          <input type="checkbox" name="book-{{@index}}" {{#unless error}}checked{{else}}disabled{{/unless}} aria-label="{{../bookLabel}}: {{name}}">
+          <div class="ca2i-info">
+            <strong>{{name}}</strong> <span class="ca2i-date">{{id}} · {{canon}} · {{descriptions}}</span>
+            {{#if error}}<div class="ca2i-error">{{error}}</div>{{else}}<div class="ca2i-counts">{{counts}}</div>{{/if}}
+          </div>
+        </li>
+        {{/each}}
+        {{#if tableRules}}
+        <li class="ca2i-row">
+          <input type="checkbox" name="tableRules" checked aria-label="{{tableRules}}">
+          <div class="ca2i-info"><strong>{{tableRules}}</strong></div>
+        </li>
+        {{/if}}
+      </ul>
+      <p class="ca2i-progress" role="status">{{progress}}</p>
+      <footer class="form-footer">
+        <button type="button" data-action="import" {{#if busy}}disabled{{/if}}><i class="fas fa-file-import"></i> {{localize "CA2I.Import"}}</button>
+      </footer>
+    {{/if}}
 
     {{#if rows}}
       <label class="ca2i-all">{{localize "CA2I.ApplyAll"}}
