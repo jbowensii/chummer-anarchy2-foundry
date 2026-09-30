@@ -10,7 +10,7 @@ export function readExport(text) {
   if (file.kind === 'books') return { ok: false, reason: 'This is a book data file. Book data import comes in a later version of this module.' }
   if (file.kind !== 'runners' || !Array.isArray(file.runners) || !file.runners.length) return { ok: false, reason: 'This file has no runners in it.' }
   for (const r of file.runners)
-    if (!r || typeof r.id !== 'string' || typeof r.streetName !== 'string' || typeof r.attributes !== 'object')
+    if (!r || typeof r.id !== 'string' || typeof r.streetName !== 'string' || !r.attributes || typeof r.attributes !== 'object' || Array.isArray(r.attributes))
       return { ok: false, reason: 'This file is damaged: a runner is missing its id, name or attributes.' }
   return { ok: true, file }
 }
