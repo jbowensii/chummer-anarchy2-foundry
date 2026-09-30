@@ -92,14 +92,52 @@ describe('translating a book', () => {
     expect(off.packs.rules[0].pages[0].text.content).toBe('<p>See MUC p.50</p>')
   })
 
-  test('add-ons, printed ratings and an amp\'s base item', () => {
+  const melee = { melee: 'ok', short: 'none', medium: 'none', long: 'none' }
+  test('add-ons and printed ratings are noted', () => {
     const b = structuredClone(muc)
-    Object.assign(b.amps[1], { mod: true, printedRating: 2, item: { kind: 'weapon', specialist: false, dv: '5P', ranges: { melee: 'ok', short: 'none', medium: 'none', long: 'none' } } })
+    Object.assign(b.amps[1], { mod: true, printedRating: 2 })
     const d = translateBook(b, opts).packs.amps[1].system
     expect(d.description).toContain('Add-on')
     expect(d.description).toContain('Printed rating: 2')
-    expect(d).toMatchObject({ featType: 'cyberware', damageValue: '5', vdCustomValue: 5, meleeRange: 'ok' })
     expect(find('amps', 'Made-up Implant').system.description).not.toContain('Add-on')
+  })
+
+  test('an equipment amp whose base item is a weapon or armor becomes that feat type, keeping its rr', () => {
+    const b = structuredClone(muc)
+    Object.assign(b.amps[0], { type: 'equipment', typeName: 'Equipment', item: { kind: 'weapon', specialist: false, dv: '5P', ranges: melee } })
+    Object.assign(b.amps[1], { type: 'equipment', typeName: 'Equipment', item: { kind: 'armor', specialist: false, armor: 3 } })
+    const [w, a] = translateBook(b, opts).packs.amps
+    expect(w.system).toMatchObject({ featType: 'weapon', damageValue: '5', vdCustomValue: 5, meleeRange: 'ok', rrList: [{ rrTarget: 'spec_pistols' }] })
+    expect(a.system).toMatchObject({ featType: 'armor', armorValue: 3 })
+  })
+
+  test('an unparsed DV is kept in the description (items and equipment amps)', () => {
+    const b = structuredClone(muc)
+    b.items[0].dv = 'Special'
+    Object.assign(b.amps[0], { type: 'equipment', item: { kind: 'weapon', specialist: false, dv: 'Odd', ranges: melee } })
+    const r = translateBook(b, opts)
+    expect(r.packs.weapons[0].system.description).toContain('Chummer DV: Special')
+    expect(r.packs.amps[0].system.description).toContain('Chummer DV: Odd')
+    expect(r.textOnly).toEqual(expect.arrayContaining(['Made-up Short Blade: DV Special → description (not understood)', 'Made-up Knack: DV Odd → description (not understood)']))
+  })
+
+  test('other amp types keep their feat type; the base item goes to textOnly', () => {
+    const b = structuredClone(muc)
+    b.amps[1].item = { kind: 'weapon', specialist: false, dv: '5P', ranges: melee }
+    const r = translateBook(b, opts), d = r.packs.amps[1].system
+    expect(d.featType).toBe('cyberware')
+    expect(d).not.toHaveProperty('damageValue')
+    expect(r.textOnly).toContain('Made-up Implant: base weapon (DV 5P, ranges ok/none/none/none) → notes (sra2 cyberware feat)')
+  })
+
+  test('vehicle amps stay equipment feats with a note; a skill\'s alt attribute is noted', () => {
+    const b = structuredClone(muc)
+    Object.assign(b.amps[1], { type: 'vehicle', typeName: 'Vehicle' })
+    b.skills[0].alt = 'cha'
+    const r = translateBook(b, opts)
+    expect(r.packs.amps[1].system.featType).toBe('equipment')
+    expect(r.textOnly).toContain('Made-up Implant: vehicle template, import as a vehicle later')
+    expect(r.textOnly.some(l => l.startsWith('Made-Up Lore: alternative attribute cha'))).toBe(true)
   })
 })
 
@@ -107,4 +145,8 @@ test('table rules: one journal, a page per rule', () => {
   const j = translateTableRules(file.tableRules, opts)
   expect(j).toMatchObject({ _id: docId('table-rules'), name: 'Table rules' })
   expect(j.pages).toEqual([expect.objectContaining({ name: 'Made-Up Table Rule', type: 'text', text: { content: '<p>A made-up table rule.</p>', format: 1 } })])
+  // the GM's own text, even when book descriptions are off; repeated names get distinct page ids
+  const two = translateTableRules([...file.tableRules, ...file.tableRules], { ...opts, descriptions: false })
+  expect(two.pages[0].text.content).toBe('<p>A made-up table rule.</p>')
+  expect(new Set(two.pages.map(p => p._id)).size).toBe(2)
 })

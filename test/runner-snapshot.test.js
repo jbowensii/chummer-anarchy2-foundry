@@ -9,3 +9,11 @@ test('translateRunner output is unchanged for the sample runners', () => {
   const got = file.runners.map(r => translateRunner(r, { exportedAt: file.exportedAt, appVersion: file.app.version }))
   expect(JSON.parse(JSON.stringify(got))).toEqual(want)
 })
+
+test('book-only amp fields (mod, printedRating) change nothing on a runner', () => {
+  const file = JSON.parse(readFileSync('samples/test-export.json', 'utf8'))
+  const opts = { exportedAt: file.exportedAt, appVersion: file.app.version }
+  const r = structuredClone(file.runners[0])
+  for (const a of r.amps) Object.assign(a, { mod: true, printedRating: (a.rating ?? 0) + 5 })
+  expect(translateRunner(r, opts)).toEqual(translateRunner(file.runners[0], opts))
+})

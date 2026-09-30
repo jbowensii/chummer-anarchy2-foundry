@@ -163,8 +163,8 @@ export function ampFeat(amp, ctx) {
   }
   // sra2 takes the runner's armor from armor feats; an amp's armor count stays text (the runner's totals are authoritative).
   if (b.armor > 0) say(`${amp.name}: Armor ${b.armor} → notes (runner armor comes from armor items)`)
-  // book amps only: add-ons and a printed rating that differs from the computed one
-  const notes = (amp.mod ? sanitize('Add-on') : '')
+  // book amps only (ctx.book): add-ons and a printed rating that differs from the computed one
+  const notes = !ctx.book ? '' : (amp.mod ? sanitize('Add-on') : '')
     + (amp.printedRating != null && amp.printedRating !== amp.rating ? sanitize(`Printed rating: ${amp.printedRating}`) : '')
   const system = {
     featType: type, rating: amp.rating ?? 0, essenceCost: Math.max(0, amp.essence ?? 0), isBioware: amp.type === 'bioware',

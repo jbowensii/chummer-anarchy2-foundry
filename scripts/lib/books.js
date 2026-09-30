@@ -19,7 +19,7 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
   const flags = (id, page, canon = src.canon) => ({ [MODULE_ID]: { id, exportedAt, appVersion, source: src.id, page, canon } })
   const text = descriptions ? sanitize : () => ''
   const skills = [...book.skills ?? [], ...(book.specs ?? []).map(sp => ({ id: sp.skill, specs: [sp] }))]
-  const ctx = { flag: x => flags(x.id, x.page, x.canon), sanitize, text, rrTarget: rrResolver(skills), say: l => textOnly.push(l) }
+  const ctx = { book: true, flag: x => flags(x.id, x.page, x.canon), sanitize, text, rrTarget: rrResolver(skills), say: l => textOnly.push(l) }
   const doc = (x, d) => ({ _id: docId(x.id), ...d, system: { ...d.system, reference: ref(x.page) } })
   const attrOk = (attr, fallback, what) => {
     if (SRA2_ATTRS.includes(attr)) return attr
@@ -29,11 +29,19 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
   }
 
   for (const amp of book.amps ?? []) {
-    const feat = ampFeat(amp, ctx)
-    // an equipment amp's base item: its weapon/armor fields on the same feat
-    if (amp.item?.kind === 'weapon' || amp.item?.kind === 'armor') {
-      const { featType, cost, reference, description, ...fields } = itemFeat(asItem(amp.item, amp.name), ctx).system
-      Object.assign(feat.system, fields)
+    const feat = ampFeat(amp, ctx), base = amp.item, kind = base?.kind
+    if (amp.type === 'vehicle') textOnly.push(`${amp.name}: vehicle template, import as a vehicle later`)
+    if (kind === 'weapon' || kind === 'armor') {
+      if (amp.type === 'equipment') {
+        // the amp IS that item in sra2: a weapon/armor feat with the amp's rr/effects and the item's fields
+        const { featType, cost, reference, description, ...fields } = itemFeat(asItem(base, amp.name), ctx).system
+        Object.assign(feat.system, fields, { featType: kind })
+        feat.system.description += description  // an unparsed DV's "Chummer DV" line
+      } else {
+        const r = base.ranges ?? {}
+        textOnly.push(`${amp.name}: base ${kind} (${kind === 'armor' ? `Armor ${base.armor ?? 0}`
+          : `DV ${base.dv ?? ''}, ranges ${[r.melee, r.short, r.medium, r.long].map(x => x ?? 'none').join('/')}`}) → notes (sra2 ${feat.system.featType} feat)`)
+      }
     }
     add('amps', doc(amp, feat))
   }
@@ -51,6 +59,7 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
   for (const sk of book.skills ?? []) {
     const s = skillFor({ id: sk.id, attr: sk.attr })
     const attr = s.known ? s.attr : attrOk(s.attr, 'strength', sk.name)
+    if (sk.alt) textOnly.push(`${sk.name}: alternative attribute ${sk.alt} → notes (sra2 links one attribute: ${attr})`)
     if (!s.known) add('skills', doc(sk, { name: sk.name, type: 'skill', flags: flags(sk.id, sk.page), system: { rating: 0, linkedAttribute: attr, slug: s.slug } }))
     for (const sp of sk.specs ?? []) spec(s.slug, attr, sp, sk.page)
   }
@@ -68,8 +77,11 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
   return { source: src, packs, textOnly }
 }
 
-export function translateTableRules(tableRules, { exportedAt, appVersion, descriptions = true, sanitize = escapeText }) {
+// The GM's own table rules: their text is always included (not book text). A repeated name gets an index-based page id.
+export function translateTableRules(tableRules, { exportedAt, appVersion, sanitize = escapeText }) {
+  const seen = new Set()
+  const pageId = (name, i) => { const id = docId(`table-rules:${name}`); return seen.has(id) ? docId(`table-rules:${name}:${i}`) : (seen.add(id), id) }
   return { _id: docId('table-rules'), name: 'Table rules', flags: { [MODULE_ID]: { id: 'table-rules', exportedAt, appVersion } },
-    pages: (tableRules ?? []).map((r, i) => ({ _id: docId(`table-rules:${r.name}`), name: r.name, type: 'text', sort: (i + 1) * SORT,
-      text: { content: descriptions ? sanitize(r.text) : '', format: 1 } })) }
+    pages: (tableRules ?? []).map((r, i) => ({ _id: pageId(r.name, i), name: r.name, type: 'text', sort: (i + 1) * SORT,
+      text: { content: sanitize(r.text), format: 1 } })) }
 }
