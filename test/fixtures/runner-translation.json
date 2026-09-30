@@ -1,0 +1,459 @@
+[
+  {
+    "actor": {
+      "name": "Made-Up Mara",
+      "type": "character",
+      "flags": {
+        "chummer-anarchy2-importer": {
+          "id": "r-mara",
+          "exportedAt": "2026-10-02T09:15:00.000Z",
+          "appVersion": "0.6.0"
+        }
+      },
+      "system": {
+        "attributes": {
+          "strength": 2,
+          "agility": 4,
+          "willpower": 3,
+          "logic": 2,
+          "charisma": 3
+        },
+        "resources": {
+          "yens": 1200
+        },
+        "keywords": {
+          "keyword1": "Made-up alpha",
+          "keyword2": "Made-up bravo",
+          "keyword3": "Made-up charlie",
+          "keyword4": "Made-up delta",
+          "keyword5": "Made-up echo"
+        },
+        "behaviors": {
+          "behavior1": "Made-up calm",
+          "behavior2": "Made-up wary",
+          "behavior3": "Made-up curious",
+          "behavior4": "Made-up blunt"
+        },
+        "catchphrases": {
+          "catchphrase1": "Made-up cue one",
+          "catchphrase2": "Made-up cue two",
+          "catchphrase3": "Made-up cue three",
+          "catchphrase4": "Made-up cue four"
+        },
+        "bio": {
+          "background": "<p>Made-up background.</p>",
+          "notes": "<p>Made-up notes.</p><h3>From Chummer</h3><p>Real name: Mara Madeup</p><p>Metatype: Human</p><p>Level: Runner</p><p>Edge: 2</p><p>Essence: 5</p><p>Lifestyle: Low</p><p>Initiative: 2 (Made-Up Quick Flow)</p><p>Armor: 2 (alternative 0)</p><p>2026-10-01 · Creation finished · 1200¥</p><p>2026-10-01 · Made-up run payout · 3000¥</p><p>Made-Up Quick Flow: Narrative (Made-up edge in crowds) → narrative effect</p><p>Made-Up Quick Flow: Initiative 2 → narrative effect</p><p>Knowledge: Made-up street slang (language, native) → notes</p>"
+        },
+        "reference": "Chummer Anarchy 2.0 0.6.0",
+        "maxEssence": 6
+      }
+    },
+    "items": [
+      {
+        "name": "Human",
+        "type": "metatype",
+        "flags": {
+          "chummer-anarchy2-importer": {
+            "id": "human",
+            "exportedAt": "2026-10-02T09:15:00.000Z",
+            "appVersion": "0.6.0"
+          }
+        },
+        "system": {
+          "maxStrength": 6,
+          "maxAgility": 6,
+          "maxWillpower": 6,
+          "maxLogic": 6,
+          "maxCharisma": 6,
+          "anarchyBonus": 1
+        }
+      },
+      {
+        "name": "Ranged Weapons",
+        "type": "skill",
+        "flags": {
+          "chummer-anarchy2-importer": {
+            "id": "ranged-weapons",
+            "exportedAt": "2026-10-02T09:15:00.000Z",
+            "appVersion": "0.6.0"
+          }
+        },
+        "system": {
+          "rating": 4,
+          "linkedAttribute": "agility",
+          "slug": "ranged-weapons"
+        }
+      },
+      {
+        "name": "Spec: Pistols",
+        "type": "specialization",
+        "flags": {
+          "chummer-anarchy2-importer": {
+            "id": "ranged-weapons.pistols",
+            "exportedAt": "2026-10-02T09:15:00.000Z",
+            "appVersion": "0.6.0"
+          }
+        },
+        "system": {
+          "linkedSkill": "ranged-weapons",
+          "linkedAttribute": "agility",
+          "slug": "spec_pistols"
+        }
+      },
+      {
+        "name": "Athletics",
+        "type": "skill",
+        "flags": {
+          "chummer-anarchy2-importer": {
+            "id": "athletics",
+            "exportedAt": "2026-10-02T09:15:00.000Z",
+            "appVersion": "0.6.0"
+          }
+        },
+        "system": {
+          "rating": 2,
+          "linkedAttribute": "strength",
+          "slug": "athletics"
+        }
+      },
+      {
+        "name": "Networking",
+        "type": "skill",
+        "flags": {
+          "chummer-anarchy2-importer": {
+            "id": "network",
+            "exportedAt": "2026-10-02T09:15:00.000Z",
+            "appVersion": "0.6.0"
+          }
+        },
+        "system": {
+          "rating": 2,
+          "linkedAttribute": "charisma",
+          "slug": "networking"
+        }
+      },
+      {
+        "name": "Spec: Fixers",
+        "type": "specialization",
+        "flags": {
+          "chummer-anarchy2-importer": {
+            "id": "custom:Fixers",
+            "exportedAt": "2026-10-02T09:15:00.000Z",
+            "appVersion": "0.6.0"
+          }
+        },
+        "system": {
+          "linkedSkill": "networking",
+          "linkedAttribute": "charisma",
+          "slug": "spec_chummer-fixers"
+        }
+      },
+      {
+        "name": "Made-Up Reflex Wiring",
+        "type": "feat",
+        "flags": {
+          "chummer-anarchy2-importer": {
+            "id": "a-cyber",
+            "exportedAt": "2026-10-02T09:15:00.000Z",
+            "appVersion": "0.6.0"
+          }
+        },
+        "system": {
+          "featType": "cyberware",
+          "rating": 1,
+          "essenceCost": 1,
+          "isBioware": false,
+          "rrList": [
+            {
+              "rrType": "attribute",
+              "rrValue": 1,
+              "rrTarget": "agility"
+            }
+          ],
+          "bonusLightDamage": 1,
+          "bonusSevereDamage": 0,
+          "bonusMentalThreshold": 0,
+          "bonusMatrixThreshold": 0,
+          "narrativeEffects": [],
+          "cost": "free-equipment",
+          "reference": "",
+          "description": "<p>&lt;script&gt;alert(1)&lt;/script&gt; made-up text</p><p>Chummer: Cyberware</p>"
+        }
+      },
+      {
+        "name": "Made-Up Steady Hands",
+        "type": "feat",
+        "flags": {
+          "chummer-anarchy2-importer": {
+            "id": "a-quality",
+            "exportedAt": "2026-10-02T09:15:00.000Z",
+            "appVersion": "0.6.0"
+          }
+        },
+        "system": {
+          "featType": "trait",
+          "rating": 1,
+          "essenceCost": 0,
+          "isBioware": false,
+          "rrList": [
+            {
+              "rrType": "specialization",
+              "rrValue": 1,
+              "rrTarget": "spec_pistols"
+            }
+          ],
+          "bonusLightDamage": 0,
+          "bonusSevereDamage": 0,
+          "bonusMentalThreshold": 0,
+          "bonusMatrixThreshold": 0,
+          "narrativeEffects": [],
+          "cost": "free-equipment",
+          "reference": "",
+          "description": "<p>A made-up quality for testing.</p><p>Chummer: Quality</p>"
+        }
+      },
+      {
+        "name": "Made-Up Quick Flow",
+        "type": "feat",
+        "flags": {
+          "chummer-anarchy2-importer": {
+            "id": "a-adept",
+            "exportedAt": "2026-10-02T09:15:00.000Z",
+            "appVersion": "0.6.0"
+          }
+        },
+        "system": {
+          "featType": "adept-power",
+          "rating": 1,
+          "essenceCost": 0,
+          "isBioware": false,
+          "rrList": [],
+          "bonusLightDamage": 0,
+          "bonusSevereDamage": 0,
+          "bonusMentalThreshold": 0,
+          "bonusMatrixThreshold": 0,
+          "narrativeEffects": [
+            {
+              "text": "Narrative (Made-up edge in crowds)",
+              "isNegative": false,
+              "value": 0
+            },
+            {
+              "text": "Initiative 2",
+              "isNegative": false,
+              "value": 0
+            }
+          ],
+          "cost": "free-equipment",
+          "reference": "",
+          "description": "<p>Chummer: Adept Power</p>"
+        }
+      },
+      {
+        "name": "Made-Up Commlink",
+        "type": "feat",
+        "flags": {
+          "chummer-anarchy2-importer": {
+            "id": "i-commlink",
+            "exportedAt": "2026-10-02T09:15:00.000Z",
+            "appVersion": "0.6.0"
+          }
+        },
+        "system": {
+          "featType": "equipment",
+          "cost": "free-equipment",
+          "reference": "",
+          "description": "<p>Chummer price: 100¥</p>"
+        }
+      },
+      {
+        "name": "Made-Up Fake SIN",
+        "type": "feat",
+        "flags": {
+          "chummer-anarchy2-importer": {
+            "id": "i-sin",
+            "exportedAt": "2026-10-02T09:15:00.000Z",
+            "appVersion": "0.6.0"
+          }
+        },
+        "system": {
+          "featType": "equipment",
+          "cost": "free-equipment",
+          "reference": "",
+          "description": "<p>Chummer price: 500¥</p>"
+        }
+      },
+      {
+        "name": "Made-Up Heavy Pistol",
+        "type": "feat",
+        "flags": {
+          "chummer-anarchy2-importer": {
+            "id": "i-pistol",
+            "exportedAt": "2026-10-02T09:15:00.000Z",
+            "appVersion": "0.6.0"
+          }
+        },
+        "system": {
+          "featType": "weapon",
+          "cost": "equipment",
+          "reference": "",
+          "weaponType": "heavy-pistols",
+          "damageType": "physical",
+          "damageValue": "5",
+          "vdMode": "custom",
+          "vdCustomValue": 5,
+          "meleeRange": "ok",
+          "shortRange": "ok",
+          "mediumRange": "disadvantage",
+          "longRange": "none",
+          "description": "<p>Chummer price: 800¥</p>"
+        }
+      },
+      {
+        "name": "Made-Up Vest",
+        "type": "feat",
+        "flags": {
+          "chummer-anarchy2-importer": {
+            "id": "i-vest",
+            "exportedAt": "2026-10-02T09:15:00.000Z",
+            "appVersion": "0.6.0"
+          }
+        },
+        "system": {
+          "featType": "armor",
+          "cost": "equipment",
+          "reference": "",
+          "armorValue": 2,
+          "description": "<p>Chummer price: 400¥</p>"
+        }
+      }
+    ],
+    "vehicles": [
+      {
+        "items": [],
+        "actor": {
+          "name": "Made-Up Scout Drone",
+          "type": "vehicle",
+          "flags": {
+            "chummer-anarchy2-importer": {
+              "id": "v-drone",
+              "runner": "r-mara",
+              "exportedAt": "2026-10-02T09:15:00.000Z",
+              "appVersion": "0.6.0"
+            }
+          },
+          "system": {
+            "vehicleType": "custom-vehicle",
+            "controlMode": "rigged",
+            "customAutopilot": 3,
+            "customStructure": 2,
+            "customHandling": 2,
+            "customSpeed": 3,
+            "customArmor": 1,
+            "customWeaponMount": "smg",
+            "isFlying": true,
+            "customFlyingSpeed": 3,
+            "rrList": [],
+            "narrativeEffects": [],
+            "reference": "",
+            "description": "<p>Chummer: Medium Drone (closest sra2 type: medium-drone), mount: Made-up light mount</p>"
+          }
+        }
+      }
+    ],
+    "textOnly": [
+      "Made-Up Quick Flow: Narrative (Made-up edge in crowds) → narrative effect",
+      "Made-Up Quick Flow: Initiative 2 → narrative effect",
+      "Knowledge: Made-up street slang (language, native) → notes"
+    ]
+  },
+  {
+    "actor": {
+      "name": "Test Two",
+      "type": "character",
+      "flags": {
+        "chummer-anarchy2-importer": {
+          "id": "r-two",
+          "exportedAt": "2026-10-02T09:15:00.000Z",
+          "appVersion": "0.6.0"
+        }
+      },
+      "system": {
+        "attributes": {
+          "strength": 1,
+          "agility": 2,
+          "willpower": 3,
+          "logic": 4,
+          "charisma": 1
+        },
+        "resources": {
+          "yens": 0
+        },
+        "keywords": {
+          "keyword1": "",
+          "keyword2": "",
+          "keyword3": "",
+          "keyword4": "",
+          "keyword5": ""
+        },
+        "behaviors": {
+          "behavior1": "",
+          "behavior2": "",
+          "behavior3": "",
+          "behavior4": ""
+        },
+        "catchphrases": {
+          "catchphrase1": "",
+          "catchphrase2": "",
+          "catchphrase3": "",
+          "catchphrase4": ""
+        },
+        "bio": {
+          "background": "",
+          "notes": "<h3>From Chummer</h3><p>Real name: Two Test</p><p>Metatype: Human</p><p>Level: Runner</p><p>Edge: 2</p><p>Essence: 6</p><p>Lifestyle: Low</p><p>Initiative: none</p><p>Armor: 0 (alternative 0)</p>"
+        },
+        "reference": "Chummer Anarchy 2.0 0.6.0",
+        "maxEssence": 6
+      }
+    },
+    "items": [
+      {
+        "name": "Human",
+        "type": "metatype",
+        "flags": {
+          "chummer-anarchy2-importer": {
+            "id": "human",
+            "exportedAt": "2026-10-02T09:15:00.000Z",
+            "appVersion": "0.6.0"
+          }
+        },
+        "system": {
+          "maxStrength": 6,
+          "maxAgility": 6,
+          "maxWillpower": 6,
+          "maxLogic": 6,
+          "maxCharisma": 6,
+          "anarchyBonus": 1
+        }
+      },
+      {
+        "name": "Athletics",
+        "type": "skill",
+        "flags": {
+          "chummer-anarchy2-importer": {
+            "id": "athletics",
+            "exportedAt": "2026-10-02T09:15:00.000Z",
+            "appVersion": "0.6.0"
+          }
+        },
+        "system": {
+          "rating": 1,
+          "linkedAttribute": "strength",
+          "slug": "athletics"
+        }
+      }
+    ],
+    "vehicles": [],
+    "textOnly": []
+  }
+]
