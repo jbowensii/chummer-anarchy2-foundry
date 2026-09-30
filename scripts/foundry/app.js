@@ -54,7 +54,7 @@ export function createImportApp() {
       const books = this.books?.map(({ book, t, error }) => ({
         name: book.source.name, id: book.source.id, error: error && F('CA2I.Failed', { reason: error }),
         canon: L(book.source.canon ? 'CA2I.Canon' : 'CA2I.NonCanon'),
-        descriptions: L(this.file.descriptions ? 'CA2I.DescriptionsIn' : 'CA2I.DescriptionsOut'),
+        descriptions: L(this.file.descriptions === true ? 'CA2I.DescriptionsIn' : 'CA2I.DescriptionsOut'),
         counts: t && Object.entries(t.packs).map(([k, docs]) => `${PACKS[k]?.[0] ?? k} ${k === 'rules'
           ? docs.reduce((n, j) => n + j.pages.length, 0) : docs.length}`).join(' · '),
       }))
@@ -93,7 +93,7 @@ export function createImportApp() {
             descriptions: res.file.descriptions === true, sanitize }) }
         } catch (e) { return { book, error: e?.message ?? String(e) } }
       }) : null
-      this.tableRules = books && Array.isArray(res.file.tableRules) ? res.file.tableRules : null
+      this.tableRules = books && Array.isArray(res.file.tableRules) && res.file.tableRules.length ? res.file.tableRules : null
       this.rows = res.ok && !books ? res.file.runners.map(runner => {
         const existing = findExisting(runner.id), exportedAt = runner.exportedAt ?? res.file.exportedAt
         return { runner, existing, exportedAt, portrait: PORTRAIT.test(runner.portrait ?? '') ? runner.portrait : null,
@@ -141,9 +141,10 @@ export function createImportApp() {
       const jobs = this.books.filter((b, i) => el.querySelector(`[name="book-${i}"]`)?.checked)
       const withRules = this.tableRules && el.querySelector('[name=tableRules]')?.checked
       const total = jobs.length + (withRules ? 1 : 0)
+      const progress = el.querySelector('.ca2i-progress')
+      if (!total) { if (progress) progress.textContent = L('CA2I.NothingSelected'); return }
       this.busy = true
       for (const b of el.querySelectorAll('button[data-action=import], input')) b.disabled = true
-      const progress = el.querySelector('.ca2i-progress')
       const step = (name, n) => { if (progress) progress.textContent = F('CA2I.BookProgress', { name, n, total }) }
       // One line per pack written or failed; an id the file has twice is noted with the textOnly lines.
       const lines = ({ counts, failed }) => ({
@@ -151,7 +152,9 @@ export function createImportApp() {
           ...failed.map(f => ({ failed: true, text: F('CA2I.PackFailed', { label: f.name, reason: f.error?.message ?? String(f.error) }) }))],
         notes: Object.values(counts).flatMap(c => c.duplicates.map(name => F('CA2I.Duplicate', { label: c.label, name }))),
       })
-      const report = []
+      // A book that couldn't be translated has no tick; the report lists it as failed.
+      const report = this.books.filter(b => b.error).map(({ book, error }) =>
+        ({ name: book.source.name, failed: true, outcome: F('CA2I.Failed', { reason: error }), packs: [], textOnly: [] }))
       let n = 0
       for (const { book, t } of jobs) {  // a book that failed to translate has no tick
         const name = book.source.name

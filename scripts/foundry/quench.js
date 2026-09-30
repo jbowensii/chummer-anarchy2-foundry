@@ -6,9 +6,14 @@ import { readExport } from '../lib/read.js'
 import { escapeText, translateRunner } from '../lib/translate.js'
 import { defaultChoice, newVersionName } from '../lib/plan.js'
 import { applyRunner, findExisting } from './apply.js'
+import { translateBook } from '../lib/books.js'
+import { docId } from '../lib/ids.js'
+import { importBook } from './books.js'
 
 const TEST_FOLDER = 'Chummer Importer tests'
 const SAMPLE = `modules/${MODULE_ID}/samples/test-export.json`
+const BOOKS = `modules/${MODULE_ID}/samples/test-books.json`
+const PREFIX = 'ca2test-'
 const flagOf = d => d?.flags?.[MODULE_ID]
 
 // The sample, with its runners given ids no real import uses, so findExisting only ever sees this run's actors.
@@ -52,7 +57,13 @@ export function registerQuench(quench) {
       it('not JSON', () => refused('not json {', /isn’t a Chummer Anarchy export/))
       it('another format', () => refused(JSON.stringify({ format: 'something-else' }), /isn’t a Chummer Anarchy export/))
       it('a newer format version', () => refused(JSON.stringify({ format: 'chummer-anarchy2-export', version: 99 }), /version 99.*update this module/))
-      it('book data', () => refused(JSON.stringify({ format: 'chummer-anarchy2-export', version: 1, kind: 'books' }), /book data file/))
+      it('the book-data sample is accepted', async () => {
+        const r = readExport(await (await fetch(BOOKS)).text())
+        assert.isTrue(r.ok, r.reason)
+        assert.equal(r.file.kind, 'books')
+        assert.lengthOf(r.file.books, 2)
+      })
+      it('no books', () => refused(JSON.stringify({ format: 'chummer-anarchy2-export', version: 1, kind: 'books', books: [] }), /no books/))
       it('no runners', () => refused(JSON.stringify({ format: 'chummer-anarchy2-export', version: 1, kind: 'runners', runners: [] }), /no runners/))
       it('a damaged runner', () => refused(JSON.stringify({ format: 'chummer-anarchy2-export', version: 1, kind: 'runners', runners: [{ id: 'x' }] }), /damaged/))
       it('the sample file is accepted', async () => { const { file } = await loadSample(); assert.lengthOf(file.runners, 2) })
@@ -165,6 +176,79 @@ export function registerQuench(quench) {
       it('an older file defaults to Skip', () => {
         const older = { exportedAt: '2026-09-01T00:00:00.000Z' }
         assert.equal(defaultChoice(flagOf(findExisting(runner.id)), older), 'skip')
+      })
+    })
+  })
+
+  batch('book data', ({ describe, it, assert, before, after }) => {
+    // Imports the made-up book file as the window does, into packs named ca2test-… in the Compendium folder
+    // "Chummer Importer tests". after() deletes only the packs and folders this run created (by id).
+    describe('importing the book-data sample', function () {
+      this.timeout(60000)
+      const clean = foundry.utils.cleanHTML ?? (h => h)
+      let file, muc, res
+      const made = { packs: [], folders: [] }
+      const pack = k => game.packs.get(`world.${PREFIX}ca2-muc-${k}`)
+      const translate = book => translateBook(book, { exportedAt: book.exportedAt ?? file.exportedAt,
+        appVersion: file.app?.version ?? '', descriptions: file.descriptions === true, sanitize: s => clean(escapeText(s)) })
+      const run = book => importBook(translate(book), { prefix: PREFIX, topFolder: TEST_FOLDER })
+      before(async function () {
+        const r = readExport(await (await fetch(BOOKS)).text())
+        if (!r.ok) throw new Error(r.reason)
+        file = r.file; muc = file.books[0]
+        const packsBefore = new Set(game.packs.keys()), foldersBefore = new Set(game.folders.map(f => f.id))
+        res = await run(muc)
+        made.packs = [...game.packs.keys()].filter(k => !packsBefore.has(k) && k.startsWith(`world.${PREFIX}`))
+        made.folders = game.folders.filter(f => f.type === 'Compendium' && !foldersBefore.has(f.id)).map(f => f.id)
+      })
+      after(async function () {
+        for (const k of made.packs) await game.packs.get(k)?.deleteCompendium()
+        for (const id of made.folders) await game.folders.get(id)?.delete()
+      })
+
+      it('imports every pack without a failure', () => assert.isEmpty(res.failed, res.failed.map(f => f.error?.message).join('; ')))
+      it('puts the packs in the book folder inside the test folder', () => {
+        for (const k of ['amps', 'weapons', 'armor', 'gear', 'spells', 'vehicles', 'skills', 'rules']) {
+          const p = pack(k)
+          assert.ok(p, `pack ${k}`)
+          assert.equal(p.folder?.name, 'Made-Up Core (MUC)', k)
+          assert.equal(p.folder?.folder?.name, TEST_FOLDER, k)
+        }
+      })
+      it('has the expected entry counts', () => {
+        const n = k => pack(k)?.index.size
+        assert.deepEqual({ amps: n('amps'), weapons: n('weapons'), armor: n('armor'), gear: n('gear'), spells: n('spells'),
+          vehicles: n('vehicles'), skills: n('skills'), rules: n('rules') },
+        { amps: 2, weapons: 1, armor: 1, gear: 1, spells: 1, vehicles: 1, skills: 3, rules: 2 })
+      })
+      it('has the weapon’s damage, flags and reference', async () => {
+        const blade = await pack('weapons').getDocument(docId('muc.made-up-blade'))
+        assert.include(blade.system, { featType: 'weapon', weaponType: 'short-weapons', vdMode: 'attribute', vdBonus: 1,
+          meleeRange: 'ok', reference: 'MUC p.20' })
+        assert.include(flagOf(blade), { id: 'muc.made-up-blade', source: 'MUC', page: 20, canon: true, exportedAt: file.exportedAt })
+      })
+      it('links the amp’s Risk Reduction to the sra2 spec', async () => {
+        const knack = await pack('amps').getDocument(docId('muc.made-up-knack'))
+        assert.deepInclude(knack.system.rrList, { rrType: 'specialization', rrValue: 1, rrTarget: 'spec_pistols' })
+      })
+      it('has a rules journal per section with pages sorted by page', async () => {
+        const basics = (await pack('rules').getDocuments()).find(j => j.name === 'Made-Up Basics')
+        assert.ok(basics, 'journal')
+        assert.deepEqual(basics.pages.contents.sort((a, b) => a.sort - b.sort).map(p => p.name), ['Rule One', 'Rule Two'])
+      })
+      it('re-import replaces its own entries by id and leaves a GM-made entry', async () => {
+        const amps = pack('amps'), id = docId('muc.made-up-knack')
+        const gm = await Item.create({ name: 'GM-made amp', type: 'feat', system: { featType: 'equipment' } }, { pack: amps.collection })
+        const changed = structuredClone(muc)
+        changed.amps[0].rating = 3
+        const again = await run(changed)
+        assert.isEmpty(again.failed, again.failed.map(f => f.error?.message).join('; '))
+        assert.equal(again.counts[`${PREFIX}ca2-muc-amps`].replaced, 2)
+        const knack = await amps.getDocument(id)
+        assert.equal(knack?.id, id)
+        assert.equal(knack?.system.rating, 3)
+        assert.ok(await amps.getDocument(gm.id), 'GM entry kept')
+        assert.equal(amps.index.size, 3)
       })
     })
   })

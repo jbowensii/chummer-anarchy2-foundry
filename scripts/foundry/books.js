@@ -17,7 +17,7 @@ async function getPack(name, label, type, folder) {
   if (found?.documentName === type) return found
   if (found) {
     const kind = game.i18n.localize(CONFIG[found.documentName]?.documentClass?.metadata?.labelPlural ?? found.documentName)
-    throw new Error(game.i18n.format('CA2I.PackTypeClash', { name: `${found.title} (${found.collection})`, type: kind }))
+    throw new Error(game.i18n.format('CA2I.PackTypeClash', { id: found.collection, type: kind }))
   }
   const pack = await foundry.documents.collections.CompendiumCollection.createCompendium({ name, label, type })
   if (!pack?.collection) throw new Error(`Could not create the compendium ${label}`)

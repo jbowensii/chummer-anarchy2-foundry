@@ -42,6 +42,7 @@
     "NothingInBook": "Nothing in this book to import",
     "LeftAlone": "Entries not in this file were left as they were.",
     "OpenCompendiums": "Open compendiums",
-    "PackTypeClash": "A compendium named {name} already exists for {type}; rename it and import again."
+    "PackTypeClash": "A compendium named {id} already holds {type}; delete it or move its contents, then import again.",
+    "NothingSelected": "Nothing selected to import."
   }
 }
