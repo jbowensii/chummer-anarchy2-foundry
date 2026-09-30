@@ -1,0 +1,68 @@
+<div class="ca2i">
+  {{#if systemError}}<p class="ca2i-error" role="alert">{{systemError}}</p>{{/if}}
+  {{#if systemWarning}}<p class="ca2i-warning" role="status">{{systemWarning}}</p>{{/if}}
+
+  {{#if report}}
+    <h3>{{localize "CA2I.ReportTitle"}}</h3>
+    <ul class="ca2i-report">
+      {{#each report}}
+      <li>
+        <strong>{{name}}</strong>: <span class="{{#if failed}}ca2i-error{{/if}}">{{outcome}}</span>
+        {{#if textOnly.length}}
+          <div class="ca2i-textonly">{{localize "CA2I.TextOnly"}}
+            <ul>{{#each textOnly}}<li>{{this}}</li>{{/each}}</ul>
+          </div>
+        {{/if}}
+      </li>
+      {{/each}}
+    </ul>
+    <footer class="form-footer">
+      {{#each report}}{{#if actorId}}
+        <button type="button" data-action="openActor" data-actor-id="{{actorId}}"><i class="fas fa-user"></i> {{openLabel}}</button>
+      {{/if}}{{/each}}
+      <button type="button" data-action="done"><i class="fas fa-check"></i> {{localize "CA2I.Close"}}</button>
+    </footer>
+  {{else}}
+    {{#unless systemError}}
+      <label class="ca2i-file">{{localize "CA2I.ChooseFile"}}
+        <input type="file" name="file" accept=".json,application/json" {{#if busy}}disabled{{/if}}>
+      </label>
+      {{#if refused}}<p class="ca2i-error" role="alert">{{refused}}</p>{{/if}}
+    {{/unless}}
+
+    {{#if rows}}
+      <label class="ca2i-all">{{localize "CA2I.ApplyAll"}}
+        <select name="applyAll">
+          <option value="">—</option>
+          <option value="replace">{{localize "CA2I.Replace"}}</option>
+          <option value="new">{{localize "CA2I.New"}}</option>
+          <option value="skip">{{localize "CA2I.Skip"}}</option>
+        </select>
+      </label>
+      <ul class="ca2i-rows">
+        {{#each rows}}
+        <li class="ca2i-row">
+          <input type="checkbox" name="tick-{{@index}}" checked aria-label="{{../includeLabel}}: {{name}}">
+          {{#if portrait}}<img src="{{portrait}}" alt="">{{else}}<i class="fas fa-user ca2i-noportrait"></i>{{/if}}
+          <div class="ca2i-info">
+            <strong>{{name}}</strong> <span class="ca2i-date">{{exported}}</span>
+            {{#if inWorld}}
+              <div class="{{#if older}}ca2i-error{{/if}}">{{inWorld}}</div>
+              {{#if older}}<div class="ca2i-error">{{localize "CA2I.OlderWarning"}}</div>{{/if}}
+              <div class="ca2i-choices">
+                {{#each choices}}
+                <label><input type="radio" name="choice-{{@../index}}" value="{{value}}" {{#if checked}}checked{{/if}}> {{label}}</label>
+                {{/each}}
+              </div>
+            {{/if}}
+          </div>
+        </li>
+        {{/each}}
+      </ul>
+      <p class="ca2i-progress" role="status">{{progress}}</p>
+      <footer class="form-footer">
+        <button type="button" data-action="import" {{#if busy}}disabled{{/if}}><i class="fas fa-file-import"></i> {{localize "CA2I.Import"}}</button>
+      </footer>
+    {{/if}}
+  {{/if}}
+</div>

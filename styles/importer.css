@@ -1,0 +1,11 @@
+.ca2i { display: flex; flex-direction: column; gap: 0.5rem; }
+.ca2i-error { color: var(--color-level-error, #c00); }
+.ca2i-warning { color: var(--color-level-warning, #b60); }
+.ca2i-rows, .ca2i-report { list-style: none; margin: 0; padding: 0; }
+.ca2i-row { display: flex; align-items: flex-start; gap: 0.5rem; padding: 0.25rem 0; border-bottom: 1px solid var(--color-border-light-2, #ccc); }
+.ca2i-row img, .ca2i-noportrait { width: 36px; height: 36px; object-fit: cover; border: none; flex: none; font-size: 28px; text-align: center; }
+.ca2i-info { flex: 1; }
+.ca2i-date { color: var(--color-text-light-6, #777); }
+.ca2i-choices { display: flex; gap: 0.75rem; flex-wrap: wrap; }
+.ca2i-textonly { font-size: var(--font-size-12, 12px); }
+.ca2i-import-btn { flex: 0 0 100%; }
