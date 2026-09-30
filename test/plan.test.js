@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, test } from 'vitest'
 import { MODULE_ID } from '../scripts/lib/constants.js'
 import { translateRunner } from '../scripts/lib/translate.js'
-import { defaultChoice, newVersionName, replaceUpdate, tokenUpdate } from '../scripts/lib/plan.js'
+import { defaultChoice, newVersionName, planPack, replaceUpdate, tokenUpdate } from '../scripts/lib/plan.js'
 
 const file = JSON.parse(readFileSync('samples/test-export.json', 'utf8'))
 const t = translateRunner(file.runners[0], { exportedAt: file.exportedAt, appVersion: file.app.version })
@@ -69,5 +69,16 @@ describe('planning an import', () => {
     const u = replaceUpdate(t.actor)
     u.system.attributes.strength = 99
     expect(t.actor.system.attributes.strength).not.toBe(99)
+  })
+})
+
+describe('planning a pack write', () => {
+  test('entries already in the pack are replaced, the rest created; pack-only entries are left alone', () => {
+    const p = planPack(new Set(['a', 'b', 'gm']), [{ _id: 'a' }, { _id: 'c' }, { _id: 'b' }])
+    expect(p).toEqual({ replace: ['a', 'b'], create: ['c'] })
+  })
+
+  test('an empty pack: everything is created', () => {
+    expect(planPack(new Set(), [{ _id: 'x' }])).toEqual({ replace: [], create: ['x'] })
   })
 })

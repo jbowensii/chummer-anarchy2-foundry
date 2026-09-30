@@ -33,3 +33,11 @@ export function replaceUpdate(translated, existingName = '') {
 // Replace with a new portrait: the token follows it only while it still shows the actor's image (a GM's own token image stays).
 export const tokenUpdate = (existing, img) =>
   img && existing?.prototypeToken?.texture?.src === existing?.img ? { 'prototypeToken.texture.src': img } : {}
+
+// Re-import by id: incoming entries already in the pack are replaced (deleted, then created with the same id), the
+// rest are created. Pack entries not in the file are never touched.
+export function planPack(existingIds, incoming) {
+  const replace = [], create = []
+  for (const { _id } of incoming) (existingIds.has(_id) ? replace : create).push(_id)
+  return { replace, create }
+}
