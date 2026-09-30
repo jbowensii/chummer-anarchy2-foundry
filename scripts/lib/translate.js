@@ -109,7 +109,7 @@ export function translateRunner(runner, { exportedAt, appVersion, sanitize = esc
     items.push({ name: amp.name, type: 'feat', flags: flag(amp.uid), system })
   }
 
-  const worn = []  // armor feats not worn over another: [name, system]
+  const armors = []  // [Chummer item, feat system]
   for (const it of runner.items ?? []) {
     let extra = ''
     const system = { featType: ITEM_FEAT[it.kind] ?? 'equipment', cost: it.starting ? 'free-equipment' : 'equipment', reference: ref(it) }
@@ -119,22 +119,38 @@ export function translateRunner(runner, { exportedAt, appVersion, sanitize = esc
       if (!vd) { extra = sanitize(`Chummer DV: ${w.dvText || w.dv || ''}`); textOnly.push(`${it.name}: DV ${w.dvText || w.dv || ''} → description (not understood)`) }
       Object.assign(system, { weaponType: weaponType(it.name), damageType: 'physical', ...vd ?? { damageValue: '0', vdMode: 'custom', vdCustomValue: 0 },
         meleeRange: r.melee ?? 'none', shortRange: r.short ?? 'none', mediumRange: r.medium ?? 'none', longRange: r.long ?? 'none' })
+      // sra2 rolls a custom-weapon with these links (its defaults are Ranged Weapons / Athletics, wrong for melee)
+      if (system.weaponType === 'custom-weapon') {
+        const melee = system.meleeRange !== 'none' && [system.shortRange, system.mediumRange, system.longRange].every(x => x === 'none')
+        Object.assign(system, melee
+          ? { linkedAttackSkill: 'close-combat', linkedAttackSpecialization: '', linkedDefenseSkill: 'close-combat', linkedDefenseSpecialization: 'spec_defense' }
+          : { linkedAttackSkill: 'ranged-weapons', linkedAttackSpecialization: '', linkedDefenseSkill: 'athletics', linkedDefenseSpecialization: 'spec_ranged-defense' })
+      }
     }
     if (it.kind === 'armor') {
       system.armorValue = Math.max(0, Math.min(5, it.armor?.value ?? 0))
-      // sra2 sums every active armor feat; Chummer counts one main armor, so layers and spares are imported inactive.
-      if (it.armor?.over) { system.active = false; textOnly.push(`${it.name}: worn over other armor → inactive`) }
-      else worn.push([it.name, system])
+      armors.push([it, system])
     }
     if (it.kind === 'spell') system.spellType = 'direct'
     system.description = sanitize(it.description) + sanitize(it.note) + extra + sanitize(`Chummer price: ${it.price ?? 0}¥`)
     items.push({ name: it.name, type: 'feat', flags: flag(it.uid), system })
   }
 
-  // The export doesn't say which armor is main and which alternate: only the highest stays active.
-  if (worn.length > 1) {
-    const best = worn.reduce((a, b) => (b[1].armorValue > a[1].armorValue ? b : a))
-    for (const w of worn) if (w !== best) { w[1].active = false; textOnly.push(`${w[0]}: armor → inactive (only ${best[0]} is active)`) }
+  // sra2 sums every active armor feat; Chummer counts one worn chain (an add-on plus what it is worn over, as its
+  // derive.ts worn()). The export doesn't say which is main: the highest-summing chain stays active (ties: first).
+  if (armors.length > 1) {
+    const under = new Set(armors.map(([it]) => it.armor?.over).filter(Boolean))
+    const chain = top => {
+      const out = []
+      for (let a = top, d = 0; a && d < 4 && !out.includes(a); a = armors.find(([it]) => it.uid === a[0].armor?.over), d++) out.push(a)
+      return out
+    }
+    const tops = armors.filter(([it]) => !under.has(it.uid))
+    const sum = c => c.reduce((s, [it]) => s + (it.armor?.value ?? 0), 0)
+    const best = (tops.length ? tops : armors).map(chain).reduce((a, b) => (sum(b) > sum(a) ? b : a))
+    const off = armors.filter(a => !best.includes(a))
+    for (const [, system] of off) system.active = false
+    if (off.length) textOnly.push(`Armor: ${best.map(([it]) => it.name).join(' over ')} active (${sum(best)}); inactive: ${off.map(([it]) => it.name).join(', ')}`)
   }
 
   // Always custom-vehicle: sra2 reads the custom* stats only then, and Chummer's numbers include upgrades.

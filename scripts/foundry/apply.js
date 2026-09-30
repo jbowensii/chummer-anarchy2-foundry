@@ -1,6 +1,6 @@
 // Apply one translated runner to the world. Foundry globals are only touched inside functions (node --check clean).
 import { MODULE_ID } from '../lib/constants.js'
-import { newVersionName, replaceUpdate } from '../lib/plan.js'
+import { newVersionName, replaceUpdate, tokenUpdate } from '../lib/plan.js'
 
 export const FOLDER = 'Chummer Anarchy'
 const flagOf = d => d?.flags?.[MODULE_ID]
@@ -37,7 +37,7 @@ async function uploadPortrait(dataUrl, runnerId, exportedAt) {
 // removed again, so a failure never leaves it without its Chummer items or with them twice. Throws on failure.
 async function replaceDoc(doc, t) {
   const old = doc.items.filter(i => flagOf(i)).map(i => i.id)
-  await doc.update(replaceUpdate(t.actor, doc.name))
+  await doc.update({ ...replaceUpdate(t.actor, doc.name), ...tokenUpdate(doc, t.actor.img) })
   const made = t.items.length ? await doc.createEmbeddedDocuments('Item', t.items) : []
   try { if (old.length) await doc.deleteEmbeddedDocuments('Item', old) } catch (e) {
     try { await doc.deleteEmbeddedDocuments('Item', made.map(i => i.id)) } catch {}

@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, test } from 'vitest'
 import { MODULE_ID } from '../scripts/lib/constants.js'
 import { translateRunner } from '../scripts/lib/translate.js'
-import { defaultChoice, newVersionName, replaceUpdate } from '../scripts/lib/plan.js'
+import { defaultChoice, newVersionName, replaceUpdate, tokenUpdate } from '../scripts/lib/plan.js'
 
 const file = JSON.parse(readFileSync('samples/test-export.json', 'utf8'))
 const t = translateRunner(file.runners[0], { exportedAt: file.exportedAt, appVersion: file.app.version })
@@ -35,6 +35,13 @@ describe('planning an import', () => {
     expect(u.flags[MODULE_ID].id).toBe('r-mara')
     for (const bad of ['system.damage', 'system.anarchySpent', 'system.tempAnarchy', 'ownership', 'items', 'type'])
       expect(keys.some(k => k.startsWith(bad))).toBe(false)
+  })
+
+  test('the token image follows a new portrait only while it shows the actor image', () => {
+    const doc = src => ({ img: 'old.png', prototypeToken: { texture: { src } } })
+    expect(tokenUpdate(doc('old.png'), 'new.png')).toEqual({ 'prototypeToken.texture.src': 'new.png' })
+    expect(tokenUpdate(doc('gm-token.webp'), 'new.png')).toEqual({}) // a GM's custom token image stays
+    expect(tokenUpdate(doc('old.png'), undefined)).toEqual({}) // no portrait in the file
   })
 
   test('replace update without a portrait leaves the image alone', () => {

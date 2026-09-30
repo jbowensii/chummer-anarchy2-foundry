@@ -31,7 +31,7 @@ Imported runners go in the Actors folder "Chummer Anarchy", each runner's vehicl
 
 ### A runner that's already in the world
 
-- **Replace** (the default when the file is newer or the same): the actor is updated in place. It keeps its id, folder, ownership, token settings (including a token image you set), wounds and other play state, items you added yourself, links to your own vehicles, and a dated name if it was added as a new version. Its sheet data and the items that came from Chummer are rebuilt from the file; its vehicles are updated too, keeping their control mode.
+- **Replace** (the default when the file is newer or the same): the actor is updated in place. It keeps its id, folder, ownership, token settings (including a token image you set; a token that shows the actor's portrait follows a new one), wounds and other play state, items you added yourself, links to your own vehicles, and a dated name if it was added as a new version. Its sheet data and the items that came from Chummer are rebuilt from the file; its vehicles are updated too, keeping their control mode.
 - **Add as new version**: a second actor named with the export date, for example "Mara (2 Oct 2026)". The old one is untouched.
 - **Skip**: nothing changes. This is chosen for you when the file is older than the copy in your world.
 
@@ -42,7 +42,7 @@ Imported runners go in the Actors folder "Chummer Anarchy", each runner's vehicl
 - Book data (the amps, gear and vehicles catalogues): comes in 0.2.0.
 - Vehicle damage thresholds, contact names, and a cyberdeck's firewall and attack.
 - Knowledge and languages, Edge, and lifestyle: kept in the actor's notes.
-- Armor bonuses from amps: the runner's armor comes from armor items only. sra2 adds up every active armor item, so only one is active: armor worn over another is imported inactive, and if there are several, only the highest stays active.
+- Armor bonuses from amps: the runner's armor comes from armor items only. sra2 adds up every active armor item, so only one worn chain is active, as Chummer counts it: an armor item plus what it is worn over. The chain with the highest total stays active (the first on a tie); every other armor item is imported inactive.
 - Extra drones of the same kind: the count is in the vehicle's description; sra2's additional drone count is not set.
 - A runner without a portrait gets Foundry's default artwork.
 

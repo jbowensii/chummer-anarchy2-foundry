@@ -2,7 +2,7 @@
   "id": "chummer-anarchy2-importer",
   "title": "Chummer Anarchy 2.0 Importer",
   "description": "Import runners exported from Chummer Anarchy 2.0 into the Shadowrun Anarchy 2 (sra2) system.",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "authors": [{ "name": "John Bowens", "url": "https://github.com/jbowensii" }],
   "compatibility": { "minimum": "14", "verified": "14" },
   "relationships": {
@@ -14,6 +14,6 @@
   "languages": [{ "lang": "en", "name": "English", "path": "lang/en.json" }],
   "url": "https://github.com/jbowensii/chummer-anarchy2-foundry",
   "manifest": "https://github.com/jbowensii/chummer-anarchy2-foundry/releases/latest/download/module.json",
-  "download": "https://github.com/jbowensii/chummer-anarchy2-foundry/releases/download/v0.1.0/module.zip",
+  "download": "https://github.com/jbowensii/chummer-anarchy2-foundry/releases/download/v0.1.1/module.zip",
   "license": "LICENSE"
 }

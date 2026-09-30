@@ -27,6 +27,9 @@ describe('sra2 tables', () => {
   test('fix round 1', () => {
     const w = ['Submachine Gun', 'Sub-machine gun', 'Machine Pistol', 'Light Pistol', 'Sniper Rifle', 'Hunting Rifle', 'Throwing Knife', 'Longbow', 'Machine Gun', 'Combat Knife', 'Unarmed'].map(weaponType)
     expect(w).toEqual(['smgs', 'smgs', 'automatic-pistols', 'light-pistols', 'sniper-rifles', 'assault-rifles', 'throwing', 'bows', 'machine-guns', 'short-weapons', 'bare-hands'])
+    // Chummer's own melee words (the owner's "Short weapon" rolled Ranged Weapons as custom-weapon)
+    const m = ['Short weapon', 'Short Weapons', 'Long weapon', 'Club', 'Stun Baton', 'Staff', 'Sledge Hammer', 'Blunt weapon', 'Shock Gloves', 'Taser', 'Bare hands', 'Hammerli 620S', 'Shortbow'].map(weaponType)
+    expect(m).toEqual(['short-weapons', 'short-weapons', 'long-weapons', 'advanced-melee', 'advanced-melee', 'advanced-melee', 'advanced-melee', 'advanced-melee', 'advanced-melee', 'tasers', 'bare-hands', 'custom-weapon', 'custom-weapon'])
     expect(['Advanced Drone', 'Caravan', 'Vanguard', 'Cargo Van', 'Pickup Truck', 'Micro Drone', 'Minidrone'].map(n => vehicleType('x', n)))
       .toEqual(['custom-vehicle', 'custom-vehicle', 'custom-vehicle', 'van', 'suv-pickup', 'microdrone', 'minidrone'])
     // Pistols belongs to ranged-weapons; under another skill it must become a new spec on that skill

@@ -143,8 +143,10 @@ export const featType = ampType => (Object.hasOwn(FEAT, ampType) ? FEAT[ampType]
 
 // First match wins, so order matters (specific before general).
 const WEAPONS = [
-  [/\b(unarmed|bare)\b/, 'bare-hands'], [/\bthrowing\b/, 'throwing'], [/\b(katana|sword)\b/, 'long-weapons'], [/\b(knife|blade)\b/, 'short-weapons'],
-  [/\btaser\b/, 'tasers'], [/\bgrenade launcher\b/, 'grenade-launchers'], [/\bgas grenade\b/, 'gas-grenades'], [/\bgrenade\b/, 'grenades'],
+  [/\b(unarmed|bare)\b/, 'bare-hands'], [/\bthrowing\b/, 'throwing'], [/\bshort weapons?\b/, 'short-weapons'], [/\blong weapons?\b/, 'long-weapons'],
+  [/\b(katana|sword)\b/, 'long-weapons'], [/\b(knife|blade)\b/, 'short-weapons'], [/\btaser\b/, 'tasers'],
+  // melee only: sra2's tasers also reach short range, so a stun baton is advanced-melee
+  [/\b(club|baton|staff|mace|hammer|blunt|shock)\b/, 'advanced-melee'], [/\bgrenade launcher\b/, 'grenade-launchers'], [/\bgas grenade\b/, 'gas-grenades'], [/\bgrenade\b/, 'grenades'],
   [/\b(rocket|missile)\b/, 'rocket-launchers'], [/\bcrossbow\b/, 'crossbows'], [/\b(long)?bow\b/, 'bows'],
   [/\b(smg|sub ?machine)\b/, 'smgs'], [/\bmachine pistol\b|\bautomatic pistol\b/, 'automatic-pistols'], [/\bmachine gun\b/, 'machine-guns'],
   [/\bsniper\b/, 'sniper-rifles'], [/\brifle\b/, 'assault-rifles'], [/\bshotgun\b/, 'shotguns'],
