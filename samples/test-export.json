@@ -1,0 +1,101 @@
+{
+  "format": "chummer-anarchy2-export",
+  "version": 1,
+  "kind": "runners",
+  "exportedAt": "2026-10-02T09:15:00.000Z",
+  "app": { "name": "Chummer Anarchy 2.0", "version": "0.6.0" },
+  "descriptions": true,
+  "runners": [
+    {
+      "id": "r-mara", "updatedAt": "2026-10-01T18:00:00.000Z", "exportedAt": "2026-10-02T09:15:00.000Z",
+      "streetName": "Made-Up Mara", "realName": "Mara Madeup", "finalized": true,
+      "metatype": { "id": "human", "name": "Human", "ranges": { "str": [1, 6], "agi": [1, 6], "wil": [1, 6], "log": [1, 6], "cha": [1, 6] }, "edge": 2 },
+      "level": { "id": "runner", "name": "Runner" },
+      "lifestyle": { "id": "low", "name": "Low", "perRun": 5000 },
+      "portrait": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==",
+      "attributes": { "str": 2, "agi": 4, "wil": 3, "log": 2, "cha": 3 },
+      "edge": 2, "essence": 5,
+      "skills": [
+        { "id": "ranged-weapons", "name": "Ranged Weapons", "attr": "agi", "rating": 4,
+          "specs": [{ "id": "ranged-weapons.pistols", "name": "Pistols", "attr": "agi", "custom": false }] },
+        { "id": "athletics", "name": "Athletics", "attr": "str", "rating": 2, "specs": [] },
+        { "id": "network", "name": "Network", "attr": "cha", "rating": 2,
+          "specs": [{ "id": "custom:Fixers", "name": "Fixers", "attr": "cha", "custom": true }] }
+      ],
+      "knowledge": [{ "name": "Made-up street slang", "kind": "language", "native": true }],
+      "amps": [
+        { "uid": "a-cyber", "type": "cyberware", "typeName": "Cyberware", "name": "Made-Up Reflex Wiring", "canon": false, "rating": 1, "essence": 1,
+          "effects": [{ "id": "wound-light", "name": "Extra light wound box", "category": "combat" }],
+          "rr": [{ "on": "attribute", "id": "agi", "name": "Agility", "value": 1 }],
+          "bonuses": { "light": 1, "serious": 0, "physicalThreshold": 0, "mentalThreshold": 0, "matrixThreshold": 0, "armor": 0, "anarchy": 0, "initiative": 0 },
+          "description": "<script>alert(1)</script> made-up text" },
+        { "uid": "a-quality", "type": "quality", "typeName": "Quality", "name": "Made-Up Steady Hands", "canon": false, "rating": 1, "essence": 0,
+          "effects": [],
+          "rr": [{ "on": "spec", "id": "ranged-weapons.pistols", "name": "Pistols", "value": 1, "skill": "ranged-weapons" }],
+          "bonuses": { "light": 0, "serious": 0, "physicalThreshold": 0, "mentalThreshold": 0, "matrixThreshold": 0, "armor": 0, "anarchy": 0, "initiative": 0 },
+          "description": "A made-up quality for testing." },
+        { "uid": "a-adept", "type": "adept", "typeName": "Adept Power", "name": "Made-Up Quick Flow", "canon": false, "rating": 1, "essence": 0,
+          "effects": [{ "id": "narrative", "name": "Narrative", "category": "narrative", "note": "Made-up edge in crowds" }],
+          "rr": [],
+          "bonuses": { "light": 0, "serious": 0, "physicalThreshold": 0, "mentalThreshold": 0, "matrixThreshold": 0, "armor": 0, "anarchy": 0, "initiative": 2 } },
+        { "uid": "v-drone", "type": "vehicle", "typeName": "Vehicle", "name": "Made-Up Scout Drone", "canon": false, "rating": 1, "essence": 0,
+          "effects": [], "rr": [], "vehicle": "medium-drone",
+          "bonuses": { "light": 0, "serious": 0, "physicalThreshold": 0, "mentalThreshold": 0, "matrixThreshold": 0, "armor": 0, "anarchy": 0, "initiative": 0 } }
+      ],
+      "items": [
+        { "uid": "i-commlink", "kind": "gear", "name": "Made-Up Commlink", "canon": false, "price": 100, "starting": "commlink" },
+        { "uid": "i-sin", "kind": "gear", "name": "Made-Up Fake SIN", "canon": false, "price": 500, "starting": "fake-sin" },
+        { "uid": "i-pistol", "kind": "weapon", "name": "Made-Up Heavy Pistol", "canon": false, "price": 800,
+          "weapon": { "dv": "5", "dvText": "5", "ranges": { "melee": "ok", "short": "ok", "medium": "disadvantage", "long": "none" }, "specialist": false, "ammo": [] } },
+        { "uid": "i-vest", "kind": "armor", "name": "Made-Up Vest", "canon": false, "price": 400, "armor": { "value": 2 } }
+      ],
+      "vehicles": [
+        { "uid": "v-drone", "chassisId": "medium-drone", "name": "Made-Up Scout Drone", "chassis": "Medium Drone", "count": 1,
+          "pilot": 3, "body": 2, "handling": 2, "speed": 3, "armor": 1, "mount": "Made-up light mount", "flying": true,
+          "thresholds": [2, 5, 8], "monitor": { "light": 2, "serious": 1 } }
+      ],
+      "monitor": { "light": 3, "serious": 1, "incap": 1 },
+      "thresholds": { "physicalNone": [2, 5, 8], "physicalMain": [4, 7, 10], "physicalAlt": [2, 5, 8], "mental": [2, 5, 8] },
+      "armor": { "main": 2, "alt": 0 },
+      "initiative": { "level": 2, "source": "Made-Up Quick Flow" },
+      "pools": [
+        { "skill": "ranged-weapons", "label": "Ranged Weapons", "attr": "agi", "dp": 8, "rr": 1 },
+        { "skill": "ranged-weapons", "spec": "ranged-weapons.pistols", "label": "Ranged Weapons (Pistols)", "attr": "agi", "dp": 10, "rr": 2 },
+        { "skill": "athletics", "label": "Athletics", "attr": "str", "dp": 4, "rr": 0 }
+      ],
+      "narrative": {
+        "keywords": ["Made-up alpha", "Made-up bravo", "Made-up charlie", "Made-up delta", "Made-up echo"],
+        "dispositions": ["Made-up calm", "Made-up wary", "Made-up curious", "Made-up blunt"],
+        "cues": ["Made-up cue one", "Made-up cue two", "Made-up cue three", "Made-up cue four"]
+      },
+      "background": "Made-up background.", "notes": "Made-up notes.",
+      "nuyen": { "balance": 1200 },
+      "ledger": [
+        { "at": "2026-10-01T17:00:00.000Z", "type": "finalize", "summary": "Creation finished", "amount": 1200 },
+        { "at": "2026-10-01T18:00:00.000Z", "type": "earn", "summary": "Made-up run payout", "amount": 3000 }
+      ]
+    },
+    {
+      "id": "r-two", "updatedAt": "2026-10-01T18:00:00.000Z", "exportedAt": "2026-10-02T09:15:00.000Z",
+      "streetName": "Test Two", "realName": "Two Test", "finalized": false,
+      "metatype": { "id": "human", "name": "Human", "ranges": { "str": [1, 6], "agi": [1, 6], "wil": [1, 6], "log": [1, 6], "cha": [1, 6] }, "edge": 2 },
+      "level": { "id": "runner", "name": "Runner" },
+      "lifestyle": { "id": "low", "name": "Low", "perRun": 5000 },
+      "portrait": null,
+      "attributes": { "str": 1, "agi": 2, "wil": 3, "log": 4, "cha": 1 },
+      "edge": 2, "essence": 6,
+      "skills": [{ "id": "athletics", "name": "Athletics", "attr": "str", "rating": 1, "specs": [] }],
+      "knowledge": [],
+      "amps": [], "items": [], "vehicles": [],
+      "monitor": { "light": 2, "serious": 1, "incap": 1 },
+      "thresholds": { "physicalNone": [2, 5, 8], "physicalMain": [2, 5, 8], "physicalAlt": [2, 5, 8], "mental": [2, 5, 8] },
+      "armor": { "main": 0, "alt": 0 },
+      "initiative": null,
+      "pools": [{ "skill": "athletics", "label": "Athletics", "attr": "str", "dp": 2, "rr": 0 }],
+      "narrative": { "keywords": [], "dispositions": [], "cues": [] },
+      "background": "", "notes": "",
+      "nuyen": { "balance": 0 },
+      "ledger": []
+    }
+  ]
+}

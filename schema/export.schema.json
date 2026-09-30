@@ -1,0 +1,1261 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "urn:chummer-anarchy2:export:1",
+  "title": "Chummer Anarchy export v1",
+  "description": "Runners or book data from Chummer Anarchy 2.0 (docs/export-format.md). Extra properties are allowed so later minor additions stay readable.",
+  "type": "object",
+  "required": [
+    "format",
+    "version",
+    "kind",
+    "exportedAt",
+    "app",
+    "descriptions"
+  ],
+  "properties": {
+    "format": {
+      "const": "chummer-anarchy2-export"
+    },
+    "version": {
+      "const": 1
+    },
+    "kind": {
+      "enum": [
+        "runners",
+        "books"
+      ]
+    },
+    "exportedAt": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "app": {
+      "type": "object",
+      "required": [
+        "name",
+        "version"
+      ],
+      "properties": {
+        "name": {
+          "type": "string"
+        },
+        "version": {
+          "type": "string"
+        }
+      }
+    },
+    "descriptions": {
+      "type": "boolean"
+    },
+    "runners": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/runner"
+      }
+    },
+    "books": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/book"
+      }
+    },
+    "tableRules": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": [
+          "name",
+          "text"
+        ],
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "text": {
+            "type": "string"
+          }
+        }
+      }
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "runners"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "runners"
+        ]
+      }
+    },
+    {
+      "if": {
+        "properties": {
+          "kind": {
+            "const": "books"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "books"
+        ]
+      }
+    }
+  ],
+  "$defs": {
+    "range": {
+      "enum": [
+        "ok",
+        "disadvantage",
+        "none"
+      ]
+    },
+    "ranges": {
+      "type": "object",
+      "required": [
+        "melee",
+        "short",
+        "medium",
+        "long"
+      ],
+      "properties": {
+        "melee": {
+          "$ref": "#/$defs/range"
+        },
+        "short": {
+          "$ref": "#/$defs/range"
+        },
+        "medium": {
+          "$ref": "#/$defs/range"
+        },
+        "long": {
+          "$ref": "#/$defs/range"
+        }
+      }
+    },
+    "effect": {
+      "type": "object",
+      "required": [
+        "id",
+        "name",
+        "category"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "category": {
+          "type": "string"
+        },
+        "param": {
+          "type": "string"
+        },
+        "value": {
+          "type": "number"
+        },
+        "note": {
+          "type": "string"
+        }
+      }
+    },
+    "rr": {
+      "type": "object",
+      "required": [
+        "on",
+        "id",
+        "name",
+        "value"
+      ],
+      "properties": {
+        "on": {
+          "enum": [
+            "attribute",
+            "skill",
+            "spec"
+          ]
+        },
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        },
+        "value": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "skill": {
+          "type": "string",
+          "description": "on a spec line: the skill that owns the spec, when known"
+        }
+      }
+    },
+    "bonuses": {
+      "type": "object",
+      "required": [
+        "light",
+        "serious",
+        "physicalThreshold",
+        "mentalThreshold",
+        "matrixThreshold",
+        "armor",
+        "anarchy",
+        "initiative"
+      ],
+      "additionalProperties": {
+        "type": "integer",
+        "minimum": 0
+      }
+    },
+    "ampParts": {
+      "type": "object",
+      "required": [
+        "type",
+        "typeName",
+        "name",
+        "rating",
+        "essence",
+        "effects",
+        "rr",
+        "bonuses",
+        "canon"
+      ],
+      "properties": {
+        "effects": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/effect"
+          }
+        },
+        "rr": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/rr"
+          }
+        },
+        "bonuses": {
+          "$ref": "#/$defs/bonuses"
+        },
+        "rating": {
+          "type": "number"
+        },
+        "essence": {
+          "type": "number"
+        },
+        "canon": {
+          "type": "boolean"
+        },
+        "description": {
+          "type": "string"
+        },
+        "printedRating": {
+          "type": "number"
+        },
+        "mod": {
+          "type": "boolean"
+        },
+        "type": {
+          "type": "string"
+        },
+        "typeName": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "runner": {
+      "type": "object",
+      "required": [
+        "id",
+        "updatedAt",
+        "exportedAt",
+        "streetName",
+        "realName",
+        "finalized",
+        "metatype",
+        "level",
+        "lifestyle",
+        "portrait",
+        "attributes",
+        "edge",
+        "essence",
+        "skills",
+        "knowledge",
+        "amps",
+        "items",
+        "vehicles",
+        "monitor",
+        "thresholds",
+        "armor",
+        "initiative",
+        "pools",
+        "narrative",
+        "background",
+        "notes",
+        "nuyen",
+        "ledger"
+      ],
+      "properties": {
+        "portrait": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "attributes": {
+          "type": "object",
+          "required": [
+            "str",
+            "agi",
+            "wil",
+            "log",
+            "cha"
+          ],
+          "additionalProperties": {
+            "type": "integer"
+          }
+        },
+        "amps": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/ampParts"
+              },
+              {
+                "required": [
+                  "uid"
+                ],
+                "properties": {
+                  "uid": {
+                    "type": "string"
+                  },
+                  "catalogId": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": "string"
+                  },
+                  "page": {
+                    "type": "number"
+                  },
+                  "item": {
+                    "type": "string"
+                  },
+                  "vehicle": {
+                    "type": "string"
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "uid",
+              "kind",
+              "name",
+              "canon",
+              "price"
+            ],
+            "properties": {
+              "kind": {
+                "$ref": "#/$defs/itemKind"
+              },
+              "weapon": {
+                "$ref": "#/$defs/weapon"
+              },
+              "uid": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "canon": {
+                "type": "boolean"
+              },
+              "price": {
+                "type": "number"
+              },
+              "description": {
+                "type": "string"
+              },
+              "armor": {
+                "type": "object",
+                "required": [
+                  "value"
+                ],
+                "properties": {
+                  "value": {
+                    "type": "number"
+                  },
+                  "over": {
+                    "type": "string"
+                  }
+                }
+              },
+              "catalogId": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "page": {
+                "type": "number"
+              },
+              "starting": {
+                "type": "string"
+              },
+              "note": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "narrative": {
+          "type": "object",
+          "required": [
+            "keywords",
+            "dispositions",
+            "cues"
+          ],
+          "properties": {
+            "keywords": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "dispositions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "cues": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "nuyen": {
+          "type": "object",
+          "required": [
+            "balance"
+          ],
+          "properties": {
+            "balance": {
+              "type": "number"
+            }
+          }
+        },
+        "id": {
+          "type": "string"
+        },
+        "updatedAt": {
+          "type": "string"
+        },
+        "exportedAt": {
+          "type": "string"
+        },
+        "streetName": {
+          "type": "string"
+        },
+        "realName": {
+          "type": "string"
+        },
+        "finalized": {
+          "type": "boolean"
+        },
+        "background": {
+          "type": "string"
+        },
+        "notes": {
+          "type": "string"
+        },
+        "edge": {
+          "type": "number"
+        },
+        "essence": {
+          "type": "number"
+        },
+        "metatype": {
+          "type": "object",
+          "required": [
+            "id",
+            "name",
+            "ranges",
+            "edge"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "ranges": {
+              "type": "object",
+              "additionalProperties": {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                },
+                "minItems": 2,
+                "maxItems": 2
+              }
+            },
+            "edge": {
+              "type": "number"
+            }
+          }
+        },
+        "level": {
+          "$ref": "#/$defs/idName"
+        },
+        "lifestyle": {
+          "type": "object",
+          "required": [
+            "id",
+            "name",
+            "perRun"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "perRun": {
+              "type": "number"
+            }
+          }
+        },
+        "skills": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "name",
+              "attr",
+              "rating",
+              "specs"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "attr": {
+                "type": "string"
+              },
+              "rating": {
+                "type": "integer"
+              },
+              "specs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "name",
+                    "attr",
+                    "custom"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "attr": {
+                      "type": "string"
+                    },
+                    "custom": {
+                      "type": "boolean"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "knowledge": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "name",
+              "kind",
+              "native"
+            ],
+            "properties": {
+              "name": {
+                "type": "string"
+              },
+              "kind": {
+                "type": "string"
+              },
+              "native": {
+                "type": "boolean"
+              }
+            }
+          }
+        },
+        "vehicles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "uid",
+              "name",
+              "chassis",
+              "pilot",
+              "body",
+              "handling",
+              "speed",
+              "armor",
+              "mount",
+              "flying",
+              "thresholds",
+              "monitor",
+              "chassisId",
+              "count"
+            ],
+            "properties": {
+              "uid": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "chassis": {
+                "type": "string"
+              },
+              "pilot": {
+                "type": "number"
+              },
+              "body": {
+                "type": "number"
+              },
+              "handling": {
+                "type": "number"
+              },
+              "speed": {
+                "type": "number"
+              },
+              "armor": {
+                "type": "number"
+              },
+              "mount": {
+                "type": "string"
+              },
+              "flying": {
+                "type": "boolean"
+              },
+              "thresholds": {
+                "type": "array",
+                "items": {
+                  "type": "integer"
+                }
+              },
+              "monitor": {
+                "type": "object",
+                "required": [
+                  "light",
+                  "serious"
+                ],
+                "properties": {
+                  "light": {
+                    "type": "number"
+                  },
+                  "serious": {
+                    "type": "number"
+                  }
+                }
+              },
+              "chassisId": {
+                "type": "string",
+                "description": "the chassis catalog id (the amp's vehicle); uid is the vehicle amp's own uid"
+              },
+              "count": {
+                "type": "integer",
+                "minimum": 1,
+                "description": "vehicles or drones in the amp (1 plus each extra-drone)"
+              }
+            }
+          }
+        },
+        "monitor": {
+          "type": "object",
+          "required": [
+            "light",
+            "serious",
+            "incap"
+          ],
+          "properties": {
+            "light": {
+              "type": "number"
+            },
+            "serious": {
+              "type": "number"
+            },
+            "incap": {
+              "type": "number"
+            }
+          }
+        },
+        "thresholds": {
+          "type": "object",
+          "required": [
+            "physicalNone",
+            "physicalMain",
+            "physicalAlt",
+            "mental"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "physicalNone": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "physicalMain": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "physicalAlt": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "mental": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            },
+            "matrix": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 3,
+              "maxItems": 3
+            }
+          }
+        },
+        "armor": {
+          "type": "object",
+          "required": [
+            "main",
+            "alt"
+          ],
+          "properties": {
+            "main": {
+              "type": "number"
+            },
+            "alt": {
+              "type": "number"
+            }
+          }
+        },
+        "initiative": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "object",
+              "required": [
+                "level",
+                "source"
+              ],
+              "properties": {
+                "level": {
+                  "type": "number"
+                },
+                "source": {
+                  "type": "string"
+                },
+                "realm": {
+                  "type": "string"
+                }
+              }
+            }
+          ]
+        },
+        "pools": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "skill",
+              "label",
+              "attr",
+              "dp",
+              "rr"
+            ],
+            "properties": {
+              "skill": {
+                "type": "string"
+              },
+              "spec": {
+                "type": "string"
+              },
+              "label": {
+                "type": "string"
+              },
+              "attr": {
+                "type": "string"
+              },
+              "dp": {
+                "type": "number"
+              },
+              "rr": {
+                "type": "number"
+              }
+            }
+          }
+        },
+        "ledger": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "at",
+              "type",
+              "summary",
+              "amount"
+            ],
+            "properties": {
+              "at": {
+                "type": "string"
+              },
+              "type": {
+                "type": "string"
+              },
+              "summary": {
+                "type": "string"
+              },
+              "amount": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      }
+    },
+    "book": {
+      "type": "object",
+      "required": [
+        "source",
+        "amps",
+        "items",
+        "vehicles",
+        "skills",
+        "specs",
+        "rules"
+      ],
+      "properties": {
+        "source": {
+          "type": "object",
+          "required": [
+            "id",
+            "name",
+            "publisher",
+            "canon"
+          ],
+          "properties": {
+            "id": {
+              "type": "string"
+            },
+            "name": {
+              "type": "string"
+            },
+            "publisher": {
+              "type": "string"
+            },
+            "canon": {
+              "type": "boolean"
+            }
+          }
+        },
+        "amps": {
+          "type": "array",
+          "items": {
+            "allOf": [
+              {
+                "$ref": "#/$defs/ampParts"
+              },
+              {
+                "required": [
+                  "id",
+                  "source",
+                  "page",
+                  "mod"
+                ],
+                "properties": {
+                  "id": {
+                    "type": "string"
+                  },
+                  "source": {
+                    "type": "string"
+                  },
+                  "page": {
+                    "type": "number"
+                  },
+                  "mod": {
+                    "type": "boolean"
+                  },
+                  "vehicle": {
+                    "type": "string"
+                  },
+                  "item": {
+                    "type": "object",
+                    "required": [
+                      "kind",
+                      "specialist"
+                    ],
+                    "properties": {
+                      "kind": {
+                        "$ref": "#/$defs/itemKind"
+                      },
+                      "specialist": {
+                        "type": "boolean"
+                      },
+                      "armor": {
+                        "type": "number"
+                      },
+                      "dv": {
+                        "type": "string"
+                      },
+                      "ranges": {
+                        "$ref": "#/$defs/ranges"
+                      }
+                    }
+                  }
+                }
+              }
+            ]
+          }
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "source",
+              "page",
+              "kind",
+              "name",
+              "canon",
+              "specialist"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "page": {
+                "type": "number"
+              },
+              "kind": {
+                "$ref": "#/$defs/itemKind"
+              },
+              "name": {
+                "type": "string"
+              },
+              "canon": {
+                "type": "boolean"
+              },
+              "category": {
+                "type": "string"
+              },
+              "specialist": {
+                "type": "boolean"
+              },
+              "armor": {
+                "type": "number"
+              },
+              "dv": {
+                "type": "string"
+              },
+              "ranges": {
+                "$ref": "#/$defs/ranges"
+              },
+              "description": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "rules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "source",
+              "page",
+              "sheet",
+              "section",
+              "title"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "page": {
+                "type": "number"
+              },
+              "sheet": {
+                "type": "string"
+              },
+              "section": {
+                "type": "string"
+              },
+              "title": {
+                "type": "string"
+              },
+              "text": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "vehicles": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "source",
+              "page",
+              "name",
+              "pilot",
+              "body",
+              "handling",
+              "speed",
+              "armor",
+              "mount"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "page": {
+                "type": "number"
+              },
+              "name": {
+                "type": "string"
+              },
+              "pilot": {
+                "type": "number"
+              },
+              "body": {
+                "type": "number"
+              },
+              "handling": {
+                "type": "number"
+              },
+              "speed": {
+                "type": "number"
+              },
+              "flyingSpeed": {
+                "type": "number"
+              },
+              "armor": {
+                "type": "number"
+              },
+              "mount": {
+                "type": "string"
+              }
+            }
+          }
+        },
+        "skills": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "source",
+              "page",
+              "name",
+              "attr",
+              "specs"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "page": {
+                "type": "number"
+              },
+              "name": {
+                "type": "string"
+              },
+              "attr": {
+                "type": "string"
+              },
+              "alt": {
+                "type": "string"
+              },
+              "specs": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "id",
+                    "name",
+                    "attr"
+                  ],
+                  "properties": {
+                    "id": {
+                      "type": "string"
+                    },
+                    "name": {
+                      "type": "string"
+                    },
+                    "attr": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "specs": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "skill",
+              "id",
+              "name",
+              "attr"
+            ],
+            "properties": {
+              "skill": {
+                "type": "string"
+              },
+              "id": {
+                "type": "string"
+              },
+              "name": {
+                "type": "string"
+              },
+              "attr": {
+                "type": "string"
+              },
+              "page": {
+                "type": "number"
+              }
+            }
+          }
+        }
+      }
+    },
+    "idName": {
+      "type": "object",
+      "required": [
+        "id",
+        "name"
+      ],
+      "properties": {
+        "id": {
+          "type": "string"
+        },
+        "name": {
+          "type": "string"
+        }
+      }
+    },
+    "weapon": {
+      "type": "object",
+      "required": [
+        "dv",
+        "dvText",
+        "ranges",
+        "specialist",
+        "ammo"
+      ],
+      "properties": {
+        "dv": {
+          "type": "string"
+        },
+        "dvText": {
+          "type": "string"
+        },
+        "ranges": {
+          "$ref": "#/$defs/ranges"
+        },
+        "specialist": {
+          "type": "boolean"
+        },
+        "ammo": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "itemKind": {
+      "enum": [
+        "gear",
+        "weapon",
+        "armor",
+        "spell",
+        "complex-form"
+      ]
+    }
+  }
+}
