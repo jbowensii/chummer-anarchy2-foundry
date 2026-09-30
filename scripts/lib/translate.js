@@ -11,27 +11,49 @@ export const escapeText = s => String(s ?? '').split(/\r?\n\s*\r?\n/).map(p => p
 const NOT_TEXT = new Set(['rr-attr', 'rr-skill', 'rr-spec', 'wound-light', 'wound-serious', 'mental-armor', 'firewall-plus', 'armor-plus'])
 const RR_TYPE = { attribute: 'attribute', skill: 'skill', spec: 'specialization' }
 const ITEM_FEAT = { weapon: 'weapon', armor: 'armor', gear: 'equipment', spell: 'spell', 'complex-form': 'complex-form' }
+const SRA2_ATTRS = Object.values(ATTR)
 
-const flag = id => ({ [MODULE_ID]: { id } })
 const ref = x => (x.source ? `${x.source}${x.page ? ` p.${x.page}` : ''}` : '')
 const slots = (list, key, n) => Object.fromEntries(Array.from({ length: n }, (_, i) => [`${key}${i + 1}`, String(list?.[i] ?? '')]))
+// sra2 vehicle weapon mounts are 'none' | 'smg' | 'rifle' (config/vehicle-types.json, actor-vehicle.ts prepareDerivedData).
+const mountOf = t => (/\b(rifle|heavy)\b/i.test(t ?? '') ? 'rifle' : /\b(smg|light)\b/i.test(t ?? '') ? 'smg' : 'none')
+// A Chummer DV -> sra2 vd fields: "4P"/"4" -> custom 4; "STR+1"/"FOR+1"/"STR" -> strength + bonus; else null.
+function parseDv(dv) {
+  const s = String(dv ?? '').trim(), n = /^(\d+)/.exec(s), a = /^(STR|FOR)\s*(?:\+\s*(\d+))?$/i.exec(s)
+  if (n) return { damageValue: n[1], vdMode: 'custom', vdCustomValue: Number(n[1]) }
+  if (a) { const b = Number(a[2] ?? 0); return { damageValue: b ? `FOR+${b}` : 'FOR', vdMode: 'attribute', vdAttribute: 'strength', vdBonus: b } }
+  return null
+}
 
+/**
+ * sanitize: a function that takes PLAIN TEXT and returns safe HTML. Callers wrap Foundry's cleaner AROUND escapeText
+ * (e.g. t => clean(escapeText(t))), never replace escapeText with the cleaner: a cleaner neither escapes text nor makes paragraphs.
+ */
 export function translateRunner(runner, { exportedAt, appVersion, sanitize = escapeText }) {
   const textOnly = [], items = []
+  const flag = id => ({ [MODULE_ID]: { id, exportedAt, appVersion } })
   const skills = runner.skills ?? []
   const vehicleUids = new Set((runner.vehicles ?? []).map(v => v.uid))
   const ranges = runner.metatype?.ranges ?? {}
+  const attrOk = (attr, fallback, what) => {
+    if (SRA2_ATTRS.includes(attr)) return attr
+    const a = SRA2_ATTRS.includes(fallback) ? fallback : 'strength'
+    textOnly.push(`${what}: attribute ${attr} → ${a}`)
+    return a
+  }
 
   items.push({ name: runner.metatype?.name ?? 'Metatype', type: 'metatype', flags: flag(runner.metatype?.id ?? 'metatype'),
     system: { maxStrength: ranges.str?.[1] ?? 6, maxAgility: ranges.agi?.[1] ?? 6, maxWillpower: ranges.wil?.[1] ?? 6,
       maxLogic: ranges.log?.[1] ?? 6, maxCharisma: ranges.cha?.[1] ?? 6, anarchyBonus: 0 } })
 
   for (const sk of skills) {
-    const s = skillFor(sk)
-    items.push({ name: s.known ? s.name : sk.name, type: 'skill', flags: flag(sk.id), system: { rating: sk.rating ?? 0, linkedAttribute: s.attr, slug: s.slug } })
+    const s = skillFor(sk), name = s.known ? s.name : sk.name
+    const attr = attrOk(s.attr, 'strength', name)
+    items.push({ name, type: 'skill', flags: flag(sk.id), system: { rating: sk.rating ?? 0, linkedAttribute: attr, slug: s.slug } })
     for (const sp of sk.specs ?? []) {
       const p = specFor(s.slug, sp)
-      items.push({ name: `Spec: ${p.name}`, type: 'specialization', flags: flag(sp.id), system: { linkedSkill: s.slug, linkedAttribute: p.attr, slug: p.slug } })
+      items.push({ name: `Spec: ${p.name}`, type: 'specialization', flags: flag(sp.id),
+        system: { linkedSkill: s.slug, linkedAttribute: attrOk(p.attr, attr, `Spec: ${p.name}`), slug: p.slug } })
     }
   }
 
@@ -47,56 +69,76 @@ export function translateRunner(runner, { exportedAt, appVersion, sanitize = esc
     return specFor(skillFor({ id: skillId }).slug, { id: l.id, name: spec.name, attr: spec.attr }).slug
   }
 
-  for (const amp of runner.amps ?? []) {
-    if (vehicleUids.has(amp.uid)) continue
-    const b = amp.bonuses ?? {}, effects = amp.effects ?? []
+  // An amp's rr lines and text effects (shared by feats and vehicle actors, which both have rrList + narrativeEffects).
+  function ampParts(amp) {
     const narrative = [], rrList = []
-    const say = text => { narrative.push({ text, isNegative: false, value: 0 }); textOnly.push(`${amp.name}: ${text} → narrative effect`) }
+    const say = (text, isNegative = false) => { narrative.push({ text, isNegative, value: 0 }); textOnly.push(`${amp.name}: ${text} → narrative effect`) }
     for (const l of amp.rr ?? []) {
-      const target = rrTarget(l)
-      if (target && RR_TYPE[l.on]) rrList.push({ rrType: RR_TYPE[l.on], rrValue: Math.min(3, l.value ?? 1), rrTarget: target })
-      else say(`Risk Reduction ${l.name ?? l.id} ${l.value ?? 1}`)
+      const target = rrTarget(l), value = l.value ?? 1, label = l.name ?? l.id
+      if (!target || !RR_TYPE[l.on]) { say(`Risk Reduction ${label} ${value}`); continue }
+      rrList.push({ rrType: RR_TYPE[l.on], rrValue: Math.min(3, value), rrTarget: target })
+      if (value > 3) textOnly.push(`${amp.name}: Risk Reduction ${label} ${value} → 3 (sra2 maximum)`)
     }
-    for (const e of effects) {
+    for (const e of amp.effects ?? []) {
       if (NOT_TEXT.has(e.id)) continue
       const extra = [e.param, e.value, e.note].filter(x => x != null && x !== '')
-      const text = extra.length ? `${e.name} (${extra.join(', ')})` : e.name
-      narrative.push({ text, isNegative: e.category === 'negative' || e.id === 'negative', value: 0 })
-      textOnly.push(`${amp.name}: ${text} → narrative effect`)
+      say(extra.length ? `${e.name} (${extra.join(', ')})` : e.name, e.category === 'negative' || e.id === 'negative')
     }
-    if (b.initiative > 0 && !effects.some(e => /^init-\d$/.test(e.id))) say(`Initiative ${b.initiative}`)
+    return { narrative, rrList }
+  }
+
+  for (const amp of runner.amps ?? []) {
+    if (vehicleUids.has(amp.uid)) continue
+    const b = amp.bonuses ?? {}, type = featType(amp.type)
+    const { narrative, rrList } = ampParts(amp)
+    if (b.initiative > 0 && !(amp.effects ?? []).some(e => /^init-\d$/.test(e.id))) {
+      narrative.push({ text: `Initiative ${b.initiative}`, isNegative: false, value: 0 })
+      textOnly.push(`${amp.name}: Initiative ${b.initiative} → narrative effect`)
+    }
     // sra2 takes the runner's armor from armor feats; an amp's armor count stays text (the runner's totals are authoritative).
     if (b.armor > 0) textOnly.push(`${amp.name}: Armor ${b.armor} → notes (runner armor comes from armor items)`)
-    items.push({ name: amp.name, type: 'feat', flags: flag(amp.uid), system: {
-      featType: featType(amp.type), rating: amp.rating ?? 0, essenceCost: Math.max(0, amp.essence ?? 0), isBioware: amp.type === 'bioware',
+    const system = {
+      featType: type, rating: amp.rating ?? 0, essenceCost: Math.max(0, amp.essence ?? 0), isBioware: amp.type === 'bioware',
       rrList, bonusLightDamage: b.light ?? 0, bonusSevereDamage: b.serious ?? 0, bonusMentalThreshold: b.mentalThreshold ?? 0,
       bonusMatrixThreshold: b.matrixThreshold ?? 0, narrativeEffects: narrative, cost: 'free-equipment', reference: ref(amp),
-      description: sanitize(amp.description) + sanitize(`Chummer: ${amp.typeName ?? amp.type}${amp.source ? `, ${ref(amp)}` : ''}`) } })
+      description: sanitize(amp.description) + sanitize(`Chummer: ${amp.typeName ?? amp.type}${amp.source ? `, ${ref(amp)}` : ''}`) }
+    // a deck's wound box is its own (the export gives it bonus 0): sra2's boolean deck field
+    if (type === 'cyberdeck' && (amp.effects ?? []).some(e => e.id === 'wound-light')) system.cyberdeckBonusLightDamage = true
+    items.push({ name: amp.name, type: 'feat', flags: flag(amp.uid), system })
   }
 
   for (const it of runner.items ?? []) {
-    const system = { featType: ITEM_FEAT[it.kind] ?? 'equipment', cost: it.starting ? 'free-equipment' : 'equipment', reference: ref(it),
-      description: sanitize(it.description) + sanitize(it.note) + sanitize(`Chummer price: ${it.price ?? 0}¥`) }
+    let extra = ''
+    const system = { featType: ITEM_FEAT[it.kind] ?? 'equipment', cost: it.starting ? 'free-equipment' : 'equipment', reference: ref(it) }
     if (it.kind === 'weapon') {
       const w = it.weapon ?? {}, r = w.ranges ?? {}
-      Object.assign(system, { weaponType: weaponType(it.name), damageValue: String(w.dv ?? '0'), damageType: 'physical',
+      const vd = parseDv(w.dv)
+      if (!vd) { extra = sanitize(`Chummer DV: ${w.dvText || w.dv || ''}`); textOnly.push(`${it.name}: DV ${w.dvText || w.dv || ''} → description (not understood)`) }
+      Object.assign(system, { weaponType: weaponType(it.name), damageType: 'physical', ...vd ?? { damageValue: '0', vdMode: 'custom', vdCustomValue: 0 },
         meleeRange: r.melee ?? 'none', shortRange: r.short ?? 'none', mediumRange: r.medium ?? 'none', longRange: r.long ?? 'none' })
-      // sra2's sheet shows a custom weapon's DV from vdCustomValue
-      if (/^\d+$/.test(system.damageValue)) system.vdCustomValue = Number(system.damageValue)
     }
-    if (it.kind === 'armor') system.armorValue = Math.max(0, Math.min(5, it.armor?.value ?? 0))
+    if (it.kind === 'armor') {
+      system.armorValue = Math.max(0, Math.min(5, it.armor?.value ?? 0))
+      if (it.armor?.over) textOnly.push(`${it.name}: worn over other armor (${it.armor.over}) → not imported`)
+    }
     if (it.kind === 'spell') system.spellType = 'direct'
+    system.description = sanitize(it.description) + sanitize(it.note) + extra + sanitize(`Chummer price: ${it.price ?? 0}¥`)
     items.push({ name: it.name, type: 'feat', flags: flag(it.uid), system })
   }
 
+  // Always custom-vehicle: sra2 reads the custom* stats only then, and Chummer's numbers include upgrades.
   const vehicles = (runner.vehicles ?? []).map(v => {
-    const amp = (runner.amps ?? []).find(a => a.uid === v.uid) ?? {}
+    const amp = (runner.amps ?? []).find(a => a.uid === v.uid) ?? { name: v.name }
+    const { narrative, rrList } = ampParts(amp)
+    const chassis = v.chassis ?? v.name
+    const about = `Chummer: ${chassis} (closest sra2 type: ${vehicleType(v.chassisId ?? amp.vehicle, chassis)}), mount: ${v.mount || 'none'}`
     return { items: [], actor: { name: v.name, type: 'vehicle',
       flags: { [MODULE_ID]: { id: v.uid, runner: runner.id, exportedAt, appVersion } },
-      system: { vehicleType: vehicleType(v.chassisId ?? amp.vehicle, v.chassis ?? v.name), controlMode: 'rigged',
+      system: { vehicleType: 'custom-vehicle', controlMode: 'rigged',
         customAutopilot: Math.min(12, v.pilot ?? 0), customStructure: v.body ?? 0, customHandling: v.handling ?? 0, customSpeed: v.speed ?? 0,
-        customArmor: v.armor ?? 0, customWeaponMount: v.mount || 'none', isFlying: !!v.flying, reference: ref(amp),
-        description: sanitize(amp.description) + (v.count > 1 ? sanitize(`Chummer: ${v.count} × ${v.chassis ?? v.name}`) : '') } } }
+        customArmor: v.armor ?? 0, customWeaponMount: mountOf(v.mount), isFlying: !!v.flying, ...v.flying ? { customFlyingSpeed: v.speed ?? 0 } : {},
+        rrList, narrativeEffects: narrative, reference: ref(amp),
+        description: sanitize(amp.description) + sanitize(about) + (v.count > 1 ? sanitize(`Chummer: ${v.count} × ${chassis}`) : '') } } }
   })
 
   for (const k of runner.knowledge ?? []) textOnly.push(`Knowledge: ${k.name} (${k.kind}${k.native ? ', native' : ''}) → notes`)

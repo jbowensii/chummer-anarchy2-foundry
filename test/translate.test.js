@@ -77,13 +77,14 @@ describe('translating a runner', () => {
     const v = t.vehicles[0]
     expect(v.items).toEqual([])
     expect(v.actor).toMatchObject({ name: 'Made-Up Scout Drone', type: 'vehicle' })
-    expect(v.actor.system).toMatchObject({ vehicleType: 'medium-drone', controlMode: 'rigged', customAutopilot: 3, customStructure: 2,
-      customHandling: 2, customSpeed: 3, customArmor: 1, customWeaponMount: 'Made-up light mount', isFlying: true })
+    expect(v.actor.system).toMatchObject({ vehicleType: 'custom-vehicle', controlMode: 'rigged', customAutopilot: 3, customStructure: 2,
+      customHandling: 2, customSpeed: 3, customFlyingSpeed: 3, customArmor: 1, customWeaponMount: 'smg', isFlying: true })
+    expect(v.actor.system.description).toContain('Chummer: Medium Drone (closest sra2 type: medium-drone), mount: Made-up light mount')
     expect(v.actor.flags[MODULE_ID]).toEqual({ id: 'v-drone', runner: 'r-mara', exportedAt: opts.exportedAt, appVersion: '0.6.0' })
   })
 
-  test('every item carries its Chummer id', () => {
-    for (const i of t.items) expect(flagId(i), i.name).toBeTruthy()
+  test('every item carries its Chummer id and the export', () => {
+    for (const i of t.items) expect(i.flags[MODULE_ID], i.name).toEqual({ id: expect.any(String), exportedAt: opts.exportedAt, appVersion: '0.6.0' })
     expect(flagId(t.actor)).toBe('r-mara')
   })
 
@@ -95,6 +96,42 @@ describe('translating a runner', () => {
     expect(x.items.find(i => i.name === 'Made-Up Reflex Wiring').system.armorValue).toBeUndefined()
     expect(x.textOnly.some(s => s.startsWith('Made-Up Reflex Wiring: Armor 1'))).toBe(true)
     expect(x.actor.system.bio.notes).toContain('Armor 1')
+  })
+
+  test('the vehicle amp gives the vehicle its rr and effects', () => {
+    const r = structuredClone(mara), amp = r.amps.find(a => a.uid === 'v-drone')
+    amp.rr = [{ on: 'skill', id: 'piloting', name: 'Piloting', value: 5 }]
+    amp.effects = [{ id: 'sensor', name: 'Sensor upgrade', category: 'vehicle' }]
+    const x = translateRunner(r, opts), s = x.vehicles[0].actor.system
+    expect(s.rrList).toEqual([{ rrType: 'skill', rrValue: 3, rrTarget: 'piloting' }])
+    expect(s.narrativeEffects).toEqual([{ text: 'Sensor upgrade', isNegative: false, value: 0 }])
+    expect(x.textOnly.some(l => l.includes('Risk Reduction Piloting 5 → 3'))).toBe(true)
+  })
+
+  const weapon = dv => { const r = structuredClone(mara); r.items[2] = { uid: 'w', kind: 'weapon', name: 'Odd Thing', price: 1, weapon: { dv, dvText: dv, ranges: {} } }
+    const x = translateRunner(r, opts); return { s: x.items.find(i => i.name === 'Odd Thing').system, x } }
+  test('custom weapon DV', () => {
+    expect(weapon('4P').s).toMatchObject({ weaponType: 'custom-weapon', vdMode: 'custom', vdCustomValue: 4, damageValue: '4' })
+    expect(weapon('STR+1').s).toMatchObject({ vdMode: 'attribute', vdAttribute: 'strength', vdBonus: 1, damageValue: 'FOR+1' })
+    expect(weapon('FOR').s).toMatchObject({ vdMode: 'attribute', vdBonus: 0, damageValue: 'FOR' })
+    const odd = weapon('odd')
+    expect(odd.s).toMatchObject({ vdMode: 'custom', vdCustomValue: 0 })
+    expect(odd.s.description).toContain('Chummer DV: odd')
+    expect(odd.x.textOnly.some(l => l.startsWith('Odd Thing: DV odd'))).toBe(true)
+  })
+
+  test('cyberdeck wound box, armor over, odd attributes', () => {
+    const r = structuredClone(mara)
+    r.amps.push({ uid: 'deck', type: 'cyberdeck', typeName: 'Cyberdeck', name: 'Deck', rating: 1, essence: 0, rr: [],
+      effects: [{ id: 'wound-light', name: 'Extra light wound box', category: 'combat' }], bonuses: { light: 0 } })
+    r.items[3].armor.over = true
+    r.skills.push({ id: 'odd', name: 'Odd', attr: 'mag', rating: 1, specs: [{ id: 'odd.x', name: 'X', attr: 'res' }] })
+    const x = translateRunner(r, opts)
+    expect(x.items.find(i => i.name === 'Deck').system).toMatchObject({ featType: 'cyberdeck', cyberdeckBonusLightDamage: true })
+    expect(x.textOnly.some(l => l.startsWith('Made-Up Vest: worn over'))).toBe(true)
+    expect(x.items.find(i => i.name === 'Odd').system.linkedAttribute).toBe('strength')
+    expect(x.items.find(i => i.name === 'Spec: X').system.linkedAttribute).toBe('strength')
+    expect(x.textOnly.filter(l => l.includes('attribute mag') || l.includes('attribute res'))).toHaveLength(2)
   })
 
   test('a runner with no amps, items or vehicles', () => {
