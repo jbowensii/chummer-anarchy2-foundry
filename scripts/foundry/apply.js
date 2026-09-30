@@ -16,12 +16,13 @@ async function ensureFolder(name, parent = null) {
   return found ?? Folder.create({ name, type: 'Actor', folder: parent?.id ?? null })
 }
 
-// data URL -> world file; returns its path. createDirectory rejects when the directory is already there.
+// data URL -> world file; returns its path. As sra2 does (helpers/gemini-image.ts): browse, and on failure create each
+// level, swallowing "already exists"; a real problem surfaces as the upload failing.
 async function uploadPortrait(dataUrl, runnerId, exportedAt) {
   const FP = foundry.applications.apps.FilePicker.implementation
-  const dir = `worlds/${game.world.id}/chummer/portraits`
-  for (const d of [`worlds/${game.world.id}/chummer`, dir]) {
-    try { await FP.createDirectory('data', d, {}) } catch (e) { if (!/exist/i.test(String(e?.message ?? e))) throw e }
+  const base = `worlds/${game.world.id}/chummer`, dir = `${base}/portraits`
+  try { await FP.browse('data', dir) } catch {
+    for (const d of [base, dir]) { try { await FP.createDirectory('data', d, {}) } catch { /* may already exist */ } }
   }
   const blob = await (await fetch(dataUrl)).blob()
   const ext = /jpe?g/i.test(blob.type) ? 'jpg' : 'png'
@@ -32,13 +33,16 @@ async function uploadPortrait(dataUrl, runnerId, exportedAt) {
 }
 
 // Replace in place: rebuild the translated fields and every flagged embedded item; unflagged items and play state stay.
-// New items are created before the old ones go, so a failure never leaves the actor without its items.
+// Update first, then new items, old items deleted last: a failure never leaves the actor without its Chummer items.
 async function replaceDoc(doc, t, created) {
   const old = doc.items.filter(i => flagOf(i)).map(i => i.id)
+  await doc.update(replaceUpdate(t.actor, doc.name))
   if (t.items.length) created.push(...await doc.createEmbeddedDocuments('Item', t.items))
   if (old.length) await doc.deleteEmbeddedDocuments('Item', old)
-  await doc.update(replaceUpdate(t.actor))
 }
+// Vehicles are linked actors, as sra2 makes them when it links a vehicle (helpers/sheet-helpers.ts).
+const createVehicle = (v, name, folder) =>
+  Actor.create({ ...v.actor, name, folder: folder.id, items: v.items, prototypeToken: { actorLink: true } })
 
 /**
  * choice: 'create' | 'new' | 'replace' | 'skip'. Never throws: a failure deletes what this runner created and returns
@@ -65,9 +69,10 @@ export async function applyRunner(t, choice, { portrait, exportedAt } = {}) {
         const matches = game.actors.filter(a => flagOf(a)?.runner === vf.runner && flagOf(a)?.id === vf.id)
         const match = matches.find(a => links.includes(a.uuid)) ?? newest(matches)
         if (match) { await replaceDoc(match, v, created); ours.push(match.uuid) }
-        else { const nv = await Actor.create({ ...v.actor, folder: vFolder.id, items: v.items }); created.push(nv); ours.push(nv.uuid) }
+        else { const nv = await createVehicle(v, v.actor.name, vFolder); created.push(nv); ours.push(nv.uuid) }
       }
-      const kept = links.filter(u => !flagOf(linkedDoc(u)) && !ours.includes(u))
+      // keep links to the GM's own vehicles; drop ours not in this export and dangling ones
+      const kept = links.filter(u => { const d = linkedDoc(u); return d && !flagOf(d) && !ours.includes(u) })
       actor.system.linkedVehicles = [...ours, ...kept]
       await replaceDoc(doc, { actor, items: t.items }, created)
       return { actor: doc, action: 'replace' }
@@ -76,7 +81,7 @@ export async function applyRunner(t, choice, { portrait, exportedAt } = {}) {
     const suffix = choice === 'new' ? n => newVersionName(n, flagOf(t.actor).exportedAt) : n => n
     const vUuids = []
     for (const v of t.vehicles) {
-      const nv = await Actor.create({ ...v.actor, name: suffix(v.actor.name), folder: vFolder.id, items: v.items })
+      const nv = await createVehicle(v, suffix(v.actor.name), vFolder)
       created.push(nv); vUuids.push(nv.uuid)
     }
     actor.system.linkedVehicles = vUuids
@@ -85,7 +90,8 @@ export async function applyRunner(t, choice, { portrait, exportedAt } = {}) {
     created.push(doc)
     return { actor: doc, action: choice === 'new' ? 'new' : 'create' }
   } catch (error) {
-    // ponytail: rollback deletes created documents only; an update already applied to a replaced actor stays.
+    // ponytail: rollback deletes created documents only; an update already applied to a replaced actor stays
+    // (its old items are still there, since they are deleted last).
     for (const d of created.reverse()) { try { await d.delete() } catch {} }
     console.error(`${MODULE_ID} | ${t.actor.name}`, error)
     return { actor: null, action: 'failed', error }
