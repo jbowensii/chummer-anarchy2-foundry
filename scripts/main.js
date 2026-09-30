@@ -1,5 +1,6 @@
 // Entry point: the import window is built at init; GMs get an "Import from Chummer" button in the Actors sidebar.
 import { createImportApp } from './foundry/app.js'
+import { registerQuench } from './foundry/quench.js'
 
 let ImportApp = null
 const APP_ID = 'chummer-anarchy2-import'
@@ -31,3 +32,4 @@ Hooks.on('renderActorDirectory', (app, html) => addButton(html))
 Hooks.on('changeSidebarTab', app => { if (app.tabName === 'actors') addButton() })
 Hooks.on('renderSidebarTab', app => { if (app.tabName === 'actors') addButton() })
 Hooks.once('ready', () => addButton())
+Hooks.on('quenchReady', quench => registerQuench(quench))

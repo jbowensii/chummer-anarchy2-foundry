@@ -56,14 +56,21 @@ export function createImportApp() {
       await super._onRender?.(context, options)
       this.element.querySelector('input[name=file]')?.addEventListener('change', ev => this.#load(ev.target.files?.[0]))
       this.element.querySelector('select[name=applyAll]')?.addEventListener('change', ev => {
-        if (!ev.target.value) return
-        for (const r of this.element.querySelectorAll(`.ca2i-choices input[value=${ev.target.value}]`)) r.checked = true
+        const v = ev.target.value
+        if (!v) return
+        for (const r of this.element.querySelectorAll(`.ca2i-choices input[value=${v}]`)) r.checked = true
+        // A runner new to the world has no choices: its tick is its only control.
+        if (v === 'skip') this.rows?.forEach((row, i) => {
+          const tick = !row.existing && this.element.querySelector(`[name="tick-${i}"]`)
+          if (tick) tick.checked = false
+        })
       })
     }
 
     async #load(file) {
       if (!file) return
-      const res = readExport(await file.text())
+      let res
+      try { res = readExport(await file.text()) } catch (e) { res = { ok: false, reason: F('CA2I.ReadFailed', { reason: e?.message ?? String(e) }) } }
       this.file = res.ok ? res.file : null
       this.refused = res.ok ? '' : res.reason
       this.rows = res.ok ? res.file.runners.map(runner => {

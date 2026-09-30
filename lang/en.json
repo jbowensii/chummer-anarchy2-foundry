@@ -3,6 +3,7 @@
     "Button": "Import from Chummer",
     "Title": "Import from Chummer",
     "ChooseFile": "Choose a Chummer file",
+    "ReadFailed": "This file couldn’t be read: {reason}",
     "NotSra2": "This world runs {system}, not Shadowrun Anarchy 2 (sra2). Runners can only be imported into an sra2 world.",
     "NewerSra2": "Tested with sra2 {tested}; this world runs {version}. The import may miss new fields.",
     "Exported": "exported {date}",
