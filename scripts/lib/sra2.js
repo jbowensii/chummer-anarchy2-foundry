@@ -1,5 +1,6 @@
 // sra2 (v14.3.3) lookup tables: Chummer Anarchy ids and names -> sra2 slugs. SKILLS/SPECS/WEAPON_TYPES/VEHICLE_TYPES mirror sra2's own data.
 export const ATTR = { str: 'strength', agi: 'agility', wil: 'willpower', log: 'logic', cha: 'charisma' }
+export const attrKey = a => (Object.hasOwn(ATTR, a) ? ATTR[a] : a)
 
 const ID = { conjuration: 'conjuring', networking: 'network' }
 const skill = (slug, name, attr) => [ID[slug] ?? slug, { slug, name, attr }]
@@ -120,7 +121,7 @@ const slugOf = (name, id) => slugify(name) || slugify(id) || 'unnamed'
 
 export function skillFor({ id, attr }) {
   if (Object.hasOwn(SKILLS, id)) return { ...SKILLS[id], known: true }
-  return { slug: `chummer-${slugOf(id, id)}`, name: id, attr: ATTR[attr] ?? attr, known: false }
+  return { slug: `chummer-${slugOf(id, id)}`, name: id, attr: attrKey(attr), known: false }
 }
 
 export function specFor(skillSlug, { id, name, attr }) {
@@ -128,7 +129,7 @@ export function specFor(skillSlug, { id, name, attr }) {
   const s = n && SPECS.find(x => x.skill === skillSlug && norm(x.name) === n)
   if (s) return { slug: s.slug, name: s.name, skill: s.skill, attr: s.attr, known: true }
   // a spec found only on another skill can't be reused: it must stay under the skill it is attached to
-  return { slug: `spec_chummer-${slugOf(name, id)}`, name, skill: skillSlug, attr: ATTR[attr] ?? attr, known: false }
+  return { slug: `spec_chummer-${slugOf(name, id)}`, name, skill: skillSlug, attr: attrKey(attr), known: false }
 }
 
 const FEAT = { quality: 'trait', cyberware: 'cyberware', bioware: 'cyberware', adept: 'adept-power', awakened: 'awakened', emerged: 'emerged', cyberdeck: 'cyberdeck', contact: 'contact' }

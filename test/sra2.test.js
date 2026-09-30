@@ -38,4 +38,8 @@ describe('sra2 tables', () => {
     expect(specFor('technomancer', { id: 'x', name: 'Compilación', attr: 'log' }).known).toBe(false)
     expect(specFor('technomancer', { id: 'x', name: 'Compilation', attr: 'log' })).toMatchObject({ slug: 'spec_compilation', known: true })
   })
+  test('attribute lookups ignore inherited keys', () => {
+    expect(skillFor({ id: 'x', attr: 'toString' }).attr).toBe('toString')
+    expect(specFor('athletics', { id: 'x', name: 'Y', attr: 'constructor' }).attr).toBe('constructor')
+  })
 })
