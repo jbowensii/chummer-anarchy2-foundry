@@ -1,6 +1,6 @@
 // In-Foundry tests (Quench, https://github.com/Ethaks/FVTT-Quench). Registered from main.js on 'quenchReady'.
 // They drive the window's own code paths: readExport -> findExisting/defaultChoice -> translateRunner -> applyRunner.
-// Everything they create sits in the Actors folder "Chummer Importer tests" under fresh runner ids, deleted in after().
+// Each batch makes its own Actors folder "Chummer Importer tests" and fresh runner ids; after() deletes exactly those.
 import { MODULE_ID } from '../lib/constants.js'
 import { readExport } from '../lib/read.js'
 import { escapeText, translateRunner } from '../lib/translate.js'
@@ -22,19 +22,21 @@ async function loadSample() {
 }
 
 // As the window does it (app.js #onImport): same sanitizer, same translate and apply calls; no portrait upload.
-function importRunner(file, runner, choice) {
+function importRunner(file, runner, choice, folder) {
   const clean = foundry.utils.cleanHTML ?? (h => h)
   const exportedAt = runner.exportedAt ?? file.exportedAt
   const t = translateRunner(runner, { exportedAt, appVersion: file.app?.version ?? '', sanitize: s => clean(escapeText(s)) })
-  return applyRunner(t, choice, { exportedAt, folder: TEST_FOLDER })
+  return applyRunner(t, choice, { exportedAt, folder })
 }
 
-// Delete this run's actors (runners and vehicles, by flagged id) and the test folder with anything left in it.
-async function cleanUp(tag) {
+// This batch's folder, created fresh: a folder of the same name the GM already has is never used or deleted.
+const makeFolder = () => Folder.create({ name: TEST_FOLDER, type: 'Actor', folder: null })
+
+// Delete this run's actors (runners and vehicles, by flagged id), then this batch's folder and its vehicle subfolders.
+async function cleanUp(tag, folder) {
   const ids = game.actors.filter(a => String(flagOf(a)?.runner ?? flagOf(a)?.id ?? '').startsWith(tag)).map(a => a.id)
   if (ids.length) await Actor.deleteDocuments(ids)
-  const folder = game.folders.find(f => f.type === 'Actor' && f.name === TEST_FOLDER && !f.folder)
-  if (folder) await folder.delete({ deleteSubfolders: true, deleteContents: true })
+  if (folder && game.folders.get(folder.id)) await folder.delete({ deleteSubfolders: true, deleteContents: true })
 }
 
 const itemsOf = (actor, type) => actor.items.filter(i => i.type === type)
@@ -60,20 +62,21 @@ export function registerQuench(quench) {
   batch('runners', ({ describe, it, assert, before, after }) => {
     describe('importing the sample file', function () {
       this.timeout(30000)
-      let tag, mara, drone
+      let tag, folder, mara, drone
       before(async function () {
         const s = await loadSample(); tag = s.tag
+        folder = await makeFolder()
         const runner = s.file.runners[0]
         assert.equal(defaultChoice(flagOf(findExisting(runner.id)), runner), 'create')
-        const res = await importRunner(s.file, runner, 'create')
+        const res = await importRunner(s.file, runner, 'create', folder)
         assert.equal(res.action, 'create', res.error?.message)
         mara = res.actor
         drone = game.actors.find(a => flagOf(a)?.runner === runner.id)
       })
-      after(() => cleanUp(tag))
+      after(() => cleanUp(tag, folder))
 
       it('is in the test folder with its attributes', () => {
-        assert.equal(mara.folder?.name, TEST_FOLDER)
+        assert.equal(mara.folder?.id, folder.id)
         assert.deepInclude(mara.system.attributes, { strength: 2, agility: 4, willpower: 3, logic: 2, charisma: 3 })
       })
       it('has its skills and specs with sra2 slugs', () => {
@@ -106,45 +109,57 @@ export function registerQuench(quench) {
   })
 
   batch('replace and new version', ({ describe, it, assert, before, after }) => {
+    // These tests run in order and build on each other: Replace, then Add as new version, then the older-file check.
     describe('importing a runner that is already in the world', function () {
       this.timeout(30000)
-      const testUser = foundry.utils.randomID()
-      let tag, file, runner, first, oldFlagged, noteId
+      const OWNER = CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER
+      let tag, folder, file, runner, first, oldFlagged, noteId, testUser
       before(async function () {
+        // a real user other than me (a player if there is one); without one the ownership check is skipped
+        testUser = game.users.find(u => !u.isGM && u.id !== game.user.id) ?? game.users.find(u => u.id !== game.user.id)
         const s = await loadSample(); tag = s.tag; file = s.file; runner = file.runners[0]
-        first = (await importRunner(file, runner, 'create')).actor
-        // play state the GM added: a wound, a player's ownership, their own item
+        folder = await makeFolder()
+        first = (await importRunner(file, runner, 'create', folder)).actor
+        // play state the GM added: a wound, a user's ownership, their own item
         const light = [...(first.system.damage?.light ?? [false])]; light[0] = true
-        await first.update({ 'system.damage.light': light, [`ownership.${testUser}`]: CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER })
+        await first.update({ 'system.damage.light': light, ...testUser ? { [`ownership.${testUser.id}`]: OWNER } : {} })
+        assert.isTrue(first.system.damage.light[0], 'setup: wound marked')
+        if (testUser) assert.equal(first.ownership[testUser.id], OWNER, 'setup: ownership set')
         noteId = (await first.createEmbeddedDocuments('Item', [{ name: 'GM note item', type: 'feat', system: { featType: 'equipment' } }]))[0].id
         oldFlagged = first.items.filter(i => flagOf(i)).map(i => i.id)
       })
-      after(() => cleanUp(tag))
+      after(() => cleanUp(tag, folder))
 
       it('Replace with a newer file updates the same actor and keeps play state', async () => {
         const newer = structuredClone(runner)
         newer.exportedAt = '2026-10-05T12:00:00.000Z'
         newer.attributes.str = 5
         assert.equal(defaultChoice(flagOf(findExisting(newer.id)), newer), 'replace')
-        const res = await importRunner(file, newer, 'replace')
+        const res = await importRunner(file, newer, 'replace', folder)
         assert.equal(res.action, 'replace', res.error?.message)
         const a = game.actors.get(first.id)
         assert.equal(res.actor.id, first.id)
         assert.equal(a.system.attributes.strength, 5)
         assert.isTrue(a.system.damage.light[0], 'wound kept')
-        assert.equal(a.ownership[testUser], CONST.DOCUMENT_OWNERSHIP_LEVELS.OWNER, 'ownership kept')
         assert.ok(a.items.get(noteId), 'unflagged item kept')
         const flagged = a.items.filter(i => flagOf(i))
         assert.isNotEmpty(flagged)
         assert.isEmpty(flagged.filter(i => oldFlagged.includes(i.id)), 'flagged items rebuilt')
         assert.equal(flagOf(a).exportedAt, newer.exportedAt)
       })
+      it('Replace kept the user’s ownership', function () {
+        if (!testUser) {
+          console.warn(`${MODULE_ID} | ownership test skipped: this world has no other user to own the test actor`)
+          this.skip()
+        }
+        assert.equal(game.actors.get(first.id).ownership[testUser.id], OWNER)
+      })
       it('Add as new version makes a second actor named with the date', async () => {
-        const res = await importRunner(file, runner, 'new')
+        const res = await importRunner(file, runner, 'new', folder)
         assert.equal(res.action, 'new', res.error?.message)
         assert.notEqual(res.actor.id, first.id)
         assert.equal(res.actor.name, newVersionName(runner.streetName, runner.exportedAt))
-        assert.equal(res.actor.folder?.name, TEST_FOLDER)
+        assert.equal(res.actor.folder?.id, folder.id)
       })
       it('an older file defaults to Skip', () => {
         const older = { exportedAt: '2026-09-01T00:00:00.000Z' }

@@ -49,7 +49,7 @@ const createVehicle = (v, name, folder) =>
   Actor.create({ ...v.actor, name, folder: folder.id, items: v.items, prototypeToken: { actorLink: true } })
 
 /**
- * choice: 'create' | 'new' | 'replace' | 'skip'. folder: the root Actors folder (the Quench tests use their own). Never throws: a failure deletes what this runner created and returns
+ * choice: 'create' | 'new' | 'replace' | 'skip'. folder: the root Actors folder, by name or a Folder (the Quench tests pass their own). Never throws: a failure deletes what this runner created and returns
  * { actor: null, action: 'failed', error } so the caller reports it and carries on with the other runners.
  */
 export async function applyRunner(t, choice, { portrait, exportedAt, folder = FOLDER } = {}) {
@@ -60,7 +60,7 @@ export async function applyRunner(t, choice, { portrait, exportedAt, folder = FO
   try {
     const actor = structuredClone(t.actor)
     if (portrait) actor.img = await uploadPortrait(portrait, runnerId, exportedAt ?? flagOf(t.actor).exportedAt)
-    const root = await ensureFolder(folder)
+    const root = typeof folder === 'string' ? await ensureFolder(folder) : folder
     const vFolder = t.vehicles.length ? await ensureFolder(`${t.actor.name} vehicles`, root) : null
 
     if (choice === 'replace') {
