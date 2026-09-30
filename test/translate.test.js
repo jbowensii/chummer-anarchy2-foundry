@@ -132,31 +132,51 @@ describe('translating a runner', () => {
     expect(odd.x.textOnly.some(l => l.startsWith('Odd Thing: DV odd'))).toBe(true)
   })
 
-  test('cyberdeck wound box, armor over, odd attributes', () => {
+  test('cyberdeck wound box, odd attributes', () => {
     const r = structuredClone(mara)
     r.amps.push({ uid: 'deck', type: 'cyberdeck', typeName: 'Cyberdeck', name: 'Deck', rating: 1, essence: 0, rr: [],
       effects: [{ id: 'wound-light', name: 'Extra light wound box', category: 'combat' }], bonuses: { light: 0 } })
-    r.items[3].armor.over = true
     r.skills.push({ id: 'odd', name: 'Odd', attr: 'mag', rating: 1, specs: [{ id: 'odd.x', name: 'X', attr: 'res' }] })
     const x = translateRunner(r, opts)
     expect(x.items.find(i => i.name === 'Deck').system).toMatchObject({ featType: 'cyberdeck', cyberdeckBonusLightDamage: true })
-    expect(x.textOnly).toContain('Made-Up Vest: worn over other armor → inactive')
-    expect(x.items.find(i => i.name === 'Made-Up Vest').system.active).toBe(false)
     expect(x.items.find(i => i.name === 'Odd').system.linkedAttribute).toBe('strength')
     expect(x.items.find(i => i.name === 'Spec: X').system.linkedAttribute).toBe('strength')
     expect(x.textOnly.filter(l => l.includes('attribute mag') || l.includes('attribute res'))).toHaveLength(2)
   })
 
-  test('only one armor is active: layers and the lower spare are not', () => {
+  test('armor: only the highest-summing worn chain is active', () => {
     expect(byName('Made-Up Vest').system).not.toHaveProperty('active') // a single armor stays sra2's default (active)
     const r = structuredClone(mara)
-    r.items.push({ uid: 'a2', kind: 'armor', name: 'Coat', price: 1, armor: { value: 3 } },
+    r.items.push({ uid: 'a2', kind: 'armor', name: 'Jacket', price: 1, armor: { value: 2 } },
       { uid: 'a3', kind: 'armor', name: 'Helmet', price: 1, armor: { value: 1, over: 'a2' } })
     const x = translateRunner(r, opts), sys = n => x.items.find(i => i.name === n).system
-    expect(sys('Coat')).not.toHaveProperty('active')
+    expect(sys('Helmet')).not.toHaveProperty('active')
+    expect(sys('Jacket')).not.toHaveProperty('active')
     expect(sys('Made-Up Vest').active).toBe(false)
-    expect(sys('Helmet').active).toBe(false)
-    expect(x.textOnly).toContain('Made-Up Vest: armor → inactive (only Coat is active)')
+    expect(x.textOnly).toContain('Armor: Helmet over Jacket active (3); inactive: Made-Up Vest')
+  })
+
+  test('armor: a tie keeps the first chain', () => {
+    const r = structuredClone(mara)
+    r.items.push({ uid: 'a2', kind: 'armor', name: 'Coat', price: 1, armor: { value: 2 } })
+    const x = translateRunner(r, opts), sys = n => x.items.find(i => i.name === n).system
+    expect(sys('Made-Up Vest')).not.toHaveProperty('active')
+    expect(sys('Coat').active).toBe(false)
+    expect(x.textOnly).toContain('Armor: Made-Up Vest active (2); inactive: Coat')
+  })
+
+  test('custom weapons get the skill links sra2 rolls', () => {
+    const r = structuredClone(mara), none = { short: 'none', medium: 'none', long: 'none' }
+    r.items.push({ uid: 'w1', kind: 'weapon', name: 'Odd Stick', price: 1, weapon: { dv: 'STR+1', ranges: { melee: 'ok', ...none } } },
+      { uid: 'w2', kind: 'weapon', name: 'Odd Sling', price: 1, weapon: { dv: '3', ranges: { melee: 'none', ...none, short: 'ok' } } },
+      { uid: 'w3', kind: 'weapon', name: 'Short weapon', price: 1, weapon: { dv: 'STR+1', ranges: { melee: 'ok', ...none } } })
+    const x = translateRunner(r, opts), sys = n => x.items.find(i => i.name === n).system
+    expect(sys('Odd Stick')).toMatchObject({ weaponType: 'custom-weapon', linkedAttackSkill: 'close-combat', linkedAttackSpecialization: '',
+      linkedDefenseSkill: 'close-combat', linkedDefenseSpecialization: 'spec_defense' })
+    expect(sys('Odd Sling')).toMatchObject({ weaponType: 'custom-weapon', linkedAttackSkill: 'ranged-weapons', linkedAttackSpecialization: '',
+      linkedDefenseSkill: 'athletics', linkedDefenseSpecialization: 'spec_ranged-defense' })
+    expect(sys('Short weapon').weaponType).toBe('short-weapons')
+    expect(sys('Short weapon')).not.toHaveProperty('linkedAttackSkill') // a known type: sra2 takes its own links
   })
 
   test('a runner with no amps, items or vehicles', () => {

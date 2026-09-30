@@ -19,7 +19,7 @@ const START_ONLY = ['controlMode']
 
 /**
  * The Replace update for a translated actor (runner or vehicle): its name, image, flags and the system fields the
- * translation produces, less START_ONLY. Play state (damage, anarchy, ownership, token settings and token image) is never in it.
+ * translation produces, less START_ONLY. Play state (damage, anarchy, ownership, token settings and a custom token image) is never in it.
  * A world copy named like a new version ("Mara (2 Oct 2026)") keeps its dated name.
  */
 export function replaceUpdate(translated, existingName = '') {
@@ -29,3 +29,7 @@ export function replaceUpdate(translated, existingName = '') {
   if (translated.img) u.img = translated.img
   return u
 }
+
+// Replace with a new portrait: the token follows it only while it still shows the actor's image (a GM's own token image stays).
+export const tokenUpdate = (existing, img) =>
+  img && existing?.prototypeToken?.texture?.src === existing?.img ? { 'prototypeToken.texture.src': img } : {}
