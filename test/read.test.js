@@ -20,8 +20,6 @@ describe('reading a Chummer file', () => {
     ['book data', JSON.stringify({ format: 'chummer-anarchy2-export', version: 1, kind: 'books', books: [] }), /Book data import comes in a later version/],
     ['a runner with null attributes', JSON.stringify({ format: 'chummer-anarchy2-export', version: 1, kind: 'runners', runners: [{ id: 'a', streetName: 'A', attributes: null }] }), /damaged/],
     ['a runner with array attributes', JSON.stringify({ format: 'chummer-anarchy2-export', version: 1, kind: 'runners', runners: [{ id: 'a', streetName: 'A', attributes: [] }] }), /damaged/],
-    ['a runner with null attributes', JSON.stringify({ format: 'chummer-anarchy2-export', version: 1, kind: 'runners', runners: [{ id: 'a', streetName: 'A', attributes: null }] }), /damaged/],
-    ['a runner with array attributes', JSON.stringify({ format: 'chummer-anarchy2-export', version: 1, kind: 'runners', runners: [{ id: 'a', streetName: 'A', attributes: [] }] }), /damaged/],
     ['no runners', JSON.stringify({ format: 'chummer-anarchy2-export', version: 1, kind: 'runners' }), /no runners/],
   ])('refuses %s', (_, text, reason) => {
     const r = readExport(text)

@@ -115,33 +115,41 @@ export const VEHICLE_TYPES = ['custom-vehicle', 'microdrone', 'minidrone', 'smal
 
 const norm = s => String(s ?? '').normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9]+/g, ' ').trim()
 const slugify = s => norm(s).replace(/ /g, '-')
+// Slug from the name, falling back to the Chummer id when the name has nothing ASCII in it.
+const slugOf = (name, id) => slugify(name) || slugify(id) || 'unnamed'
 
 export function skillFor({ id, attr }) {
-  const s = SKILLS[id]
-  return s ? { ...s, known: true } : { slug: `chummer-${id}`, name: id, attr: ATTR[attr] ?? attr, known: false }
+  if (Object.hasOwn(SKILLS, id)) return { ...SKILLS[id], known: true }
+  return { slug: `chummer-${slugOf(id, id)}`, name: id, attr: ATTR[attr] ?? attr, known: false }
 }
 
-export function specFor(skillSlug, { name, attr }) {
+export function specFor(skillSlug, { id, name, attr }) {
   const n = norm(name)
-  const s = SPECS.find(x => x.skill === skillSlug && norm(x.name) === n) ?? SPECS.find(x => norm(x.name) === n)
-  return s ? { slug: s.slug, name: s.name, attr: s.attr, known: true } : { slug: `spec_chummer-${slugify(name)}`, name, attr: ATTR[attr] ?? attr, known: false }
+  const s = n && SPECS.find(x => x.skill === skillSlug && norm(x.name) === n)
+  if (s) return { slug: s.slug, name: s.name, skill: s.skill, attr: s.attr, known: true }
+  // a spec found only on another skill can't be reused: it must stay under the skill it is attached to
+  return { slug: `spec_chummer-${slugOf(name, id)}`, name, skill: skillSlug, attr: ATTR[attr] ?? attr, known: false }
 }
 
 const FEAT = { quality: 'trait', cyberware: 'cyberware', bioware: 'cyberware', adept: 'adept-power', awakened: 'awakened', emerged: 'emerged', cyberdeck: 'cyberdeck', contact: 'contact' }
 // bioware maps to cyberware; callers set isBioware when ampType is 'bioware'.
-export const featType = ampType => FEAT[ampType] ?? 'equipment'
+export const featType = ampType => (Object.hasOwn(FEAT, ampType) ? FEAT[ampType] : 'equipment')
 
+// First match wins, so order matters (specific before general).
 const WEAPONS = [
-  [/unarmed|bare/, 'bare-hands'], [/katana|sword/, 'long-weapons'], [/knife|blade/, 'short-weapons'],
-  [/taser/, 'tasers'], [/throwing/, 'throwing'], [/grenade launcher/, 'grenade-launchers'], [/gas grenade/, 'gas-grenades'], [/grenade/, 'grenades'],
-  [/rocket|missile/, 'rocket-launchers'], [/crossbow/, 'crossbows'], [/\bbow\b/, 'bows'], [/machine gun/, 'machine-guns'],
-  [/sniper/, 'sniper-rifles'], [/assault rifle/, 'assault-rifles'], [/shotgun/, 'shotguns'], [/\bsmg\b|submachine/, 'smgs'],
-  [/hold out|pocket/, 'pocket-pistols'], [/light pistol/, 'light-pistols'], [/machine pistol|automatic pistol/, 'automatic-pistols'], [/pistol/, 'heavy-pistols'],
+  [/\b(unarmed|bare)\b/, 'bare-hands'], [/\bthrowing\b/, 'throwing'], [/\b(katana|sword)\b/, 'long-weapons'], [/\b(knife|blade)\b/, 'short-weapons'],
+  [/\btaser\b/, 'tasers'], [/\bgrenade launcher\b/, 'grenade-launchers'], [/\bgas grenade\b/, 'gas-grenades'], [/\bgrenade\b/, 'grenades'],
+  [/\b(rocket|missile)\b/, 'rocket-launchers'], [/\bcrossbow\b/, 'crossbows'], [/\b(long)?bow\b/, 'bows'],
+  [/\b(smg|sub ?machine)\b/, 'smgs'], [/\bmachine pistol\b|\bautomatic pistol\b/, 'automatic-pistols'], [/\bmachine gun\b/, 'machine-guns'],
+  [/\bsniper\b/, 'sniper-rifles'], [/\brifle\b/, 'assault-rifles'], [/\bshotgun\b/, 'shotguns'],
+  [/\b(hold out|pocket)\b/, 'pocket-pistols'], [/\blight pistol\b/, 'light-pistols'], [/\bpistol\b/, 'heavy-pistols'],
 ]
 export const weaponType = name => { const n = norm(name); return WEAPONS.find(([re]) => re.test(n))?.[1] ?? 'custom-weapon' }
 
+const VEHICLE_WORDS = [[/\b(pickup|suv)\b/, 'suv-pickup'], [/\bmicro ?drone\b/, 'microdrone'], [/\bmini ?drone\b/, 'minidrone']]
 export function vehicleType(chassisId, name) {
   if (VEHICLE_TYPES.includes(chassisId)) return chassisId
   const n = norm(name)
-  return VEHICLE_TYPES.find(k => k !== 'custom-vehicle' && n.includes(k.replace(/-/g, ' '))) ?? 'custom-vehicle'
+  const key = VEHICLE_TYPES.find(k => k !== 'custom-vehicle' && ` ${n} `.includes(` ${k.replace(/-/g, ' ')} `))
+  return key ?? VEHICLE_WORDS.find(([re]) => re.test(n))?.[1] ?? 'custom-vehicle'
 }
