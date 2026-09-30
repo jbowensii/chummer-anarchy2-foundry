@@ -33,12 +33,16 @@ async function uploadPortrait(dataUrl, runnerId, exportedAt) {
 }
 
 // Replace in place: rebuild the translated fields and every flagged embedded item; unflagged items and play state stay.
-// Update first, then new items, old items deleted last: a failure never leaves the actor without its Chummer items.
-async function replaceDoc(doc, t, created) {
+// Update first, then new items, old items deleted last. If deleting the old ones fails, this document's new items are
+// removed again, so a failure never leaves it without its Chummer items or with them twice. Throws on failure.
+async function replaceDoc(doc, t) {
   const old = doc.items.filter(i => flagOf(i)).map(i => i.id)
   await doc.update(replaceUpdate(t.actor, doc.name))
-  if (t.items.length) created.push(...await doc.createEmbeddedDocuments('Item', t.items))
-  if (old.length) await doc.deleteEmbeddedDocuments('Item', old)
+  const made = t.items.length ? await doc.createEmbeddedDocuments('Item', t.items) : []
+  try { if (old.length) await doc.deleteEmbeddedDocuments('Item', old) } catch (e) {
+    try { await doc.deleteEmbeddedDocuments('Item', made.map(i => i.id)) } catch {}
+    throw e
+  }
 }
 // Vehicles are linked actors, as sra2 makes them when it links a vehicle (helpers/sheet-helpers.ts).
 const createVehicle = (v, name, folder) =>
@@ -51,7 +55,8 @@ const createVehicle = (v, name, folder) =>
 export async function applyRunner(t, choice, { portrait, exportedAt } = {}) {
   const runnerId = flagOf(t.actor).id
   if (choice === 'skip') return { actor: findExisting(runnerId), action: 'skip' }
-  const created = []
+  const created = []  // actors created in this run: all a failure deletes
+  let doc = null, linksWritten = false
   try {
     const actor = structuredClone(t.actor)
     if (portrait) actor.img = await uploadPortrait(portrait, runnerId, exportedAt ?? flagOf(t.actor).exportedAt)
@@ -59,22 +64,25 @@ export async function applyRunner(t, choice, { portrait, exportedAt } = {}) {
     const vFolder = t.vehicles.length ? await ensureFolder(`${t.actor.name} vehicles`, root) : null
 
     if (choice === 'replace') {
-      const doc = findExisting(runnerId)
+      doc = findExisting(runnerId)
       if (!doc) throw new Error(`${t.actor.name}: nothing to replace`)
       const links = doc.system.linkedVehicles ?? []
-      const linkedDoc = u => foundry.utils.fromUuidSync(u)
-      const ours = []
+      // Match each vehicle to the world copy; missing ones are created first so the runner's links can be written.
+      const matched = [], ours = []
       for (const v of t.vehicles) {
         const vf = flagOf(v.actor)
         const matches = game.actors.filter(a => flagOf(a)?.runner === vf.runner && flagOf(a)?.id === vf.id)
         const match = matches.find(a => links.includes(a.uuid)) ?? newest(matches)
-        if (match) { await replaceDoc(match, v, created); ours.push(match.uuid) }
+        if (match) { matched.push([match, v]); ours.push(match.uuid) }
         else { const nv = await createVehicle(v, v.actor.name, vFolder); created.push(nv); ours.push(nv.uuid) }
       }
       // keep links to the GM's own vehicles; drop ours not in this export and dangling ones
-      const kept = links.filter(u => { const d = linkedDoc(u); return d && !flagOf(d) && !ours.includes(u) })
+      const kept = links.filter(u => { const d = foundry.utils.fromUuidSync(u); return d && !flagOf(d) && !ours.includes(u) })
       actor.system.linkedVehicles = [...ours, ...kept]
-      await replaceDoc(doc, { actor, items: t.items }, created)
+      // the runner first, then its vehicles
+      linksWritten = true
+      await replaceDoc(doc, { actor, items: t.items })
+      for (const [match, v] of matched) await replaceDoc(match, v)
       return { actor: doc, action: 'replace' }
     }
 
@@ -85,14 +93,20 @@ export async function applyRunner(t, choice, { portrait, exportedAt } = {}) {
       created.push(nv); vUuids.push(nv.uuid)
     }
     actor.system.linkedVehicles = vUuids
-    const doc = await Actor.create({ ...actor, name: suffix(actor.name), folder: root.id, items: t.items,
+    doc = await Actor.create({ ...actor, name: suffix(actor.name), folder: root.id, items: t.items,
       prototypeToken: { actorLink: true, ...actor.img ? { texture: { src: actor.img } } : {} } })
     created.push(doc)
     return { actor: doc, action: choice === 'new' ? 'new' : 'create' }
   } catch (error) {
-    // ponytail: rollback deletes created documents only; an update already applied to a replaced actor stays
-    // (its old items are still there, since they are deleted last).
+    // Rollback: delete the actors this run created. A replaced document cleans up its own new items (replaceDoc), and a
+    // replace that completed stays as it is, items included. ponytail: an update already applied stays (the runner's,
+    // or a vehicle's whose items failed); re-running the import finishes the job. The runner's links to vehicles
+    // deleted here are removed so it is never left pointing at nothing.
     for (const d of created.reverse()) { try { await d.delete() } catch {} }
+    if (linksWritten && created.length) {
+      const gone = new Set(created.map(d => d.uuid))
+      try { await doc.update({ 'system.linkedVehicles': doc.system.linkedVehicles.filter(u => !gone.has(u)) }) } catch {}
+    }
     console.error(`${MODULE_ID} | ${t.actor.name}`, error)
     return { actor: null, action: 'failed', error }
   }
