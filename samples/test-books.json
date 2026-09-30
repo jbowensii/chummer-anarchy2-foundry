@@ -1,0 +1,255 @@
+{
+  "format": "chummer-anarchy2-export",
+  "version": 1,
+  "kind": "books",
+  "exportedAt": "2026-10-02T09:15:00.000Z",
+  "app": {
+    "name": "Chummer Anarchy 2.0",
+    "version": "0.6.0"
+  },
+  "descriptions": true,
+  "books": [
+    {
+      "source": {
+        "id": "MUC",
+        "name": "Made-Up Core",
+        "publisher": "Made-Up Press",
+        "canon": true
+      },
+      "amps": [
+        {
+          "id": "muc.made-up-knack",
+          "source": "MUC",
+          "page": 10,
+          "canon": true,
+          "mod": false,
+          "type": "quality",
+          "typeName": "Quality",
+          "name": "Made-up Knack",
+          "rating": 1,
+          "essence": 0,
+          "effects": [
+            {
+              "id": "rr-spec",
+              "name": "Risk Reduction on a specialization",
+              "category": "rr",
+              "param": "ranged-weapons.pistols",
+              "value": 1
+            }
+          ],
+          "rr": [
+            {
+              "on": "spec",
+              "id": "ranged-weapons.pistols",
+              "name": "Pistols",
+              "value": 1,
+              "skill": "ranged-weapons"
+            }
+          ],
+          "bonuses": {
+            "light": 0,
+            "serious": 0,
+            "physicalThreshold": 0,
+            "mentalThreshold": 0,
+            "matrixThreshold": 0,
+            "armor": 0,
+            "anarchy": 0,
+            "initiative": 0
+          },
+          "description": "A <b>bold</b> made-up text about a made-up knack."
+        },
+        {
+          "id": "muc.made-up-implant",
+          "source": "MUC",
+          "page": 11,
+          "canon": true,
+          "mod": false,
+          "type": "cyberware",
+          "typeName": "Cyberware",
+          "name": "Made-up Implant",
+          "rating": 1,
+          "essence": 0.5,
+          "effects": [
+            {
+              "id": "wound-light",
+              "name": "Light wound box +1",
+              "category": "body"
+            }
+          ],
+          "rr": [],
+          "bonuses": {
+            "light": 1,
+            "serious": 0,
+            "physicalThreshold": 0,
+            "mentalThreshold": 0,
+            "matrixThreshold": 0,
+            "armor": 0,
+            "anarchy": 0,
+            "initiative": 0
+          }
+        }
+      ],
+      "items": [
+        {
+          "id": "muc.made-up-blade",
+          "source": "MUC",
+          "page": 20,
+          "canon": true,
+          "kind": "weapon",
+          "name": "Made-up Short Blade",
+          "specialist": false,
+          "dv": "STR+1",
+          "ranges": {
+            "melee": "ok",
+            "short": "none",
+            "medium": "none",
+            "long": "none"
+          },
+          "description": "A made-up blade."
+        },
+        {
+          "id": "muc.made-up-vest",
+          "source": "MUC",
+          "page": 21,
+          "canon": true,
+          "kind": "armor",
+          "name": "Made-up Vest",
+          "specialist": false,
+          "armor": 2
+        },
+        {
+          "id": "muc.made-up-widget",
+          "source": "MUC",
+          "page": 22,
+          "canon": true,
+          "kind": "gear",
+          "name": "Made-up Widget",
+          "specialist": false
+        },
+        {
+          "id": "muc.made-up-charm",
+          "source": "MUC",
+          "page": 23,
+          "canon": true,
+          "kind": "spell",
+          "name": "Made-up Charm",
+          "specialist": false
+        }
+      ],
+      "vehicles": [
+        {
+          "id": "muc.made-up-cart",
+          "source": "MUC",
+          "page": 30,
+          "name": "Made-up Cart",
+          "pilot": 1,
+          "body": 2,
+          "handling": 1,
+          "speed": 2,
+          "armor": 1,
+          "mount": "none"
+        }
+      ],
+      "skills": [
+        {
+          "id": "muc.made-up-lore",
+          "source": "MUC",
+          "page": 40,
+          "name": "Made-Up Lore",
+          "attr": "log",
+          "specs": [
+            {
+              "id": "muc.made-up-lore.old-texts",
+              "name": "Old Texts",
+              "attr": "log"
+            }
+          ]
+        }
+      ],
+      "specs": [
+        {
+          "skill": "close-combat",
+          "id": "close-combat.made-up-style",
+          "name": "Made-Up Style",
+          "attr": "agi",
+          "page": 41
+        }
+      ],
+      "rules": [
+        {
+          "id": "muc.rule-one",
+          "source": "MUC",
+          "page": 50,
+          "sheet": "core",
+          "section": "Made-Up Basics",
+          "title": "Rule One",
+          "text": "Made-up rule text with <i>markup</i>."
+        },
+        {
+          "id": "muc.rule-two",
+          "source": "MUC",
+          "page": 51,
+          "sheet": "core",
+          "section": "Made-Up Basics",
+          "title": "Rule Two",
+          "text": "More made-up text."
+        },
+        {
+          "id": "muc.rule-three",
+          "source": "MUC",
+          "page": 52,
+          "sheet": "core",
+          "section": "Made-Up Extras",
+          "title": "Rule Three",
+          "text": "Even more made-up text."
+        }
+      ]
+    },
+    {
+      "source": {
+        "id": "MUX",
+        "name": "Made-Up Extras",
+        "publisher": "Made-Up Press",
+        "canon": false
+      },
+      "amps": [
+        {
+          "id": "mux.made-up-extra",
+          "source": "MUX",
+          "page": 5,
+          "canon": false,
+          "mod": false,
+          "type": "quality",
+          "typeName": "Quality",
+          "name": "Made-up Extra",
+          "rating": 1,
+          "essence": 0,
+          "effects": [],
+          "rr": [],
+          "bonuses": {
+            "light": 0,
+            "serious": 0,
+            "physicalThreshold": 0,
+            "mentalThreshold": 0,
+            "matrixThreshold": 0,
+            "armor": 0,
+            "anarchy": 0,
+            "initiative": 0
+          },
+          "description": "Made-up extra text."
+        }
+      ],
+      "items": [],
+      "vehicles": [],
+      "skills": [],
+      "specs": [],
+      "rules": []
+    }
+  ],
+  "tableRules": [
+    {
+      "name": "Made-Up Table Rule",
+      "text": "A made-up table rule."
+    }
+  ]
+}
