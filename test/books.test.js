@@ -150,3 +150,13 @@ test('table rules: one journal, a page per rule', () => {
   expect(two.pages.map(p => p.text.content)).toEqual(['<p>A made-up table rule.</p>', '<p>(No text in this file.)</p>'])
   expect(new Set(two.pages.map(p => p._id)).size).toBe(2)
 })
+
+test('a rule without a section goes in its sheet’s journal, a page without a title uses its id (0.2.2)', () => {
+  const book = { source: { id: 'NOS', name: 'No Sections', publisher: 'x', canon: true }, amps: [], items: [], vehicles: [], skills: [], specs: [],
+    rules: [{ id: 'nos.a', source: 'NOS', page: 1, sheet: 'quick', section: '', title: 'A' }, { id: 'nos.b', source: 'NOS', page: 2, sheet: '', section: '', title: '' }] }
+  const t = translateBook(book, { exportedAt: '2026-10-01T00:00:00Z', appVersion: '0.6.1', descriptions: false })
+  const names = t.packs.rules.map(j => j.name).sort()
+  expect(names).toEqual(['Rules', 'quick'])
+  expect(t.packs.rules.every(j => typeof j.name === 'string' && j.name.length > 0)).toBe(true)
+  expect(t.packs.rules.flatMap(j => j.pages).map(p => p.name).sort()).toEqual(['A', 'nos.b'])
+})

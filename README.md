@@ -23,7 +23,7 @@ You get a file ending in `.ca2foundry.json`.
 
 ## Import into Foundry
 
-1. As the GM, open the Actors sidebar and click **Import from Chummer** (players don't see the button).
+1. As the GM, open the Actors sidebar (or the Compendium sidebar) and click **Import from Chummer** at the bottom (players don't see the button).
 2. Choose the file. The module checks it before anything in your world changes; a file it can't use says why.
 3. Untick any runner you don't want, pick what to do with runners already in the world, and click **Import**.
 
@@ -47,7 +47,7 @@ In Chummer, choose **Game data → Export book data for Foundry** (GMs only). Fo
 
 ### Import into Foundry
 
-Open **Import from Chummer**, choose the book-data file, untick any book you don't want, and click **Import**. Each book gets its own folder, "<book name> (<book id>)", inside the Compendium folder "Chummer Anarchy", with a compendium for each kind of entry the book has:
+In the Compendium sidebar (or the Actors sidebar), click **Import from Chummer**, choose the book-data file, untick any book you don't want, and click **Import**. Each book gets its own folder, "<book name> (<book id>)", inside the Compendium folder "Chummer Anarchy", with a compendium for each kind of entry the book has:
 
 - **Amps**: qualities, cyberware and the other amps as sra2 feats, with Risk Reduction, wound boxes and thresholds. An equipment amp that is a weapon or armor becomes that feat type.
 - **Weapons**, **Armor**, **Gear** and **Spells**: feats of that type (weapon damage and ranges, armor value).
