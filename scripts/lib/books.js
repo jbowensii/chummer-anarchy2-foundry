@@ -66,12 +66,13 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
   }
   for (const sp of book.specs ?? []) { const s = skillFor({ id: sp.skill }); spec(s.slug, s.attr, sp, sp.page) }
 
-  // one journal per section, one text page per rule
+  // one journal per section, one text page per rule; a rule without a section goes in its sheet's journal (Foundry
+  // refuses a journal without a name)
   const sections = new Map()
-  for (const r of book.rules ?? []) sections.set(r.section, [...sections.get(r.section) ?? [], r])
+  for (const r of book.rules ?? []) { const k = r.section || r.sheet || 'Rules'; sections.set(k, [...sections.get(k) ?? [], r]) }
   for (const [section, rules] of sections) {
     const pages = [...rules].sort((a, b) => (a.page ?? 0) - (b.page ?? 0) || String(a.title).localeCompare(String(b.title)))
-      .map((r, i) => ({ _id: docId(r.id), name: r.title, type: 'text', sort: (i + 1) * SORT, flags: flags(r.id, r.page),
+      .map((r, i) => ({ _id: docId(r.id), name: r.title || r.id, type: 'text', sort: (i + 1) * SORT, flags: flags(r.id, r.page),
         text: { content: (descriptions && r.text ? sanitize(r.text) : '') || sanitize(`See ${ref(r.page)}`), format: 1 } }))
     add('rules', { _id: docId(`${src.id}:rules:${section}`), name: section, flags: flags(`${src.id}:rules:${section}`), pages })
   }

@@ -11,9 +11,10 @@ function openImporter() {
   else new ImportApp().render({ force: true })
 }
 
-// As sra2 adds its NPC generator button (sra2-system.ts setupNPCGeneratorButton): into the Actors directory footer.
-function addButton(root) {
-  root = root instanceof HTMLElement ? root : document.getElementById('actors')
+// As sra2 adds its NPC generator button (sra2-system.ts setupNPCGeneratorButton): into the directory footer of the
+// Actors tab (runners) and the Compendium tab (book data); either opens the same window, which reads both kinds of file.
+function addButton(root, tab) {
+  root = root instanceof HTMLElement ? root : document.getElementById(tab)
   if (!game.user?.isGM || !ImportApp || !root || root.querySelector('.ca2i-import-btn')) return
   const button = document.createElement('button')
   button.type = 'button'
@@ -28,7 +29,8 @@ function addButton(root) {
 }
 
 Hooks.once('init', () => { ImportApp = createImportApp() })
-Hooks.on('renderActorDirectory', (app, html) => addButton(html))
-Hooks.on('changeSidebarTab', app => { if (app.tabName === 'actors') addButton() })
-Hooks.once('ready', () => addButton())
+Hooks.on('renderActorDirectory', (app, html) => addButton(html, 'actors'))
+Hooks.on('renderCompendiumDirectory', (app, html) => addButton(html, 'compendium'))
+Hooks.on('changeSidebarTab', app => { if (app.tabName === 'actors' || app.tabName === 'compendium') addButton(null, app.tabName) })
+Hooks.once('ready', () => { addButton(null, 'actors'); addButton(null, 'compendium') })
 Hooks.on('quenchReady', quench => registerQuench(quench))

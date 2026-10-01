@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.2
+
+- "Import from Chummer" is also in the Compendium tab (as well as the Actors tab); either opens the same window, for runner and book-data files.
+- Fixed: importing a book whose rules have no section (found with the Conversion Guide) failed with "name: may not be undefined". Such rules now go in a journal named after their rules sheet, or "Rules"; a rule without a title uses its id.
+
 ## 0.2.1
 
 - Quench: the book-data Risk Reduction check matches the line's type, value and target, since sra2 adds its own fields to each line (the import itself was already right).
