@@ -3,14 +3,13 @@ import { MODULE_ID, TESTED_SRA2 } from '../lib/constants.js'
 import { readExport } from '../lib/read.js'
 import { escapeText, translateRunner } from '../lib/translate.js'
 import { defaultChoice, planPack } from '../lib/plan.js'
-import { translateBook, translateTableRules } from '../lib/books.js'
+import { PORTRAIT, translateBook, translateTableRules } from '../lib/books.js'
 import { applyRunner, findExisting } from './apply.js'
 import { importBook, importTableRules, PACKS } from './books.js'
 
 const flagOf = d => d?.flags?.[MODULE_ID]
 const time = x => Date.parse(x ?? '') || 0
 // Only a real image goes into <img> and the world's files (apply.js names it .png or .jpg).
-const PORTRAIT = /^data:image\/(png|jpe?g);base64,/i
 const OUTCOME = { create: 'CA2I.Created', replace: 'CA2I.Replaced', new: 'CA2I.NewVersion', skip: 'CA2I.Skipped' }
 
 export function createImportApp() {

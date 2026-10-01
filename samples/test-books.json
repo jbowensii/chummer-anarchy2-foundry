@@ -213,6 +213,184 @@
           "title": "Rule Four",
           "text": "Optional made-up text."
         }
+      ],
+      "metatypes": [
+        {
+          "id": "muc.made-up-gnome",
+          "source": "MUC",
+          "page": 12,
+          "canon": true,
+          "name": "Made-Up Gnome",
+          "edge": 3,
+          "ranges": {
+            "str": [
+              1,
+              4
+            ],
+            "agi": [
+              1,
+              6
+            ],
+            "wil": [
+              1,
+              7
+            ],
+            "log": [
+              1,
+              7
+            ],
+            "cha": [
+              1,
+              6
+            ]
+          },
+          "racialQuality": "Made-up Keen Eyes"
+        }
+      ],
+      "characters": [
+        {
+          "id": "muc-sample-max",
+          "updatedAt": "2026-10-01T18:00:00.000Z",
+          "exportedAt": "2026-10-02T09:15:00.000Z",
+          "streetName": "Made-Up Max",
+          "realName": "Max Madeup",
+          "finalized": false,
+          "metatype": {
+            "id": "human",
+            "name": "Human",
+            "ranges": {
+              "str": [
+                1,
+                6
+              ],
+              "agi": [
+                1,
+                6
+              ],
+              "wil": [
+                1,
+                6
+              ],
+              "log": [
+                1,
+                6
+              ],
+              "cha": [
+                1,
+                6
+              ]
+            },
+            "edge": 2
+          },
+          "level": {
+            "id": "runner",
+            "name": "Runner"
+          },
+          "lifestyle": {
+            "id": "low",
+            "name": "Low",
+            "perRun": 5000
+          },
+          "portrait": "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+          "attributes": {
+            "str": 1,
+            "agi": 2,
+            "wil": 3,
+            "log": 4,
+            "cha": 1
+          },
+          "edge": 2,
+          "essence": 6,
+          "skills": [
+            {
+              "id": "athletics",
+              "name": "Athletics",
+              "attr": "str",
+              "rating": 1,
+              "specs": []
+            }
+          ],
+          "knowledge": [],
+          "amps": [],
+          "items": [],
+          "vehicles": [
+            {
+              "uid": "v-drone",
+              "chassisId": "medium-drone",
+              "name": "Made-Up Scout Drone",
+              "chassis": "Medium Drone",
+              "count": 1,
+              "pilot": 3,
+              "body": 2,
+              "handling": 2,
+              "speed": 3,
+              "armor": 1,
+              "mount": "Made-up light mount",
+              "flying": true,
+              "thresholds": [
+                2,
+                5,
+                8
+              ],
+              "monitor": {
+                "light": 2,
+                "serious": 1
+              }
+            }
+          ],
+          "monitor": {
+            "light": 2,
+            "serious": 1,
+            "incap": 1
+          },
+          "thresholds": {
+            "physicalNone": [
+              2,
+              5,
+              8
+            ],
+            "physicalMain": [
+              2,
+              5,
+              8
+            ],
+            "physicalAlt": [
+              2,
+              5,
+              8
+            ],
+            "mental": [
+              2,
+              5,
+              8
+            ]
+          },
+          "armor": {
+            "main": 0,
+            "alt": 0
+          },
+          "initiative": null,
+          "pools": [
+            {
+              "skill": "athletics",
+              "label": "Athletics",
+              "attr": "str",
+              "dp": 2,
+              "rr": 0
+            }
+          ],
+          "narrative": {
+            "keywords": [],
+            "dispositions": [],
+            "cues": []
+          },
+          "background": "",
+          "notes": "",
+          "nuyen": {
+            "balance": 0
+          },
+          "ledger": []
+        }
       ]
     },
     {

@@ -1,28 +1,74 @@
 // Write a translated book (lib/books.js translateBook) into world compendiums. Foundry globals only inside functions
 // (node --check clean). Never throws: a failing pack is reported in `failed` and the other packs carry on.
 import { MODULE_ID } from '../lib/constants.js'
+import { packName, PACKS, planBookPacks } from '../lib/books.js'
 import { mergeJournalPages, planPack } from '../lib/plan.js'
-import { ensureFolder, FOLDER } from './apply.js'
+import { ensureFolder, FOLDER, uploadPortrait } from './apply.js'
 
+export { PACKS }
 const CHUNK = 100
-export const PACKS = { amps: ['Amps', 'Item'], weapons: ['Weapons', 'Item'], armor: ['Armor', 'Item'], gear: ['Gear', 'Item'],
-  spells: ['Spells', 'Item'], vehicles: ['Vehicles', 'Actor'], skills: ['Skills & specializations', 'Item'], rules: ['Rules', 'JournalEntry'] }
-
-// World pack names may only hold [A-Za-z0-9-_] (BasePackage.validateId).
-const packName = s => s.toLowerCase().replace(/[^a-z0-9_-]/g, '-')
 
 // The world pack `name`, created in `folder` when missing (the server fills path, system and package: 'world').
+// { pack, made }: made when this call created it.
 async function getPack(name, label, type, folder) {
   const found = game.packs.get(`world.${name}`)
-  if (found?.documentName === type) return found
+  if (found?.documentName === type) return { pack: found, made: false }
   if (found) {
     const kind = game.i18n.localize(CONFIG[found.documentName]?.documentClass?.metadata?.labelPlural ?? found.documentName)
     throw new Error(game.i18n.format('CA2I.PackTypeClash', { id: found.collection, type: kind }))
   }
   const pack = await foundry.documents.collections.CompendiumCollection.createCompendium({ name, label, type })
   if (!pack?.collection) throw new Error(`Could not create the compendium ${label}`)
-  await pack.setFolder(folder)
-  return pack
+  try { await pack.setFolder(folder) } catch (e) { await dropPack(pack); throw e }
+  return { pack, made: true }
+}
+const dropPack = async pack => { try { await pack.deleteCompendium() } catch (e) { console.error(`${MODULE_ID} | ${pack.title}: deleting the empty compendium failed`, e) } }
+
+// Write docs into the pack, creating it only now that there is something to write. A pack this call created is
+// deleted again when the write fails, so a failure never leaves an empty compendium behind (0.2.x did).
+async function writeNew(name, label, type, folder, docs) {
+  const { pack, made } = await getPack(name, label, type, folder)
+  try { return await writePack(pack, docs) } catch (e) {
+    if (made) await dropPack(pack)
+    throw e
+  }
+}
+
+// A folder made only when needed (ensureFolder), remembering whether this run made it so an unused one can go again.
+const lazyFolder = (name, parent, made) => {
+  let f
+  return async () => {
+    if (f) return f
+    const p = parent && await parent()
+    const had = game.folders.find(x => x.type === 'Compendium' && x.name === name && (x.folder?.id ?? null) === (p?.id ?? null))
+    f = had ?? await ensureFolder(name, p, 'Compendium')
+    if (!had) made.push(f)
+    return f
+  }
+}
+// Folders this run made that hold nothing (every write failed) are deleted, innermost first.
+async function dropEmptyFolders(made) {
+  for (const f of made.reverse()) {
+    try { if (!f.getSubfolders().length && !game.packs.some(p => p.folder?.id === f.id)) await f.delete() } catch {}
+  }
+}
+
+// Book pregens' portraits: uploaded into the character entries (img and token); a failed upload keeps the default artwork.
+async function withPortraits(docs, portraits = {}, say) {
+  const out = []
+  for (const d of docs) {
+    const url = portraits[d._id]
+    if (!url) { out.push(d); continue }
+    try {
+      const img = await uploadPortrait(url, `${d.flags[MODULE_ID].source}-${d.flags[MODULE_ID].id}`, d.flags[MODULE_ID].exportedAt)
+      out.push({ ...d, img, prototypeToken: { ...d.prototypeToken, texture: { src: img } } })
+    } catch (e) {
+      console.error(`${MODULE_ID} | ${d.name}: portrait`, e)
+      say(`${d.name}: portrait not uploaded (${e?.message ?? e}) → default artwork`)
+      out.push(d)
+    }
+  }
+  return out
 }
 
 // Replace by id: delete the entries the file has, then create all of them with their ids, in chunks. If a create
@@ -69,30 +115,29 @@ const fail = (pack, name, error) => { console.error(`${MODULE_ID} | ${name}`, er
  * Returns { source, counts: { [pack name]: { label, created, replaced, duplicates: [entry name] } }, failed: [{ pack, name, error }] }.
  */
 export async function importBook(t, { onProgress, prefix = '', topFolder = FOLDER } = {}) {
-  const src = t.source, counts = {}, failed = []
-  const packs = Object.entries(t.packs).filter(([k, docs]) => PACKS[k] && docs?.length)
-    .map(([k, docs]) => ({ key: k, docs, type: PACKS[k][1], name: packName(`${prefix}ca2-${src.id}-${k}`), label: `${PACKS[k][0]} — ${src.id}` }))
-  let folder
-  try {
-    folder = await ensureFolder(`${src.name} (${src.id})`, await ensureFolder(topFolder, null, 'Compendium'), 'Compendium')
-  } catch (error) {
-    return { source: src, counts, failed: packs.map(p => fail(p.name, p.label, error)) }
-  }
+  const src = t.source, counts = {}, failed = [], made = []
+  // nothing to write: no pack and no folder (0.2.x made the book folder anyway, e.g. for a pregens-only book)
+  const packs = planBookPacks(t, prefix)
+  const folder = lazyFolder(`${src.name} (${src.id})`, lazyFolder(topFolder, null, made), made)
   for (const [i, p] of packs.entries()) {
     onProgress?.({ pack: PACKS[p.key][0], n: i + 1, total: packs.length })
-    try { counts[p.name] = await writePack(await getPack(p.name, p.label, p.type, folder), p.docs) }
-    catch (error) { failed.push(fail(p.name, p.label, error)) }
+    try {
+      const docs = p.key === 'characters' ? await withPortraits(p.docs, t.portraits, l => t.textOnly?.push(l)) : p.docs
+      counts[p.name] = await writeNew(p.name, p.label, p.type, await folder(), docs)
+    } catch (error) { failed.push(fail(p.name, p.label, error)) }
   }
+  if (!Object.keys(counts).length) await dropEmptyFolders(made)
   return { source: src, counts, failed }
 }
 
 /** journal: translateTableRules output, written by id into the table rules pack in topFolder. Same result shape. */
 export async function importTableRules(journal, { prefix = '', topFolder = FOLDER } = {}) {
-  const name = packName(`${prefix}ca2-table-rules`), label = 'Table rules — Chummer'
+  const name = packName(`${prefix}ca2-table-rules`), label = 'Table rules — Chummer', made = []
+  if (!journal?.pages?.length) return { counts: {}, failed: [] }  // never an empty journal or compendium
   try {
-    const pack = await getPack(name, label, 'JournalEntry', await ensureFolder(topFolder, null, 'Compendium'))
-    return { counts: { [name]: await writePack(pack, [journal]) }, failed: [] }
+    return { counts: { [name]: await writeNew(name, label, 'JournalEntry', await lazyFolder(topFolder, null, made)(), [journal]) }, failed: [] }
   } catch (error) {
+    await dropEmptyFolders(made)
     return { counts: {}, failed: [fail(name, label, error)] }
   }
 }

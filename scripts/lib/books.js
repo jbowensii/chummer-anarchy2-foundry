@@ -1,8 +1,23 @@
 // One Chummer book (docs/export-format.md "Book") -> compendium document data per pack. Pure: no Foundry calls.
 import { MODULE_ID } from './constants.js'
 import { docId } from './ids.js'
-import { ATTR, skillFor, specFor } from './sra2.js'
-import { ampFeat, escapeText, itemFeat, rrResolver, vehicleActor } from './translate.js'
+import { ATTR, metatypeAnarchy, skillFor, specFor } from './sra2.js'
+import { ampFeat, escapeText, itemFeat, rrResolver, translateRunner, vehicleActor } from './translate.js'
+
+// pack key -> [label, document type], in the order they are written
+export const PACKS = { amps: ['Amps', 'Item'], weapons: ['Weapons', 'Item'], armor: ['Armor', 'Item'], gear: ['Gear', 'Item'],
+  spells: ['Spells', 'Item'], vehicles: ['Vehicles', 'Actor'], characters: ['Characters', 'Actor'], metatypes: ['Metatypes', 'Item'],
+  skills: ['Skills & specializations', 'Item'], rules: ['Rules', 'JournalEntry'] }
+export const PORTRAIT = /^data:image\/(png|jpe?g);base64,/i
+// World pack names may only hold [A-Za-z0-9-_] (BasePackage.validateId).
+export const packName = s => s.toLowerCase().replace(/[^a-z0-9_-]/g, '-')
+
+/**
+ * The packs importBook writes for a translated book: one per known pack key with at least one entry, in PACKS order.
+ * Never an empty compendium: a book with nothing to write plans nothing, and importBook then makes no folder either.
+ */
+export const planBookPacks = (t, prefix = '') => Object.keys(PACKS).filter(k => t.packs[k]?.length)
+  .map(k => ({ key: k, docs: t.packs[k], type: PACKS[k][1], name: packName(`${prefix}ca2-${t.source.id}-${k}`), label: `${PACKS[k][0]} — ${t.source.id}` }))
 
 const PACK_OF = { weapon: 'weapons', armor: 'armor', gear: 'gear', spell: 'spells', 'complex-form': 'spells' }
 const SRA2_ATTRS = Object.values(ATTR)
@@ -15,7 +30,7 @@ const asItem = (it, name = it.name) => ({ ...it, name, weapon: { dv: it.dv, dvTe
 
 /** sanitize: plain text -> safe HTML, as for translateRunner. Book text is left out unless descriptions is true. */
 export function translateBook(book, { exportedAt, appVersion, descriptions = false, sanitize = escapeText }) {
-  const src = book.source, textOnly = [], packs = {}
+  const src = book.source, textOnly = [], packs = {}, portraits = {}
   const add = (pack, doc) => (packs[pack] ??= []).push(doc)
   const ref = page => `${src.id}${page ? ` p.${page}` : ''}`
   const flags = (id, page, canon = src.canon) => ({ [MODULE_ID]: { id, exportedAt, appVersion, source: src.id, page, canon } })
@@ -51,10 +66,34 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
   for (const v of book.vehicles ?? [])
     add('vehicles', doc(v, vehicleActor({ ...v, chassisId: v.id, flying: v.flyingSpeed > 0 }, ctx, { name: v.name })))
 
-  // only what sra2 doesn't already have
+  // the book's pregens: an actor each (translateRunner, embedded items), its vehicles as separate actors, not linked;
+  // a portrait is uploaded by importBook (portraits: actor _id -> data URL)
+  for (const r of book.characters ?? []) {
+    try {
+      const c = translateRunner(r, { exportedAt, appVersion, sanitize }), fl = { source: src.id, canon: src.canon }
+      const _id = docId(`${src.id}:character:${r.id}`)
+      add('characters', { _id, ...c.actor, flags: { [MODULE_ID]: { ...c.actor.flags[MODULE_ID], ...fl } }, items: c.items })
+      if (PORTRAIT.test(r.portrait ?? '')) portraits[_id] = r.portrait
+      ;(r.vehicles ?? []).forEach((v, i) => {
+        const { actor, items } = c.vehicles[i]
+        add('characters', { _id: docId(`${src.id}:vehicle:${r.id}:${v.uid}`), ...actor, name: `${r.streetName} — ${actor.name}`,
+          flags: { [MODULE_ID]: { ...actor.flags[MODULE_ID], ...fl } }, items })
+      })
+      textOnly.push(...c.textOnly.map(l => `${r.streetName}: ${l}`))
+    } catch (e) { textOnly.push(`${r?.streetName ?? r?.id}: not imported (${e?.message ?? e})`) }
+  }
+
+  for (const m of book.metatypes ?? []) {
+    const anarchy = metatypeAnarchy(m.name), max = a => Math.min(10, Math.max(1, m.ranges?.[a]?.[1] ?? 6))  // sra2: 1-10
+    if (anarchy == null) textOnly.push(`Metatype ${m.name}: not an sra2 metatype → Anarchy bonus 0`)
+    add('metatypes', doc(m, { name: m.name, type: 'metatype', flags: flags(m.id, m.page, m.canon), system: {
+      maxStrength: max('str'), maxAgility: max('agi'), maxWillpower: max('wil'), maxLogic: max('log'), maxCharisma: max('cha'),
+      anarchyBonus: anarchy ?? 0, description: sanitize(`Edge: ${m.edge}`) + (m.racialQuality ? sanitize(`Racial quality: ${m.racialQuality}`) : '') } }))
+  }
+
+  // every skill and spec, those sra2 already has too (same slug, so interchangeable with sra2's own)
   const spec = (skillSlug, skillAttr, sp, page) => {
     const p = specFor(skillSlug, sp)
-    if (p.known) return
     add('skills', doc({ ...sp, page }, { name: `Spec: ${p.name}`, type: 'specialization', flags: flags(sp.id, page),
       system: { linkedSkill: skillSlug, linkedAttribute: attrOk(p.attr, skillAttr, `Spec: ${p.name}`), slug: p.slug } }))
   }
@@ -62,7 +101,7 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
     const s = skillFor({ id: sk.id, attr: sk.attr })
     const attr = s.known ? s.attr : attrOk(s.attr, 'strength', sk.name)
     if (sk.alt) textOnly.push(`${sk.name}: alternative attribute ${sk.alt} → notes (sra2 links one attribute: ${attr})`)
-    if (!s.known) add('skills', doc(sk, { name: sk.name, type: 'skill', flags: flags(sk.id, sk.page), system: { rating: 0, linkedAttribute: attr, slug: s.slug } }))
+    add('skills', doc(sk, { name: s.known ? s.name : sk.name, type: 'skill', flags: flags(sk.id, sk.page), system: { rating: 0, linkedAttribute: attr, slug: s.slug } }))
     for (const sp of sk.specs ?? []) spec(s.slug, attr, sp, sk.page)
   }
   for (const sp of book.specs ?? []) { const s = skillFor({ id: sp.skill }); spec(s.slug, s.attr, sp, sp.page) }
@@ -86,7 +125,7 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
     const id = `${src.id}:rules-sheet:${sheet}`
     add('rules', { _id: docId(id), name, flags: flags(id), pages })
   }
-  return { source: src, packs, textOnly }
+  return { source: src, packs, portraits, textOnly }
 }
 
 // The GM's own table rules. Their text follows the file's descriptions choice: Chummer blanks it when descriptions

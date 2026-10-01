@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, test } from 'vitest'
 import { MODULE_ID } from '../scripts/lib/constants.js'
-import { translateBook, translateTableRules } from '../scripts/lib/books.js'
+import { planBookPacks, translateBook, translateTableRules } from '../scripts/lib/books.js'
 import { docId } from '../scripts/lib/ids.js'
 
 const file = JSON.parse(readFileSync('samples/test-books.json', 'utf8'))
@@ -12,7 +12,7 @@ const find = (pack, name) => t.packs[pack].find(d => d.name === name)
 
 describe('translating a book', () => {
   test('packs only for the content a book has', () => {
-    expect(Object.keys(t.packs).sort()).toEqual(['amps', 'armor', 'gear', 'rules', 'skills', 'spells', 'vehicles', 'weapons'])
+    expect(Object.keys(t.packs).sort()).toEqual(['amps', 'armor', 'characters', 'gear', 'metatypes', 'rules', 'skills', 'spells', 'vehicles', 'weapons'])
     expect(Object.keys(translateBook(mux, opts).packs)).toEqual(['amps'])
     expect(t.source).toEqual(muc.source)
   })
@@ -62,11 +62,65 @@ describe('translating a book', () => {
     expect(s[2]._id).toBe(docId('close-combat.made-up-style'))
   })
 
-  test('a book skill or spec sra2 already has is left out', () => {
+  test('a book skill or spec sra2 already has is included, with the sra2 name and slug', () => {
     const b = structuredClone(muc)
     b.skills = [{ id: 'athletics', source: 'MUC', page: 1, name: 'Athletics', attr: 'str', specs: [{ id: 'athletics.climbing', name: 'Climbing', attr: 'str' }] }]
     b.specs = [{ skill: 'close-combat', id: 'close-combat.blades', name: 'Blades', attr: 'agi' }]
-    expect(translateBook(b, opts).packs.skills).toBeUndefined()
+    const s = translateBook(b, opts).packs.skills
+    expect(s.map(d => [d._id, d.name, d.type, d.system.slug])).toEqual([
+      [docId('athletics'), 'Athletics', 'skill', 'athletics'],
+      [docId('athletics.climbing'), 'Spec: Climbing', 'specialization', 'spec_climbing'],
+      [docId('close-combat.blades'), 'Spec: Blades', 'specialization', 'spec_blades']])
+    expect(s[0].system).toMatchObject({ linkedAttribute: 'strength', rating: 0, reference: 'MUC p.1' })
+    expect(s[1].system).toMatchObject({ linkedSkill: 'athletics', linkedAttribute: 'strength' })
+  })
+
+  test('characters: an actor per pregen with its items; its vehicles as separate, unlinked actors', () => {
+    const [max] = muc.characters, c = t.packs.characters
+    expect(c.map(d => [d._id, d.name, d.type])).toEqual([
+      [docId('MUC:character:muc-sample-max'), 'Made-Up Max', 'character'],
+      [docId('MUC:vehicle:muc-sample-max:v-drone'), 'Made-Up Max — Made-Up Scout Drone', 'vehicle']])
+    expect(c.every(d => /^[A-Za-z0-9]{16}$/.test(d._id))).toBe(true)
+    expect(translateBook(muc, opts).packs.characters.map(d => d._id)).toEqual(c.map(d => d._id))
+    const [actor, drone] = c
+    expect(actor.items.map(i => i.type)).toEqual(['metatype', 'skill'])
+    expect(actor.items.every(i => i._id === undefined)).toBe(true)
+    expect(actor.system.attributes).toMatchObject({ logic: 4, willpower: 3 })
+    expect(actor.system.linkedVehicles ?? []).toEqual([])
+    expect(actor.flags[MODULE_ID]).toMatchObject({ id: 'muc-sample-max', source: 'MUC', canon: true })
+    expect(actor).not.toHaveProperty('img')  // the portrait is uploaded by importBook
+    expect(drone).toMatchObject({ items: [], system: { vehicleType: 'custom-vehicle', isFlying: true } })
+    expect(drone.flags[MODULE_ID]).toMatchObject({ runner: 'muc-sample-max', source: 'MUC' })
+    expect(t.portraits).toEqual({ [actor._id]: max.portrait })
+    // no portrait, or not an image data URL: default artwork
+    const b = structuredClone(muc)
+    b.characters[0].portrait = null
+    expect(translateBook(b, opts).portraits).toEqual({})
+    b.characters[0].portrait = 'https://example.com/x.png'
+    expect(translateBook(b, opts).portraits).toEqual({})
+  })
+
+  test('a character that cannot be translated is noted, the others carry on', () => {
+    const b = structuredClone(muc)
+    b.characters.unshift({ id: 'broken', streetName: 'Broken', get attributes() { throw new Error('bad') } })
+    const r = translateBook(b, opts)
+    expect(r.packs.characters.map(d => d.name)).toEqual(['Made-Up Max', 'Made-Up Max — Made-Up Scout Drone'])
+    expect(r.textOnly).toContain('Broken: not imported (bad)')
+  })
+
+  test('metatypes: sra2 metatype items with the maximums, Anarchy bonus, Edge and racial quality', () => {
+    const [m] = t.packs.metatypes
+    expect(m).toMatchObject({ _id: docId('muc.made-up-gnome'), name: 'Made-Up Gnome', type: 'metatype',
+      system: { maxStrength: 4, maxAgility: 6, maxWillpower: 7, maxLogic: 7, maxCharisma: 6, anarchyBonus: 0, reference: 'MUC p.12' },
+      flags: { [MODULE_ID]: { id: 'muc.made-up-gnome', source: 'MUC', page: 12, canon: true } } })
+    expect(m.system.description).toContain('Edge: 3')
+    expect(m.system.description).toContain('Racial quality: Made-up Keen Eyes')
+    expect(t.textOnly).toContain('Metatype Made-Up Gnome: not an sra2 metatype → Anarchy bonus 0')
+    const b = structuredClone(muc)
+    Object.assign(b.metatypes[0], { name: 'Human', racialQuality: '' })
+    const h = translateBook(b, opts).packs.metatypes[0].system
+    expect(h.anarchyBonus).toBe(1)
+    expect(h.description).not.toContain('Racial quality')
   })
 
   test('rules: one journal per sheet, a level-1 page per section then its rules as level-2 pages', () => {
@@ -171,4 +225,21 @@ test('older files: no sheetName -> title-cased sheet, then "Rules"; a page witho
   expect(names).toEqual(['Quick Start', 'Rules'])
   expect(t.packs.rules.every(j => typeof j.name === 'string' && j.name.length > 0)).toBe(true)
   expect(t.packs.rules.flatMap(j => j.pages).map(p => p.name).sort()).toEqual(['A', 'Quick Start', 'Rules', 'nos.b'])
+})
+
+describe('planning the packs of a book (never an empty compendium)', () => {
+  test('one pack per non-empty list, in PACKS order, with world-safe names', () => {
+    const p = planBookPacks(t, 'q-')
+    expect(p.map(x => x.key)).toEqual(['amps', 'weapons', 'armor', 'gear', 'spells', 'vehicles', 'characters', 'metatypes', 'skills', 'rules'])
+    expect(p.find(x => x.key === 'characters')).toMatchObject({ name: 'q-ca2-muc-characters', label: 'Characters — MUC', type: 'Actor' })
+    expect(p.find(x => x.key === 'metatypes')).toMatchObject({ name: 'q-ca2-muc-metatypes', label: 'Metatypes — MUC', type: 'Item' })
+    expect(p.every(x => x.docs.length > 0)).toBe(true)
+  })
+  test('a book with nothing to write plans no pack (so importBook makes no folder either)', () => {
+    // 0.2.x: a pregens-only book had no pack the module knew, yet its book folder was still created
+    const pregensOnly = { source: { id: 'PRE', name: 'Pregens', publisher: 'x', canon: true }, packs: { characters: [] , rules: [], other: [{ _id: 'x' }] }, textOnly: [] }
+    expect(planBookPacks(pregensOnly)).toEqual([])
+    const empty = { source: { id: 'E', name: 'Empty', publisher: 'x', canon: true }, amps: [], items: [], vehicles: [], skills: [], specs: [], rules: [], metatypes: [], characters: [] }
+    expect(planBookPacks(translateBook(empty, opts))).toEqual([])
+  })
 })

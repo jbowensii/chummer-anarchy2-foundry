@@ -18,7 +18,7 @@ export async function ensureFolder(name, parent = null, type = 'Actor') {
 
 // data URL -> world file; returns its path. As sra2 does (helpers/gemini-image.ts): browse, and on failure create each
 // level, swallowing "already exists"; a real problem surfaces as the upload failing.
-async function uploadPortrait(dataUrl, runnerId, exportedAt) {
+export async function uploadPortrait(dataUrl, runnerId, exportedAt) {
   const FP = foundry.applications.apps.FilePicker.implementation
   const base = `worlds/${game.world.id}/chummer`, dir = `${base}/portraits`
   try { await FP.browse('data', dir) } catch {
