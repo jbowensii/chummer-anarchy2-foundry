@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.3.0 - 2026-10-01
+## 0.3.0
 
 - Rules: one journal per topic (rules sheet) with a chapter per section and the rules as pages inside, instead of one journal per section. The old per-section journals from 0.2.x are left alone; delete them by hand if you like.
 - New compendium Characters: each book's pregenerated characters with linked tokens; their vehicles are separate entries.

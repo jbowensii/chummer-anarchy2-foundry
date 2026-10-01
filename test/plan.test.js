@@ -90,8 +90,9 @@ describe('planning a pack write', () => {
   })
   test('mergeJournalPages rebuilds imported pages and keeps the GM’s own after them', () => {
     const gm = { _id: 'gm', name: 'My note', sort: 50, text: { content: '<p>mine</p>' } }
-    const oldA = { _id: 'a', name: 'Old A' }, newA = { _id: 'a', name: 'New A' }, newB = { _id: 'b', name: 'B' }
-    expect(mergeJournalPages([oldA, gm], [newA, newB])).toEqual([newA, newB, gm])
+    const oldA = { _id: 'a', name: 'Old A', flags: { [MODULE_ID]: {} } }, stale = { _id: 's', name: 'Stale', flags: { [MODULE_ID]: {} } }
+    const newA = { _id: 'a', name: 'New A' }, newB = { _id: 'b', name: 'B' }
+    expect(mergeJournalPages([oldA, stale, gm], [newA, newB])).toEqual([newA, newB, gm])
     expect(mergeJournalPages(undefined, [newA])).toEqual([newA])
   })
 

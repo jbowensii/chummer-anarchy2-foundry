@@ -70,7 +70,7 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
   // a portrait is uploaded by importBook (portraits: actor _id -> data URL)
   for (const r of book.characters ?? []) {
     try {
-      const c = translateRunner(r, { exportedAt, appVersion, sanitize }), fl = { source: src.id, canon: src.canon }
+      const c = translateRunner(r, { exportedAt: r.exportedAt ?? exportedAt, appVersion, sanitize }), fl = { source: src.id, canon: src.canon }
       const _id = docId(`${src.id}:character:${r.id}`)
       add('characters', { _id, ...c.actor, flags: { [MODULE_ID]: { ...c.actor.flags[MODULE_ID], ...fl } }, items: c.items,
         prototypeToken: { actorLink: true } })
@@ -135,5 +135,6 @@ export function translateTableRules(tableRules, { exportedAt, appVersion, saniti
   const pageId = (name, i) => { const id = docId(`table-rules:${name}`); return seen.has(id) ? docId(`table-rules:${name}:${i}`) : (seen.add(id), id) }
   return { _id: docId('table-rules'), name: 'Table rules', flags: { [MODULE_ID]: { id: 'table-rules', exportedAt, appVersion } },
     pages: (tableRules ?? []).map((r, i) => ({ _id: pageId(r.name, i), name: r.name, type: 'text', sort: (i + 1) * SORT,
+      flags: { [MODULE_ID]: { id: `table-rules:${r.name}`, exportedAt, appVersion } },
       text: { content: r.text ? sanitize(r.text) : NO_TEXT, format: 1 } })) }
 }

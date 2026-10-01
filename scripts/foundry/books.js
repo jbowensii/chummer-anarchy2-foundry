@@ -1,11 +1,10 @@
 // Write a translated book (lib/books.js translateBook) into world compendiums. Foundry globals only inside functions
 // (node --check clean). Never throws: a failing pack is reported in `failed` and the other packs carry on.
 import { MODULE_ID } from '../lib/constants.js'
-import { packName, PACKS, planBookPacks } from '../lib/books.js'
+import { packName, planBookPacks } from '../lib/books.js'
 import { mergeActorItems, mergeJournalPages, planPack } from '../lib/plan.js'
 import { ensureFolder, FOLDER, uploadPortrait } from './apply.js'
 
-export { PACKS }
 const CHUNK = 100
 
 // The world pack `name`, created in `folder` when missing (the server fills path, system and package: 'world').
@@ -113,23 +112,23 @@ async function writePack(pack, incoming, after) {
 const fail = (pack, name, error) => { console.error(`${MODULE_ID} | ${name}`, error); return { pack, name, error } }
 
 /**
- * t: translateBook output. onProgress({ pack, n, total }) before each pack is written. Packs go in `<book name> (<source id>)` inside topFolder; pack names get `prefix` (Quench).
- * Returns { source, counts: { [pack name]: { label, created, replaced, duplicates: [entry name] } }, failed: [{ pack, name, error }] }.
+ * t: translateBook output. onProgress({ key, n, total }), key = the pack key before each pack is written. Packs go in `<book name> (<source id>)` inside topFolder; pack names get `prefix` (Quench).
+ * Returns { source, counts: { [pack name]: { label, created, replaced, duplicates: [entry name] } }, failed: [{ pack, name, error }], notes: [portrait lines] }.
  */
 export async function importBook(t, { onProgress, prefix = '', topFolder = FOLDER } = {}) {
-  const src = t.source, counts = {}, failed = [], made = []
+  const src = t.source, counts = {}, failed = [], made = [], notes = []
   // nothing to write: no pack and no folder (0.2.x made the book folder anyway, e.g. for a pregens-only book)
   const packs = planBookPacks(t, prefix)
   const folder = lazyFolder(`${src.name} (${src.id})`, lazyFolder(topFolder, null, made), made)
   for (const [i, p] of packs.entries()) {
-    onProgress?.({ pack: PACKS[p.key][0], n: i + 1, total: packs.length })
+    onProgress?.({ key: p.key, n: i + 1, total: packs.length })
     try {
-      const after = p.key === 'characters' ? portraitsAfter(t.portraits, l => t.textOnly?.push(l)) : undefined
+      const after = p.key === 'characters' ? portraitsAfter(t.portraits, l => notes.push(l)) : undefined
       counts[p.name] = await writeNew(p.name, p.label, p.type, await folder(), p.docs, after)
     } catch (error) { failed.push(fail(p.name, p.label, error)) }
   }
   await dropEmptyFolders(made)
-  return { source: src, counts, failed }
+  return { source: src, counts, failed, notes }
 }
 
 /** journal: translateTableRules output, written by id into the table rules pack in topFolder. Same result shape. */

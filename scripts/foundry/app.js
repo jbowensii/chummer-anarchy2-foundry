@@ -162,12 +162,13 @@ export function createImportApp() {
         const name = book.source.name
         step(name, ++n)
         let res
-        const onProgress = ({ pack, n: i, total: of }) => {
+        const onProgress = ({ key, n: i, total: of }) => {
+          const pack = L(`CA2I.Pack.${key}`)
           if (progress) progress.textContent = F('CA2I.BookPackProgress', { name, pack, n: i, total: of })
         }
         try { res = await importBook(t, { onProgress }) } catch (error) { res = { counts: {}, failed: [{ name, error }] } }  // importBook shouldn't throw; the window mustn't stick busy
         const { packs, notes } = lines(res)
-        report.push({ name, packs, outcome: packs.length ? '' : L('CA2I.NothingInBook'), textOnly: [...t.textOnly, ...notes] })
+        report.push({ name, packs, outcome: packs.length ? '' : L('CA2I.NothingInBook'), textOnly: [...t.textOnly, ...(res.notes ?? []), ...notes] })
       }
       if (withRules) {
         const name = L('CA2I.TableRulesName')
