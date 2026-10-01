@@ -202,6 +202,16 @@
           "section": "Made-Up Extras",
           "title": "Rule Three",
           "text": "Even more made-up text."
+        },
+        {
+          "id": "muc.rule-four",
+          "source": "MUC",
+          "page": 60,
+          "sheet": "optional",
+          "sheetName": "Optional rules",
+          "section": "",
+          "title": "Rule Four",
+          "text": "Optional made-up text."
         }
       ]
     },

@@ -8,6 +8,7 @@ const PACK_OF = { weapon: 'weapons', armor: 'armor', gear: 'gear', spell: 'spell
 const SRA2_ATTRS = Object.values(ATTR)
 const SORT = 100000  // Foundry's CONST.SORT_INTEGER_DENSITY
 const NO_TEXT = '<p>(No text in this file.)</p>'
+const titleCase = s => s.split(/[-_\s]+/).filter(Boolean).map(w => w[0].toUpperCase() + w.slice(1)).join(' ')
 
 // A book item's flat fields ({ dv, ranges, armor: n }) in the runner shape itemFeat reads.
 const asItem = (it, name = it.name) => ({ ...it, name, weapon: { dv: it.dv, dvText: it.dv, ranges: it.ranges }, armor: { value: it.armor ?? 0 } })
@@ -66,15 +67,24 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
   }
   for (const sp of book.specs ?? []) { const s = skillFor({ id: sp.skill }); spec(s.slug, s.attr, sp, sp.page) }
 
-  // one journal per section, one text page per rule; a rule without a section goes in its sheet's journal (Foundry
-  // refuses a journal without a name)
-  const sections = new Map()
-  for (const r of book.rules ?? []) { const k = r.section || r.sheet || 'Rules'; sections.set(k, [...sections.get(k) ?? [], r]) }
-  for (const [section, rules] of sections) {
-    const pages = [...rules].sort((a, b) => (a.page ?? 0) - (b.page ?? 0) || String(a.title).localeCompare(String(b.title)))
-      .map((r, i) => ({ _id: docId(r.id), name: r.title || r.id, type: 'text', sort: (i + 1) * SORT, flags: flags(r.id, r.page),
-        text: { content: (descriptions && r.text ? sanitize(r.text) : '') || sanitize(`See ${ref(r.page)}`), format: 1 } }))
-    add('rules', { _id: docId(`${src.id}:rules:${section}`), name: section, flags: flags(`${src.id}:rules:${section}`), pages })
+  // one journal per rules sheet (Foundry refuses a journal without a name: sheetName, else the title-cased sheet,
+  // else "Rules"); inside, a level-1 page per section (in order of first appearance) then its rules as level-2 pages
+  const sheets = new Map()
+  for (const r of book.rules ?? []) {
+    const k = r.sheet ?? '', sh = sheets.get(k) ?? { name: r.sheetName || titleCase(k) || 'Rules', sections: new Map() }
+    sheets.set(k, sh)
+    sh.sections.set(r.section ?? '', [...sh.sections.get(r.section ?? '') ?? [], r])
+  }
+  for (const [sheet, { name, sections }] of sheets) {
+    const page = (_id, pname, level, content, fl) => ({ _id, name: pname, type: 'text', title: { show: true, level }, flags: fl, text: { content, format: 1 } })
+    const pages = [...sections].flatMap(([section, rules]) => {
+      const id = `${src.id}:section:${sheet}:${section}`
+      return [page(docId(id), section || name, 1, `<p>${rules.length} rule${rules.length === 1 ? '' : 's'}</p>`, flags(id)),
+        ...[...rules].sort((a, b) => (a.page ?? 0) - (b.page ?? 0) || String(a.title).localeCompare(String(b.title)))
+          .map(r => page(docId(r.id), r.title || r.id, 2, (descriptions && r.text ? sanitize(r.text) : '') || sanitize(`See ${ref(r.page)}`), flags(r.id, r.page)))]
+    }).map((p, i) => ({ ...p, sort: (i + 1) * SORT }))
+    const id = `${src.id}:rules-sheet:${sheet}`
+    add('rules', { _id: docId(id), name, flags: flags(id), pages })
   }
   return { source: src, packs, textOnly }
 }

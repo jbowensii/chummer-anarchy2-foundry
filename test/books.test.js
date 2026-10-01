@@ -69,19 +69,31 @@ describe('translating a book', () => {
     expect(translateBook(b, opts).packs.skills).toBeUndefined()
   })
 
-  test('rules: one journal per section, pages sorted by page then title', () => {
+  test('rules: one journal per sheet, a level-1 page per section then its rules as level-2 pages', () => {
     const r = t.packs.rules
-    expect(r.map(j => j.name)).toEqual(['Made-Up Basics', 'Made-Up Extras'])
+    // named from sheetName, else the title-cased sheet
+    expect(r.map(j => j.name)).toEqual(['Core', 'Optional rules'])
+    expect(r[0]._id).toBe(docId('MUC:rules-sheet:core'))
+    expect(r[1]._id).toBe(docId('MUC:rules-sheet:optional'))
+    expect(r[0].pages.map(p => [p.name, p.title.level])).toEqual([
+      ['Made-Up Basics', 1], ['Rule One', 2], ['Rule Two', 2], ['Made-Up Extras', 1], ['Rule Three', 2]])
+    expect(r[0].pages.every(p => p.title.show === true && p.type === 'text')).toBe(true)
+    expect(r[0].pages[0]).toMatchObject({ _id: docId('MUC:section:core:Made-Up Basics'), text: { content: '<p>2 rules</p>', format: 1 } })
+    expect(r[0].pages[3]).toMatchObject({ _id: docId('MUC:section:core:Made-Up Extras'), text: { content: '<p>1 rule</p>', format: 1 } })
+    expect(r[0].pages.map(p => p.sort)).toEqual(r[0].pages.map((_, i) => (i + 1) * 100000))
+    // an empty section falls back to the journal's name
+    expect(r[1].pages.map(p => [p.name, p.title.level])).toEqual([['Optional rules', 1], ['Rule Four', 2]])
+    expect(r[1].pages[0]._id).toBe(docId('MUC:section:optional:'))
+    // rule pages keep their id, flags and reference
+    expect(r[0].pages[1]).toMatchObject({ _id: docId('muc.rule-one'), flags: { [MODULE_ID]: { id: 'muc.rule-one', page: 50, source: 'MUC' } } })
+    expect(r[0].pages[1].text.content).toBe('<p>Made-up rule text with &lt;i&gt;markup&lt;/i&gt;.</p>')
+    // sorted by page then title within a section
     const b = structuredClone(muc)
     b.rules[0].page = 60
     b.rules.push({ id: 'muc.rule-a', source: 'MUC', page: 51, sheet: 'core', section: 'Made-Up Basics', title: 'A Rule' })
     const pages = translateBook(b, opts).packs.rules[0].pages
-    expect(pages.map(p => p.name)).toEqual(['A Rule', 'Rule Two', 'Rule One'])
-    expect(pages.map(p => p.sort)).toEqual([...pages.map(p => p.sort)].sort((x, y) => x - y))
-    expect(pages[0]).toMatchObject({ _id: docId('muc.rule-a'), type: 'text', text: { content: '<p>See MUC p.51</p>', format: 1 } })
-    expect(r[0].pages[0].text.content).toBe('<p>Made-up rule text with &lt;i&gt;markup&lt;/i&gt;.</p>')
-    expect(r[0]._id).toMatch(/^[A-Za-z0-9]{16}$/)
-    expect(r[0]._id).not.toBe(r[1]._id)
+    expect(pages.map(p => p.name)).toEqual(['Made-Up Basics', 'A Rule', 'Rule Two', 'Rule One', 'Made-Up Extras', 'Rule Three'])
+    expect(pages[1]).toMatchObject({ _id: docId('muc.rule-a'), type: 'text', text: { content: '<p>See MUC p.51</p>', format: 1 } })
   })
 
   test('descriptions escaped, and absent when descriptions are off', () => {
@@ -89,7 +101,7 @@ describe('translating a book', () => {
     const off = translateBook(muc, { ...opts, descriptions: false })
     expect(off.packs.amps[0].system.description).not.toContain('bold')
     expect(off.packs.weapons[0].system.description).not.toContain('blade')
-    expect(off.packs.rules[0].pages[0].text.content).toBe('<p>See MUC p.50</p>')
+    expect(off.packs.rules[0].pages[1].text.content).toBe('<p>See MUC p.50</p>')
   })
 
   const melee = { melee: 'ok', short: 'none', medium: 'none', long: 'none' }
@@ -151,12 +163,12 @@ test('table rules: one journal, a page per rule', () => {
   expect(new Set(two.pages.map(p => p._id)).size).toBe(2)
 })
 
-test('a rule without a section goes in its sheet’s journal, a page without a title uses its id (0.2.2)', () => {
+test('older files: no sheetName -> title-cased sheet, then "Rules"; a page without a title uses its id', () => {
   const book = { source: { id: 'NOS', name: 'No Sections', publisher: 'x', canon: true }, amps: [], items: [], vehicles: [], skills: [], specs: [],
-    rules: [{ id: 'nos.a', source: 'NOS', page: 1, sheet: 'quick', section: '', title: 'A' }, { id: 'nos.b', source: 'NOS', page: 2, sheet: '', section: '', title: '' }] }
+    rules: [{ id: 'nos.a', source: 'NOS', page: 1, sheet: 'quick-start', section: '', title: 'A' }, { id: 'nos.b', source: 'NOS', page: 2, sheet: '', section: '', title: '' }] }
   const t = translateBook(book, { exportedAt: '2026-10-01T00:00:00Z', appVersion: '0.6.1', descriptions: false })
   const names = t.packs.rules.map(j => j.name).sort()
-  expect(names).toEqual(['Rules', 'quick'])
+  expect(names).toEqual(['Quick Start', 'Rules'])
   expect(t.packs.rules.every(j => typeof j.name === 'string' && j.name.length > 0)).toBe(true)
-  expect(t.packs.rules.flatMap(j => j.pages).map(p => p.name).sort()).toEqual(['A', 'nos.b'])
+  expect(t.packs.rules.flatMap(j => j.pages).map(p => p.name).sort()).toEqual(['A', 'Quick Start', 'Rules', 'nos.b'])
 })
