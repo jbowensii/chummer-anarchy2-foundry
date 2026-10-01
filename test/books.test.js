@@ -89,6 +89,7 @@ describe('translating a book', () => {
     expect(actor.system.linkedVehicles ?? []).toEqual([])
     expect(actor.flags[MODULE_ID]).toMatchObject({ id: 'muc-sample-max', source: 'MUC', canon: true })
     expect(actor).not.toHaveProperty('img')  // the portrait is uploaded by importBook
+    expect(actor.prototypeToken).toEqual({ actorLink: true })  // a pregen's token is its actor, as for runners
     expect(drone).toMatchObject({ items: [], system: { vehicleType: 'custom-vehicle', isFlying: true } })
     expect(drone.flags[MODULE_ID]).toMatchObject({ runner: 'muc-sample-max', source: 'MUC' })
     expect(t.portraits).toEqual({ [actor._id]: max.portrait })

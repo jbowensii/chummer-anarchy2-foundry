@@ -5,7 +5,7 @@ import { escapeText, translateRunner } from '../lib/translate.js'
 import { defaultChoice, planPack } from '../lib/plan.js'
 import { PORTRAIT, translateBook, translateTableRules } from '../lib/books.js'
 import { applyRunner, findExisting } from './apply.js'
-import { importBook, importTableRules, PACKS } from './books.js'
+import { importBook, importTableRules } from './books.js'
 
 const flagOf = d => d?.flags?.[MODULE_ID]
 const time = x => Date.parse(x ?? '') || 0
@@ -54,9 +54,11 @@ export function createImportApp() {
         name: book.source.name, id: book.source.id, error: error && F('CA2I.Failed', { reason: error }),
         canon: L(book.source.canon ? 'CA2I.Canon' : 'CA2I.NonCanon'),
         descriptions: L(this.file.descriptions === true ? 'CA2I.DescriptionsIn' : 'CA2I.DescriptionsOut'),
-        // after de-duplicating ids, as the write does (planPack: an id the file has twice keeps its last entry)
+        // after de-duplicating ids, as the write does (planPack: an id the file has twice keeps its last entry);
+        // rules count their rule pages (level 2), not the journals or the section pages
         counts: t && Object.entries(t.packs).map(([k, all]) => { const { docs } = planPack(new Set(), all)
-          return `${PACKS[k]?.[0] ?? k} ${k === 'rules' ? docs.reduce((n, j) => n + j.pages.length, 0) : docs.length}` }).join(' · '),
+          const n = k === 'rules' ? docs.reduce((n, j) => n + j.pages.filter(p => p.title?.level === 2).length, 0) : docs.length
+          return `${L(`CA2I.Pack.${k}`)} ${n}` }).join(' · '),
       }))
       return { systemError, systemWarning, rows, books, bookReport: this.bookReport, refused: this.refused, busy: this.busy, report: this.report,
         tableRules: this.tableRules && F('CA2I.TableRules', { n: this.tableRules.length }),
@@ -176,7 +178,7 @@ export function createImportApp() {
             { exportedAt: this.file.exportedAt, appVersion: this.file.app?.version ?? '', sanitize }))
         } catch (error) { res = { counts: {}, failed: [{ name, error }] } }  // translate threw: nothing changed
         const { packs, notes } = lines(res)
-        report.push({ name, packs, textOnly: notes })
+        report.push({ name, packs, outcome: packs.length ? '' : L('CA2I.NothingToImport'), textOnly: notes })
       }
       Object.assign(this, { busy: false, report, bookReport: true })
       this.render()

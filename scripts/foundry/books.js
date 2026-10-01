@@ -2,7 +2,7 @@
 // (node --check clean). Never throws: a failing pack is reported in `failed` and the other packs carry on.
 import { MODULE_ID } from '../lib/constants.js'
 import { packName, PACKS, planBookPacks } from '../lib/books.js'
-import { mergeJournalPages, planPack } from '../lib/plan.js'
+import { mergeActorItems, mergeJournalPages, planPack } from '../lib/plan.js'
 import { ensureFolder, FOLDER, uploadPortrait } from './apply.js'
 
 export { PACKS }
@@ -26,9 +26,9 @@ const dropPack = async pack => { try { await pack.deleteCompendium() } catch (e)
 
 // Write docs into the pack, creating it only now that there is something to write. A pack this call created is
 // deleted again when the write fails, so a failure never leaves an empty compendium behind (0.2.x did).
-async function writeNew(name, label, type, folder, docs) {
+async function writeNew(name, label, type, folder, docs, after) {
   const { pack, made } = await getPack(name, label, type, folder)
-  try { return await writePack(pack, docs) } catch (e) {
+  try { return await writePack(pack, docs, after) } catch (e) {
     if (made) await dropPack(pack)
     throw e
   }
@@ -46,35 +46,35 @@ const lazyFolder = (name, parent, made) => {
     return f
   }
 }
-// Folders this run made that hold nothing (every write failed) are deleted, innermost first.
+// Folders this run made that hold nothing (no pack was written into them) are deleted, innermost first.
 async function dropEmptyFolders(made) {
   for (const f of made.reverse()) {
     try { if (!f.getSubfolders().length && !game.packs.some(p => p.folder?.id === f.id)) await f.delete() } catch {}
   }
 }
 
-// Book pregens' portraits: uploaded into the character entries (img and token); a failed upload keeps the default artwork.
-async function withPortraits(docs, portraits = {}, say) {
-  const out = []
+// Book pregens' portraits (img and token), uploaded only once their pack is written: Foundry has no call to delete
+// an uploaded file, so a failed write must never have uploaded one. A failed upload keeps the default artwork.
+// The file name is fixed per pregen and export, so a re-import overwrites it rather than adding another.
+const portraitsAfter = (portraits = {}, say) => async (docs, op) => {
   for (const d of docs) {
-    const url = portraits[d._id]
-    if (!url) { out.push(d); continue }
+    const url = portraits[d._id], f = d.flags[MODULE_ID]
+    if (!url) continue
     try {
-      const img = await uploadPortrait(url, `${d.flags[MODULE_ID].source}-${d.flags[MODULE_ID].id}`, d.flags[MODULE_ID].exportedAt)
-      out.push({ ...d, img, prototypeToken: { ...d.prototypeToken, texture: { src: img } } })
+      const img = await uploadPortrait(url, `${f.source}-${f.id}`, f.exportedAt)
+      await Actor.updateDocuments([{ _id: d._id, img, 'prototypeToken.texture.src': img }], op)
     } catch (e) {
       console.error(`${MODULE_ID} | ${d.name}: portrait`, e)
       say(`${d.name}: portrait not uploaded (${e?.message ?? e}) → default artwork`)
-      out.push(d)
     }
   }
-  return out
 }
 
 // Replace by id: delete the entries the file has, then create all of them with their ids, in chunks. If a create
 // fails, what this run made is deleted and the replaced entries are put back, so a failure never loses them.
-// A replaced journal keeps the pages the GM added to it (lib/plan.js mergeJournalPages).
-async function writePack(pack, incoming) {
+// A replaced journal keeps the pages the GM added to it, a replaced actor the GM's own items (lib/plan.js).
+// after(docs, op): run once everything is written, while the pack is still unlocked.
+async function writePack(pack, incoming, after) {
   const Doc = pack.documentClass, op = { pack: pack.collection }
   const { replace, create, duplicates, ...plan } = planPack(new Set(pack.index.keys()), incoming)
   let docs = plan.docs
@@ -84,9 +84,10 @@ async function writePack(pack, incoming) {
   if (locked) await pack.configure({ locked: false })
   try {
     const old = replace.length ? (await pack.getDocuments({ _id__in: replace })).map(d => d.toObject()) : []
-    if (pack.documentName === 'JournalEntry' && old.length) {
-      const was = new Map(old.map(j => [j._id, j]))
-      docs = docs.map(j => was.has(j._id) ? { ...j, pages: mergeJournalPages(was.get(j._id).pages, j.pages ?? []) } : j)
+    const [kept, merge] = { JournalEntry: ['pages', mergeJournalPages], Actor: ['items', mergeActorItems] }[pack.documentName] ?? []
+    if (merge && old.length) {
+      const was = new Map(old.map(d => [d._id, d]))
+      docs = docs.map(d => was.has(d._id) ? { ...d, [kept]: merge(was.get(d._id)[kept], d[kept] ?? []) } : d)
     }
     if (replace.length) await Doc.deleteDocuments(replace, op)
     const made = []
@@ -102,6 +103,7 @@ async function writePack(pack, incoming) {
       }
       throw e
     }
+    await after?.(docs, op)
     return { label: pack.title, created: create.length, replaced: replace.length, duplicates: duplicates.map(d => d.name ?? d._id) }
   } finally {
     if (locked) await pack.configure({ locked: true })
@@ -122,11 +124,11 @@ export async function importBook(t, { onProgress, prefix = '', topFolder = FOLDE
   for (const [i, p] of packs.entries()) {
     onProgress?.({ pack: PACKS[p.key][0], n: i + 1, total: packs.length })
     try {
-      const docs = p.key === 'characters' ? await withPortraits(p.docs, t.portraits, l => t.textOnly?.push(l)) : p.docs
-      counts[p.name] = await writeNew(p.name, p.label, p.type, await folder(), docs)
+      const after = p.key === 'characters' ? portraitsAfter(t.portraits, l => t.textOnly?.push(l)) : undefined
+      counts[p.name] = await writeNew(p.name, p.label, p.type, await folder(), p.docs, after)
     } catch (error) { failed.push(fail(p.name, p.label, error)) }
   }
-  if (!Object.keys(counts).length) await dropEmptyFolders(made)
+  await dropEmptyFolders(made)
   return { source: src, counts, failed }
 }
 

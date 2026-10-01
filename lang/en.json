@@ -44,6 +44,19 @@
     "LeftAlone": "Entries not in this file were left as they were.",
     "OpenCompendiums": "Open compendiums",
     "PackTypeClash": "A compendium named {id} already holds {type}; delete it or move its contents, then import again.",
-    "NothingSelected": "Nothing selected to import."
+    "NothingSelected": "Nothing selected to import.",
+    "NothingToImport": "Nothing to import.",
+    "Pack": {
+      "amps": "Amps",
+      "weapons": "Weapons",
+      "armor": "Armor",
+      "gear": "Gear",
+      "spells": "Spells",
+      "vehicles": "Vehicles",
+      "characters": "Characters",
+      "metatypes": "Metatypes",
+      "skills": "Skills & specializations",
+      "rules": "Rules"
+    }
   }
 }

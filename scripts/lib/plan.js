@@ -1,4 +1,5 @@
 // Pure import decisions: what to do with a runner already in the world, and what Replace may overwrite.
+import { MODULE_ID } from './constants.js'
 
 const time = x => Date.parse(x?.exportedAt ?? '') || 0
 
@@ -54,3 +55,8 @@ export function mergeJournalPages(existingPages, incomingPages) {
   const ids = new Set(incomingPages.map(p => p._id))
   return [...incomingPages, ...(existingPages ?? []).filter(p => !ids.has(p._id))]
 }
+
+// Replacing a pack actor (a book pregen): its Chummer items are rebuilt from the file; the items the GM added
+// (no module flags) are kept, after the imported ones.
+export const mergeActorItems = (existingItems, incomingItems) =>
+  [...incomingItems, ...(existingItems ?? []).filter(i => !i.flags?.[MODULE_ID])]

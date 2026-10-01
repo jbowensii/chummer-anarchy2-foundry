@@ -2,7 +2,7 @@
 import { MODULE_ID } from './constants.js'
 import { docId } from './ids.js'
 import { ATTR, metatypeAnarchy, skillFor, specFor } from './sra2.js'
-import { ampFeat, escapeText, itemFeat, rrResolver, translateRunner, vehicleActor } from './translate.js'
+import { ampFeat, escapeText, itemFeat, metatypeMax, rrResolver, translateRunner, vehicleActor } from './translate.js'
 
 // pack key -> [label, document type], in the order they are written
 export const PACKS = { amps: ['Amps', 'Item'], weapons: ['Weapons', 'Item'], armor: ['Armor', 'Item'], gear: ['Gear', 'Item'],
@@ -72,7 +72,8 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
     try {
       const c = translateRunner(r, { exportedAt, appVersion, sanitize }), fl = { source: src.id, canon: src.canon }
       const _id = docId(`${src.id}:character:${r.id}`)
-      add('characters', { _id, ...c.actor, flags: { [MODULE_ID]: { ...c.actor.flags[MODULE_ID], ...fl } }, items: c.items })
+      add('characters', { _id, ...c.actor, flags: { [MODULE_ID]: { ...c.actor.flags[MODULE_ID], ...fl } }, items: c.items,
+        prototypeToken: { actorLink: true } })
       if (PORTRAIT.test(r.portrait ?? '')) portraits[_id] = r.portrait
       ;(r.vehicles ?? []).forEach((v, i) => {
         const { actor, items } = c.vehicles[i]
@@ -84,11 +85,10 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
   }
 
   for (const m of book.metatypes ?? []) {
-    const anarchy = metatypeAnarchy(m.name), max = a => Math.min(10, Math.max(1, m.ranges?.[a]?.[1] ?? 6))  // sra2: 1-10
+    const anarchy = metatypeAnarchy(m.name)
     if (anarchy == null) textOnly.push(`Metatype ${m.name}: not an sra2 metatype → Anarchy bonus 0`)
     add('metatypes', doc(m, { name: m.name, type: 'metatype', flags: flags(m.id, m.page, m.canon), system: {
-      maxStrength: max('str'), maxAgility: max('agi'), maxWillpower: max('wil'), maxLogic: max('log'), maxCharisma: max('cha'),
-      anarchyBonus: anarchy ?? 0, description: sanitize(`Edge: ${m.edge}`) + (m.racialQuality ? sanitize(`Racial quality: ${m.racialQuality}`) : '') } }))
+      ...metatypeMax(m.ranges), anarchyBonus: anarchy ?? 0, description: sanitize(`Edge: ${m.edge}`) + (m.racialQuality ? sanitize(`Racial quality: ${m.racialQuality}`) : '') } }))
   }
 
   // every skill and spec, those sra2 already has too (same slug, so interchangeable with sra2's own)
