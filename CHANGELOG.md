@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.2.1
+
+- Quench: the book-data Risk Reduction check matches the line's type, value and target, since sra2 adds its own fields to each line (the import itself was already right).
+
 ## 0.2.0
 
 - Book data: the GM imports a book-data file exported from Chummer (Game data → Export book data for Foundry) into world compendiums, one folder per book inside "Chummer Anarchy": amps, weapons, armor, gear, spells, vehicles, the skills and specializations sra2 doesn't already have, and rules journals (one per section, pages sorted by page).

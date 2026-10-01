@@ -233,7 +233,9 @@ export function registerQuench(quench) {
       })
       it('links the amp’s Risk Reduction to the sra2 spec', async () => {
         const knack = await pack('amps').getDocument(docId('muc.made-up-knack'))
-        assert.deepInclude(knack.system.rrList, { rrType: 'specialization', rrValue: 1, rrTarget: 'spec_pistols' })
+        // sra2 adds its own fields to each line (rrLabel), so match the three that matter
+        assert.ok(knack.system.rrList.some(r => r.rrType === 'specialization' && r.rrValue === 1 && r.rrTarget === 'spec_pistols'),
+          JSON.stringify(knack.system.rrList))
       })
       it('has a rules journal per section with pages sorted by page', async () => {
         const basics = (await pack('rules').getDocuments()).find(j => j.name === 'Made-Up Basics')
