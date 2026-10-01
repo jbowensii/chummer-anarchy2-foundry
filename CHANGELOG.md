@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0
+
+- Rules: one journal per topic (rules sheet) with a chapter per section and the rules as pages inside, instead of one journal per section. The old per-section journals from 0.2.x are left alone; delete them by hand if you like.
+- New compendium Characters: each book's pregenerated characters with linked tokens; their vehicles are separate entries.
+- New compendium Metatypes.
+- Skills & specializations now holds every skill and specialization in the file, interchangeable with sra2's own.
+- A compendium is never created empty: a book gets only the compendiums (and folder) it has entries for.
+- A re-import keeps entries the GM made, GM pages in journals, and items the GM added to a pregen.
+- Needs the book export from Chummer 0.6.2 for topics, metatypes and pregens; older files still import.
+
 ## 0.2.2
 
 - "Import from Chummer" is also in the Compendium tab (as well as the Actors tab); either opens the same window, for runner and book-data files.

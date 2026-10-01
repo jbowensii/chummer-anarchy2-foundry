@@ -8,8 +8,9 @@ const time = f => Date.parse(f?.exportedAt ?? '') || 0
 const newest = docs => docs.sort((a, b) => time(flagOf(b)) - time(flagOf(a)))[0] ?? null
 
 // The world copy of a runner: flagged with its id (vehicles also carry `runner`, runners don't); newest export wins.
+// Book copies (a pregen dragged out of a Characters compendium) carry `source` and are never a runner's world copy.
 export const findExisting = runnerId =>
-  newest(game.actors.filter(a => flagOf(a)?.id === runnerId && !flagOf(a).runner))
+  newest(game.actors.filter(a => flagOf(a)?.id === runnerId && !flagOf(a).runner && !flagOf(a).source))
 
 export async function ensureFolder(name, parent = null, type = 'Actor') {
   const found = game.folders.find(f => f.type === type && f.name === name && (f.folder?.id ?? null) === (parent?.id ?? null))
@@ -18,7 +19,7 @@ export async function ensureFolder(name, parent = null, type = 'Actor') {
 
 // data URL -> world file; returns its path. As sra2 does (helpers/gemini-image.ts): browse, and on failure create each
 // level, swallowing "already exists"; a real problem surfaces as the upload failing.
-async function uploadPortrait(dataUrl, runnerId, exportedAt) {
+export async function uploadPortrait(dataUrl, runnerId, exportedAt) {
   const FP = foundry.applications.apps.FilePicker.implementation
   const base = `worlds/${game.world.id}/chummer`, dir = `${base}/portraits`
   try { await FP.browse('data', dir) } catch {

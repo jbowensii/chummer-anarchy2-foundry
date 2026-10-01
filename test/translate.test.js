@@ -35,6 +35,11 @@ describe('translating a runner', () => {
     expect(m[0].system).toMatchObject({ maxAgility: 6, maxStrength: 6, anarchyBonus: 1 }) // sra2's Human
   })
 
+  test('metatype caps are clamped to sra2’s 1-10', () => {
+    const r = structuredClone(mara); r.metatype.ranges = { str: [1, 12], agi: [1, 0] }
+    expect(translateRunner(r, opts).items[0].system).toMatchObject({ maxStrength: 10, maxAgility: 1, maxLogic: 6 })
+  })
+
   test('metatype Anarchy bonus from sra2, by English name', () => {
     const as = name => { const r = structuredClone(mara); r.metatype.name = name; return translateRunner(r, opts) }
     expect(as('Troll').items[0].system.anarchyBonus).toBe(0)

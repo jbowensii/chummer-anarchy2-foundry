@@ -1059,6 +1059,10 @@
               },
               "text": {
                 "type": "string"
+              },
+              "sheetName": {
+                "type": "string",
+                "description": "the sheet's display name; an empty section is exported as this"
               }
             }
           }
@@ -1199,6 +1203,62 @@
                 "type": "number"
               }
             }
+          }
+        },
+        "metatypes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": [
+              "id",
+              "source",
+              "page",
+              "canon",
+              "name",
+              "edge",
+              "ranges",
+              "racialQuality"
+            ],
+            "properties": {
+              "id": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "page": {
+                "type": "number"
+              },
+              "canon": {
+                "type": "boolean"
+              },
+              "name": {
+                "type": "string"
+              },
+              "edge": {
+                "type": "number"
+              },
+              "racialQuality": {
+                "type": "string"
+              },
+              "ranges": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  },
+                  "minItems": 2,
+                  "maxItems": 2
+                }
+              }
+            }
+          }
+        },
+        "characters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/runner"
           }
         }
       }

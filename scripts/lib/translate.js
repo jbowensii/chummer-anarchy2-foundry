@@ -25,6 +25,12 @@ function parseDv(dv) {
   return null
 }
 
+// A metatype's attribute caps (ranges[*][1], default 6), clamped to sra2's 1-10.
+export const metatypeMax = (ranges = {}) => {
+  const max = a => Math.min(10, Math.max(1, ranges?.[a]?.[1] ?? 6))
+  return { maxStrength: max('str'), maxAgility: max('agi'), maxWillpower: max('wil'), maxLogic: max('log'), maxCharisma: max('cha') }
+}
+
 /**
  * sanitize: a function that takes PLAIN TEXT and returns safe HTML. Callers wrap Foundry's cleaner AROUND escapeText
  * (e.g. t => clean(escapeText(t))), never replace escapeText with the cleaner: a cleaner neither escapes text nor makes paragraphs.
@@ -45,8 +51,7 @@ export function translateRunner(runner, { exportedAt, appVersion, sanitize = esc
   const metaName = runner.metatype?.name ?? 'Metatype', anarchyBonus = metatypeAnarchy(metaName)
   if (anarchyBonus == null) textOnly.push(`Metatype ${metaName}: not an sra2 metatype → Anarchy bonus 0`)
   items.push({ name: metaName, type: 'metatype', flags: flag(runner.metatype?.id ?? 'metatype'),
-    system: { maxStrength: ranges.str?.[1] ?? 6, maxAgility: ranges.agi?.[1] ?? 6, maxWillpower: ranges.wil?.[1] ?? 6,
-      maxLogic: ranges.log?.[1] ?? 6, maxCharisma: ranges.cha?.[1] ?? 6, anarchyBonus: anarchyBonus ?? 0 } })
+    system: { ...metatypeMax(ranges), anarchyBonus: anarchyBonus ?? 0 } })
 
   for (const sk of skills) {
     const s = skillFor(sk), name = s.known ? s.name : sk.name

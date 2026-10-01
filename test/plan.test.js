@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, test } from 'vitest'
 import { MODULE_ID } from '../scripts/lib/constants.js'
 import { translateRunner } from '../scripts/lib/translate.js'
-import { defaultChoice, mergeJournalPages, newVersionName, planPack, replaceUpdate, tokenUpdate } from '../scripts/lib/plan.js'
+import { defaultChoice, mergeActorItems, mergeJournalPages, newVersionName, planPack, replaceUpdate, tokenUpdate } from '../scripts/lib/plan.js'
 
 const file = JSON.parse(readFileSync('samples/test-export.json', 'utf8'))
 const t = translateRunner(file.runners[0], { exportedAt: file.exportedAt, appVersion: file.app.version })
@@ -90,8 +90,16 @@ describe('planning a pack write', () => {
   })
   test('mergeJournalPages rebuilds imported pages and keeps the GM’s own after them', () => {
     const gm = { _id: 'gm', name: 'My note', sort: 50, text: { content: '<p>mine</p>' } }
-    const oldA = { _id: 'a', name: 'Old A' }, newA = { _id: 'a', name: 'New A' }, newB = { _id: 'b', name: 'B' }
-    expect(mergeJournalPages([oldA, gm], [newA, newB])).toEqual([newA, newB, gm])
+    const oldA = { _id: 'a', name: 'Old A', flags: { [MODULE_ID]: {} } }, stale = { _id: 's', name: 'Stale', flags: { [MODULE_ID]: {} } }
+    const newA = { _id: 'a', name: 'New A' }, newB = { _id: 'b', name: 'B' }
+    expect(mergeJournalPages([oldA, stale, gm], [newA, newB])).toEqual([newA, newB, gm])
     expect(mergeJournalPages(undefined, [newA])).toEqual([newA])
+  })
+
+  test('mergeActorItems rebuilds flagged items and keeps the GM’s unflagged ones after them', () => {
+    const gm = { _id: 'gm', name: 'GM note item', flags: {} }, old = { _id: 'o', name: 'Old', flags: { [MODULE_ID]: { id: 'x' } } }
+    const fresh = { name: 'New', flags: { [MODULE_ID]: { id: 'x' } } }
+    expect(mergeActorItems([old, gm], [fresh])).toEqual([fresh, gm])
+    expect(mergeActorItems(undefined, [fresh])).toEqual([fresh])
   })
 })

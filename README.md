@@ -52,14 +52,20 @@ In the Compendium sidebar (or the Actors sidebar), click **Import from Chummer**
 - **Amps**: qualities, cyberware and the other amps as sra2 feats, with Risk Reduction, wound boxes and thresholds. An equipment amp that is a weapon or armor becomes that feat type.
 - **Weapons**, **Armor**, **Gear** and **Spells**: feats of that type (weapon damage and ranges, armor value).
 - **Vehicles**: custom vehicle actors.
-- **Skills & specializations**: only the skills and specializations sra2 doesn't already have; sra2's own are not duplicated.
-- **Rules**: one journal per rules section, one page per rule, sorted by page. Without descriptions a page says where to read it ("See MUC p.50").
+- **Characters**: the book's pregenerated characters, each with its linked token, and their vehicles as separate entries named "<runner> — <vehicle>".
+- **Metatypes**: the book's metatypes, with attribute caps, Anarchy bonus, edge and racial quality.
+- **Skills & specializations**: every skill and specialization in the file, using the same slugs as sra2's own, so they are interchangeable with the system's.
+- **Rules**: one journal per topic (rules sheet), with a chapter per section and one page per rule, sorted by page. Without descriptions a page says where to read it ("See MUC p.50").
 
-Every item and vehicle carries its book and page in its reference field; rules carry theirs in their flags. Your table rules from Chummer, if the file has any, go in the compendium "Table rules — Chummer" in the "Chummer Anarchy" folder.
+A compendium is never created empty: a book only gets the compendiums (and its folder) it has entries for.
+
+Chummer 0.6.2's export is needed for the rules topics, metatypes and pregens; older files still import, with the rules sections they had.
+
+Items and vehicles carry their book and page in their reference field (pregens' reference names Chummer); rules carry theirs in their flags. Your table rules from Chummer, if the file has any, go in the compendium "Table rules — Chummer" in the "Chummer Anarchy" folder.
 
 ### Importing a book again
 
-A re-import replaces the entries that came from the file, keeping their ids so links to them keep working. In a rules or table-rules journal, the imported pages are rebuilt from the file and pages you added are kept. Entries missing from the file are never deleted: entries you made yourself, and older entries the new file no longer has, stay as they are. A rules section renamed in Chummer arrives as a new journal; the journal with the old name stays until you delete it.
+A re-import replaces the entries that came from the file, keeping their ids so links to them keep working. In a rules or table-rules journal, the imported pages are rebuilt from the file (a page the file no longer has goes) and the pages you added are kept. Entries missing from the file are never deleted: entries you made yourself, and older entries the new file no longer has, stay as they are. A topic renamed in Chummer arrives as a new journal; the journal with the old name stays until you delete it. In Characters, items you added to a pregen are kept. The one-journal-per-section journals from 0.2.x are left alone; you can delete them by hand.
 
 ## Not imported yet, or imported differently
 

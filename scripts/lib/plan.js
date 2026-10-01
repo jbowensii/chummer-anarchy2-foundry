@@ -1,4 +1,5 @@
 // Pure import decisions: what to do with a runner already in the world, and what Replace may overwrite.
+import { MODULE_ID } from './constants.js'
 
 const time = x => Date.parse(x?.exportedAt ?? '') || 0
 
@@ -48,9 +49,12 @@ export function planPack(existingIds, incoming) {
   return { replace, create, docs, duplicates }
 }
 
-// Replacing a journal: its pages are rebuilt from the file; pages the GM added (ids the file doesn't have) are kept
-// as they are, after the imported ones.
-export function mergeJournalPages(existingPages, incomingPages) {
-  const ids = new Set(incomingPages.map(p => p._id))
-  return [...incomingPages, ...(existingPages ?? []).filter(p => !ids.has(p._id))]
-}
+// Replacing a journal: its pages are rebuilt from the file; only the old pages without this module's flag (the GM's
+// own) are kept, after the imported ones. A stale or renamed imported page does not linger.
+export const mergeJournalPages = (existingPages, incomingPages) =>
+  [...incomingPages, ...(existingPages ?? []).filter(p => !p.flags?.[MODULE_ID])]
+
+// Replacing a pack actor (a book pregen): its Chummer items are rebuilt from the file; the items the GM added
+// (no module flags) are kept, after the imported ones.
+export const mergeActorItems = (existingItems, incomingItems) =>
+  [...incomingItems, ...(existingItems ?? []).filter(i => !i.flags?.[MODULE_ID])]
