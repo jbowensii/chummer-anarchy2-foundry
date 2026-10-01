@@ -47,3 +47,10 @@ export function planPack(existingIds, incoming) {
   for (const { _id } of docs) (existingIds.has(_id) ? replace : create).push(_id)
   return { replace, create, docs, duplicates }
 }
+
+// Replacing a journal: its pages are rebuilt from the file; pages the GM added (ids the file doesn't have) are kept
+// as they are, after the imported ones.
+export function mergeJournalPages(existingPages, incomingPages) {
+  const ids = new Set(incomingPages.map(p => p._id))
+  return [...incomingPages, ...(existingPages ?? []).filter(p => !ids.has(p._id))]
+}

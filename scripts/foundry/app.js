@@ -2,7 +2,7 @@
 import { MODULE_ID, TESTED_SRA2 } from '../lib/constants.js'
 import { readExport } from '../lib/read.js'
 import { escapeText, translateRunner } from '../lib/translate.js'
-import { defaultChoice } from '../lib/plan.js'
+import { defaultChoice, planPack } from '../lib/plan.js'
 import { translateBook, translateTableRules } from '../lib/books.js'
 import { applyRunner, findExisting } from './apply.js'
 import { importBook, importTableRules, PACKS } from './books.js'
@@ -55,8 +55,9 @@ export function createImportApp() {
         name: book.source.name, id: book.source.id, error: error && F('CA2I.Failed', { reason: error }),
         canon: L(book.source.canon ? 'CA2I.Canon' : 'CA2I.NonCanon'),
         descriptions: L(this.file.descriptions === true ? 'CA2I.DescriptionsIn' : 'CA2I.DescriptionsOut'),
-        counts: t && Object.entries(t.packs).map(([k, docs]) => `${PACKS[k]?.[0] ?? k} ${k === 'rules'
-          ? docs.reduce((n, j) => n + j.pages.length, 0) : docs.length}`).join(' · '),
+        // after de-duplicating ids, as the write does (planPack: an id the file has twice keeps its last entry)
+        counts: t && Object.entries(t.packs).map(([k, all]) => { const { docs } = planPack(new Set(), all)
+          return `${PACKS[k]?.[0] ?? k} ${k === 'rules' ? docs.reduce((n, j) => n + j.pages.length, 0) : docs.length}` }).join(' · '),
       }))
       return { systemError, systemWarning, rows, books, bookReport: this.bookReport, refused: this.refused, busy: this.busy, report: this.report,
         tableRules: this.tableRules && F('CA2I.TableRules', { n: this.tableRules.length }),
@@ -160,7 +161,10 @@ export function createImportApp() {
         const name = book.source.name
         step(name, ++n)
         let res
-        try { res = await importBook(t) } catch (error) { res = { counts: {}, failed: [{ name, error }] } }  // importBook shouldn't throw; the window mustn't stick busy
+        const onProgress = ({ pack, n: i, total: of }) => {
+          if (progress) progress.textContent = F('CA2I.BookPackProgress', { name, pack, n: i, total: of })
+        }
+        try { res = await importBook(t, { onProgress }) } catch (error) { res = { counts: {}, failed: [{ name, error }] } }  // importBook shouldn't throw; the window mustn't stick busy
         const { packs, notes } = lines(res)
         report.push({ name, packs, outcome: packs.length ? '' : L('CA2I.NothingInBook'), textOnly: [...t.textOnly, ...notes] })
       }

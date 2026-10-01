@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, test } from 'vitest'
 import { MODULE_ID } from '../scripts/lib/constants.js'
 import { translateRunner } from '../scripts/lib/translate.js'
-import { defaultChoice, newVersionName, planPack, replaceUpdate, tokenUpdate } from '../scripts/lib/plan.js'
+import { defaultChoice, mergeJournalPages, newVersionName, planPack, replaceUpdate, tokenUpdate } from '../scripts/lib/plan.js'
 
 const file = JSON.parse(readFileSync('samples/test-export.json', 'utf8'))
 const t = translateRunner(file.runners[0], { exportedAt: file.exportedAt, appVersion: file.app.version })
@@ -87,5 +87,11 @@ describe('planning a pack write', () => {
     const p = planPack(new Set(['a']), [first, { _id: 'b' }, last])
     expect(p.docs).toEqual([last, { _id: 'b' }])
     expect(p).toMatchObject({ replace: ['a'], create: ['b'], duplicates: [first] })
+  })
+  test('mergeJournalPages rebuilds imported pages and keeps the GM’s own after them', () => {
+    const gm = { _id: 'gm', name: 'My note', sort: 50, text: { content: '<p>mine</p>' } }
+    const oldA = { _id: 'a', name: 'Old A' }, newA = { _id: 'a', name: 'New A' }, newB = { _id: 'b', name: 'B' }
+    expect(mergeJournalPages([oldA, gm], [newA, newB])).toEqual([newA, newB, gm])
+    expect(mergeJournalPages(undefined, [newA])).toEqual([newA])
   })
 })

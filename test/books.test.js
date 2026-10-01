@@ -145,8 +145,8 @@ test('table rules: one journal, a page per rule', () => {
   const j = translateTableRules(file.tableRules, opts)
   expect(j).toMatchObject({ _id: docId('table-rules'), name: 'Table rules' })
   expect(j.pages).toEqual([expect.objectContaining({ name: 'Made-Up Table Rule', type: 'text', text: { content: '<p>A made-up table rule.</p>', format: 1 } })])
-  // the GM's own text, even when book descriptions are off; repeated names get distinct page ids
-  const two = translateTableRules([...file.tableRules, ...file.tableRules], { ...opts, descriptions: false })
-  expect(two.pages[0].text.content).toBe('<p>A made-up table rule.</p>')
+  // repeated names get distinct page ids; a rule Chummer blanked (descriptions off) says the file has no text
+  const two = translateTableRules([...file.tableRules, { ...file.tableRules[0], text: '' }], opts)
+  expect(two.pages.map(p => p.text.content)).toEqual(['<p>A made-up table rule.</p>', '<p>(No text in this file.)</p>'])
   expect(new Set(two.pages.map(p => p._id)).size).toBe(2)
 })

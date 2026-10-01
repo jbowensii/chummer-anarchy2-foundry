@@ -55,11 +55,11 @@ Open **Import from Chummer**, choose the book-data file, untick any book you don
 - **Skills & specializations**: only the skills and specializations sra2 doesn't already have; sra2's own are not duplicated.
 - **Rules**: one journal per rules section, one page per rule, sorted by page. Without descriptions a page says where to read it ("See MUC p.50").
 
-Every entry carries its book and page in its reference field. Your table rules from Chummer, if the file has any, go in the compendium "Table rules — Chummer" in the "Chummer Anarchy" folder.
+Every item and vehicle carries its book and page in its reference field; rules carry theirs in their flags. Your table rules from Chummer, if the file has any, go in the compendium "Table rules — Chummer" in the "Chummer Anarchy" folder.
 
 ### Importing a book again
 
-A re-import replaces the entries that came from the file, keeping their ids so links to them keep working. It never deletes anything: entries you made yourself, and older entries the new file no longer has, stay as they are. A rules section renamed in Chummer arrives as a new journal; the journal with the old name stays until you delete it.
+A re-import replaces the entries that came from the file, keeping their ids so links to them keep working. In a rules or table-rules journal, the imported pages are rebuilt from the file and pages you added are kept. Entries missing from the file are never deleted: entries you made yourself, and older entries the new file no longer has, stay as they are. A rules section renamed in Chummer arrives as a new journal; the journal with the old name stays until you delete it.
 
 ## Not imported yet, or imported differently
 

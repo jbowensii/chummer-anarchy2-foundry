@@ -36,6 +36,7 @@
     "TableRules": "Table rules ({n})",
     "TableRulesName": "Table rules",
     "BookProgress": "Importing {name} ({n} of {total})…",
+    "BookPackProgress": "Importing {name}: {pack} ({n} of {total})…",
     "PackResult": "{label}: created {created}, replaced {replaced}",
     "PackFailed": "{label}: failed: {reason}",
     "Duplicate": "{label}: “{name}” is in this file more than once; the last one was kept.",

@@ -7,6 +7,7 @@ import { ampFeat, escapeText, itemFeat, rrResolver, vehicleActor } from './trans
 const PACK_OF = { weapon: 'weapons', armor: 'armor', gear: 'gear', spell: 'spells', 'complex-form': 'spells' }
 const SRA2_ATTRS = Object.values(ATTR)
 const SORT = 100000  // Foundry's CONST.SORT_INTEGER_DENSITY
+const NO_TEXT = '<p>(No text in this file.)</p>'
 
 // A book item's flat fields ({ dv, ranges, armor: n }) in the runner shape itemFeat reads.
 const asItem = (it, name = it.name) => ({ ...it, name, weapon: { dv: it.dv, dvText: it.dv, ranges: it.ranges }, armor: { value: it.armor ?? 0 } })
@@ -77,11 +78,12 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
   return { source: src, packs, textOnly }
 }
 
-// The GM's own table rules: their text is always included (not book text). A repeated name gets an index-based page id.
+// The GM's own table rules. Their text follows the file's descriptions choice: Chummer blanks it when descriptions
+// are off, and an empty page says so. A repeated name gets an index-based page id.
 export function translateTableRules(tableRules, { exportedAt, appVersion, sanitize = escapeText }) {
   const seen = new Set()
   const pageId = (name, i) => { const id = docId(`table-rules:${name}`); return seen.has(id) ? docId(`table-rules:${name}:${i}`) : (seen.add(id), id) }
   return { _id: docId('table-rules'), name: 'Table rules', flags: { [MODULE_ID]: { id: 'table-rules', exportedAt, appVersion } },
     pages: (tableRules ?? []).map((r, i) => ({ _id: pageId(r.name, i), name: r.name, type: 'text', sort: (i + 1) * SORT,
-      text: { content: sanitize(r.text), format: 1 } })) }
+      text: { content: r.text ? sanitize(r.text) : NO_TEXT, format: 1 } })) }
 }

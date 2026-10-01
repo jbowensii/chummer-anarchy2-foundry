@@ -1,7 +1,7 @@
 // Write a translated book (lib/books.js translateBook) into world compendiums. Foundry globals only inside functions
 // (node --check clean). Never throws: a failing pack is reported in `failed` and the other packs carry on.
 import { MODULE_ID } from '../lib/constants.js'
-import { planPack } from '../lib/plan.js'
+import { mergeJournalPages, planPack } from '../lib/plan.js'
 import { ensureFolder, FOLDER } from './apply.js'
 
 const CHUNK = 100
@@ -27,25 +27,33 @@ async function getPack(name, label, type, folder) {
 
 // Replace by id: delete the entries the file has, then create all of them with their ids, in chunks. If a create
 // fails, what this run made is deleted and the replaced entries are put back, so a failure never loses them.
-async function writePack(pack, incoming, onProgress) {
+// A replaced journal keeps the pages the GM added to it (lib/plan.js mergeJournalPages).
+async function writePack(pack, incoming) {
   const Doc = pack.documentClass, op = { pack: pack.collection }
-  const { replace, create, docs, duplicates } = planPack(new Set(pack.index.keys()), incoming)
+  const { replace, create, duplicates, ...plan } = planPack(new Set(pack.index.keys()), incoming)
+  let docs = plan.docs
   // V14 refuses writes to a locked pack (common/abstract/backend.mjs #assertCompendiumUnlocked, ~l.229), even a
   // world pack the GM locked: unlock for this write and lock it again after.
   const locked = pack.locked
   if (locked) await pack.configure({ locked: false })
   try {
     const old = replace.length ? (await pack.getDocuments({ _id__in: replace })).map(d => d.toObject()) : []
+    if (pack.documentName === 'JournalEntry' && old.length) {
+      const was = new Map(old.map(j => [j._id, j]))
+      docs = docs.map(j => was.has(j._id) ? { ...j, pages: mergeJournalPages(was.get(j._id).pages, j.pages ?? []) } : j)
+    }
     if (replace.length) await Doc.deleteDocuments(replace, op)
     const made = []
     try {
       for (let i = 0; i < docs.length; i += CHUNK) {
         made.push(...await Doc.createDocuments(docs.slice(i, i + CHUNK), { ...op, keepId: true }))
-        onProgress?.({ pack: pack.title, done: made.length, total: docs.length })
       }
     } catch (e) {
       try { if (made.length) await Doc.deleteDocuments(made.map(d => d.id), op) } catch {}
-      try { if (old.length) await Doc.createDocuments(old, { ...op, keepId: true }) } catch {}
+      try { if (old.length) await Doc.createDocuments(old, { ...op, keepId: true }) } catch (restore) {
+        console.error(`${MODULE_ID} | ${pack.title}: restoring the replaced entries failed`, restore)
+        throw new Error(`${e?.message ?? e} (restoring the replaced entries failed)`, { cause: e })
+      }
       throw e
     }
     return { label: pack.title, created: create.length, replaced: replace.length, duplicates: duplicates.map(d => d.name ?? d._id) }
@@ -57,21 +65,22 @@ async function writePack(pack, incoming, onProgress) {
 const fail = (pack, name, error) => { console.error(`${MODULE_ID} | ${name}`, error); return { pack, name, error } }
 
 /**
- * t: translateBook output. Packs go in `<book name> (<source id>)` inside topFolder; pack names get `prefix` (Quench).
+ * t: translateBook output. onProgress({ pack, n, total }) before each pack is written. Packs go in `<book name> (<source id>)` inside topFolder; pack names get `prefix` (Quench).
  * Returns { source, counts: { [pack name]: { label, created, replaced, duplicates: [entry name] } }, failed: [{ pack, name, error }] }.
  */
 export async function importBook(t, { onProgress, prefix = '', topFolder = FOLDER } = {}) {
   const src = t.source, counts = {}, failed = []
   const packs = Object.entries(t.packs).filter(([k, docs]) => PACKS[k] && docs?.length)
-    .map(([k, docs]) => ({ docs, type: PACKS[k][1], name: packName(`${prefix}ca2-${src.id}-${k}`), label: `${PACKS[k][0]} — ${src.id}` }))
+    .map(([k, docs]) => ({ key: k, docs, type: PACKS[k][1], name: packName(`${prefix}ca2-${src.id}-${k}`), label: `${PACKS[k][0]} — ${src.id}` }))
   let folder
   try {
     folder = await ensureFolder(`${src.name} (${src.id})`, await ensureFolder(topFolder, null, 'Compendium'), 'Compendium')
   } catch (error) {
     return { source: src, counts, failed: packs.map(p => fail(p.name, p.label, error)) }
   }
-  for (const p of packs) {
-    try { counts[p.name] = await writePack(await getPack(p.name, p.label, p.type, folder), p.docs, onProgress) }
+  for (const [i, p] of packs.entries()) {
+    onProgress?.({ pack: PACKS[p.key][0], n: i + 1, total: packs.length })
+    try { counts[p.name] = await writePack(await getPack(p.name, p.label, p.type, folder), p.docs) }
     catch (error) { failed.push(fail(p.name, p.label, error)) }
   }
   return { source: src, counts, failed }

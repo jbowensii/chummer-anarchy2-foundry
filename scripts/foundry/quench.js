@@ -182,13 +182,22 @@ export function registerQuench(quench) {
 
   batch('book data', ({ describe, it, assert, before, after }) => {
     // Imports the made-up book file as the window does, into packs named ca2test-… in the Compendium folder
-    // "Chummer Importer tests". after() deletes only the packs and folders this run created (by id).
+    // "Chummer Importer tests". before() and after() both clean up (cleanBooks), so a crashed run leaves nothing behind.
     describe('importing the book-data sample', function () {
       this.timeout(60000)
       const clean = foundry.utils.cleanHTML ?? (h => h)
       let file, muc, res
-      const made = { packs: [], folders: [] }
       const pack = k => game.packs.get(`world.${PREFIX}ca2-muc-${k}`)
+      // Every world pack named ca2test-… (only these tests make them), then the sample books' Compendium folders inside
+      // the top-level Compendium folder "Chummer Importer tests", then that folder.
+      const cleanBooks = async () => {
+        for (const p of game.packs.filter(p => p.collection.startsWith(`world.${PREFIX}`))) await p.deleteCompendium()
+        const top = game.folders.find(f => f.type === 'Compendium' && f.name === TEST_FOLDER && !f.folder)
+        if (!top) return
+        const names = new Set(file.books.map(b => `${b.source.name} (${b.source.id})`))
+        for (const f of game.folders.filter(f => f.type === 'Compendium' && f.folder?.id === top.id && names.has(f.name))) await f.delete()
+        await top.delete()
+      }
       const translate = book => translateBook(book, { exportedAt: book.exportedAt ?? file.exportedAt,
         appVersion: file.app?.version ?? '', descriptions: file.descriptions === true, sanitize: s => clean(escapeText(s)) })
       const run = book => importBook(translate(book), { prefix: PREFIX, topFolder: TEST_FOLDER })
@@ -196,15 +205,10 @@ export function registerQuench(quench) {
         const r = readExport(await (await fetch(BOOKS)).text())
         if (!r.ok) throw new Error(r.reason)
         file = r.file; muc = file.books[0]
-        const packsBefore = new Set(game.packs.keys()), foldersBefore = new Set(game.folders.map(f => f.id))
+        await cleanBooks()
         res = await run(muc)
-        made.packs = [...game.packs.keys()].filter(k => !packsBefore.has(k) && k.startsWith(`world.${PREFIX}`))
-        made.folders = game.folders.filter(f => f.type === 'Compendium' && !foldersBefore.has(f.id)).map(f => f.id)
       })
-      after(async function () {
-        for (const k of made.packs) await game.packs.get(k)?.deleteCompendium()
-        for (const id of made.folders) await game.folders.get(id)?.delete()
-      })
+      after(async function () { if (file) await cleanBooks() })
 
       it('imports every pack without a failure', () => assert.isEmpty(res.failed, res.failed.map(f => f.error?.message).join('; ')))
       it('puts the packs in the book folder inside the test folder', () => {
@@ -239,6 +243,9 @@ export function registerQuench(quench) {
       it('re-import replaces its own entries by id and leaves a GM-made entry', async () => {
         const amps = pack('amps'), id = docId('muc.made-up-knack')
         const gm = await Item.create({ name: 'GM-made amp', type: 'feat', system: { featType: 'equipment' } }, { pack: amps.collection })
+        const basicsId = (await pack('rules').getDocuments()).find(j => j.name === 'Made-Up Basics').id
+        const gmPage = (await (await pack('rules').getDocument(basicsId)).createEmbeddedDocuments('JournalEntryPage',
+          [{ name: 'GM page', type: 'text', text: { content: '<p>mine</p>' } }]))[0]
         const changed = structuredClone(muc)
         changed.amps[0].rating = 3
         const again = await run(changed)
@@ -249,6 +256,9 @@ export function registerQuench(quench) {
         assert.equal(knack?.system.rating, 3)
         assert.ok(await amps.getDocument(gm.id), 'GM entry kept')
         assert.equal(amps.index.size, 3)
+        const basics = await pack('rules').getDocument(basicsId)
+        assert.equal(basics.pages.get(gmPage.id)?.text.content, '<p>mine</p>', 'GM page kept')
+        assert.sameMembers(basics.pages.map(p => p.name), ['Rule One', 'Rule Two', 'GM page'])
       })
     })
   })
