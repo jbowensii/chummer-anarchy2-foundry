@@ -33,3 +33,24 @@ export function replaceUpdate(translated, existingName = '') {
 // Replace with a new portrait: the token follows it only while it still shows the actor's image (a GM's own token image stays).
 export const tokenUpdate = (existing, img) =>
   img && existing?.prototypeToken?.texture?.src === existing?.img ? { 'prototypeToken.texture.src': img } : {}
+
+// Re-import by id: incoming entries already in the pack are replaced (deleted, then created with the same id), the
+// rest are created. Pack entries not in the file are never touched. An id the file has twice keeps its last entry
+// (`docs` is what to write); the dropped earlier ones are listed in `duplicates` for the report.
+export function planPack(existingIds, incoming) {
+  const byId = new Map(), duplicates = []
+  for (const d of incoming) {
+    if (byId.has(d._id)) duplicates.push(byId.get(d._id))
+    byId.set(d._id, d)
+  }
+  const docs = [...byId.values()], replace = [], create = []
+  for (const { _id } of docs) (existingIds.has(_id) ? replace : create).push(_id)
+  return { replace, create, docs, duplicates }
+}
+
+// Replacing a journal: its pages are rebuilt from the file; pages the GM added (ids the file doesn't have) are kept
+// as they are, after the imported ones.
+export function mergeJournalPages(existingPages, incomingPages) {
+  const ids = new Set(incomingPages.map(p => p._id))
+  return [...incomingPages, ...(existingPages ?? []).filter(p => !ids.has(p._id))]
+}

@@ -2,8 +2,10 @@
 import { MODULE_ID, TESTED_SRA2 } from '../lib/constants.js'
 import { readExport } from '../lib/read.js'
 import { escapeText, translateRunner } from '../lib/translate.js'
-import { defaultChoice } from '../lib/plan.js'
+import { defaultChoice, planPack } from '../lib/plan.js'
+import { translateBook, translateTableRules } from '../lib/books.js'
 import { applyRunner, findExisting } from './apply.js'
+import { importBook, importTableRules, PACKS } from './books.js'
 
 const flagOf = d => d?.flags?.[MODULE_ID]
 const time = x => Date.parse(x ?? '') || 0
@@ -25,11 +27,12 @@ export function createImportApp() {
       classes: ['ca2i-app'],
       window: { title: 'CA2I.Title', icon: 'fas fa-file-import' },
       position: { width: 560, height: 'auto' },
-      actions: { import: ChummerImportApp.#onImport, openActor: ChummerImportApp.#onOpen, done: ChummerImportApp.#onDone },
+      actions: { import: ChummerImportApp.#onImport, openActor: ChummerImportApp.#onOpen, done: ChummerImportApp.#onDone,
+        openCompendiums: ChummerImportApp.#onOpenCompendiums },
     }
     static PARTS = { main: { template: `modules/${MODULE_ID}/templates/import.hbs`, scrollable: ['.ca2i-rows', '.ca2i-report'] } }
 
-    file = null; rows = null; refused = ''; busy = false; report = null
+    file = null; rows = null; books = null; tableRules = null; refused = ''; busy = false; report = null; bookReport = false
 
     async _prepareContext(options) {
       const sys = game.system
@@ -48,8 +51,17 @@ export function createImportApp() {
             label: L({ replace: 'CA2I.Replace', new: 'CA2I.New', skip: 'CA2I.Skip' }[value]) })),
         }
       })
-      return { systemError, systemWarning, rows, refused: this.refused, busy: this.busy, report: this.report,
-        includeLabel: L('CA2I.Include'), progress: '' }
+      const books = this.books?.map(({ book, t, error }) => ({
+        name: book.source.name, id: book.source.id, error: error && F('CA2I.Failed', { reason: error }),
+        canon: L(book.source.canon ? 'CA2I.Canon' : 'CA2I.NonCanon'),
+        descriptions: L(this.file.descriptions === true ? 'CA2I.DescriptionsIn' : 'CA2I.DescriptionsOut'),
+        // after de-duplicating ids, as the write does (planPack: an id the file has twice keeps its last entry)
+        counts: t && Object.entries(t.packs).map(([k, all]) => { const { docs } = planPack(new Set(), all)
+          return `${PACKS[k]?.[0] ?? k} ${k === 'rules' ? docs.reduce((n, j) => n + j.pages.length, 0) : docs.length}` }).join(' · '),
+      }))
+      return { systemError, systemWarning, rows, books, bookReport: this.bookReport, refused: this.refused, busy: this.busy, report: this.report,
+        tableRules: this.tableRules && F('CA2I.TableRules', { n: this.tableRules.length }),
+        includeLabel: L('CA2I.Include'), bookLabel: L('CA2I.IncludeBook'), progress: '' }
     }
 
     async _onRender(context, options) {
@@ -73,7 +85,17 @@ export function createImportApp() {
       try { res = readExport(await file.text()) } catch (e) { res = { ok: false, reason: F('CA2I.ReadFailed', { reason: e?.message ?? String(e) }) } }
       this.file = res.ok ? res.file : null
       this.refused = res.ok ? '' : res.reason
-      this.rows = res.ok ? res.file.runners.map(runner => {
+      const books = res.ok && res.file.kind === 'books'
+      const appVersion = res.file?.app?.version ?? ''
+      // Translated now for the preview's counts; Import writes these. A book that can't be translated is shown failed.
+      this.books = books ? res.file.books.map(book => {
+        try {
+          return { book, t: translateBook(book, { exportedAt: book.exportedAt ?? res.file.exportedAt, appVersion,
+            descriptions: res.file.descriptions === true, sanitize }) }
+        } catch (e) { return { book, error: e?.message ?? String(e) } }
+      }) : null
+      this.tableRules = books && Array.isArray(res.file.tableRules) && res.file.tableRules.length ? res.file.tableRules : null
+      this.rows = res.ok && !books ? res.file.runners.map(runner => {
         const existing = findExisting(runner.id), exportedAt = runner.exportedAt ?? res.file.exportedAt
         return { runner, existing, exportedAt, portrait: PORTRAIT.test(runner.portrait ?? '') ? runner.portrait : null,
           choice: defaultChoice(flagOf(existing), { exportedAt }) }
@@ -82,6 +104,7 @@ export function createImportApp() {
     }
 
     static async #onImport() {
+      if (this.books) return this.#importBooks()
       if (this.busy || !this.rows || game.system.id !== 'sra2') return
       const el = this.element
       // Read the choices from the form before anything re-renders it.
@@ -113,7 +136,55 @@ export function createImportApp() {
       this.render()
     }
 
+    async #importBooks() {
+      if (this.busy || game.system.id !== 'sra2') return
+      const el = this.element
+      const jobs = this.books.filter((b, i) => el.querySelector(`[name="book-${i}"]`)?.checked)
+      const withRules = this.tableRules && el.querySelector('[name=tableRules]')?.checked
+      const total = jobs.length + (withRules ? 1 : 0)
+      const progress = el.querySelector('.ca2i-progress')
+      if (!total) { if (progress) progress.textContent = L('CA2I.NothingSelected'); return }
+      this.busy = true
+      for (const b of el.querySelectorAll('button[data-action=import], input')) b.disabled = true
+      const step = (name, n) => { if (progress) progress.textContent = F('CA2I.BookProgress', { name, n, total }) }
+      // One line per pack written or failed; an id the file has twice is noted with the textOnly lines.
+      const lines = ({ counts, failed }) => ({
+        packs: [...Object.values(counts).map(c => ({ text: F('CA2I.PackResult', c) })),
+          ...failed.map(f => ({ failed: true, text: F('CA2I.PackFailed', { label: f.name, reason: f.error?.message ?? String(f.error) }) }))],
+        notes: Object.values(counts).flatMap(c => c.duplicates.map(name => F('CA2I.Duplicate', { label: c.label, name }))),
+      })
+      // A book that couldn't be translated has no tick; the report lists it as failed.
+      const report = this.books.filter(b => b.error).map(({ book, error }) =>
+        ({ name: book.source.name, failed: true, outcome: F('CA2I.Failed', { reason: error }), packs: [], textOnly: [] }))
+      let n = 0
+      for (const { book, t } of jobs) {  // a book that failed to translate has no tick
+        const name = book.source.name
+        step(name, ++n)
+        let res
+        const onProgress = ({ pack, n: i, total: of }) => {
+          if (progress) progress.textContent = F('CA2I.BookPackProgress', { name, pack, n: i, total: of })
+        }
+        try { res = await importBook(t, { onProgress }) } catch (error) { res = { counts: {}, failed: [{ name, error }] } }  // importBook shouldn't throw; the window mustn't stick busy
+        const { packs, notes } = lines(res)
+        report.push({ name, packs, outcome: packs.length ? '' : L('CA2I.NothingInBook'), textOnly: [...t.textOnly, ...notes] })
+      }
+      if (withRules) {
+        const name = L('CA2I.TableRulesName')
+        step(name, ++n)
+        let res
+        try {
+          res = await importTableRules(translateTableRules(this.tableRules,
+            { exportedAt: this.file.exportedAt, appVersion: this.file.app?.version ?? '', sanitize }))
+        } catch (error) { res = { counts: {}, failed: [{ name, error }] } }  // translate threw: nothing changed
+        const { packs, notes } = lines(res)
+        report.push({ name, packs, textOnly: notes })
+      }
+      Object.assign(this, { busy: false, report, bookReport: true })
+      this.render()
+    }
+
     static #onOpen(event, target) { game.actors.get(target.dataset.actorId)?.sheet?.render(true) }
     static #onDone() { this.close() }
+    static #onOpenCompendiums() { ui.sidebar?.changeTab('compendium', 'primary'); ui.sidebar?.expand() }
   }
 }

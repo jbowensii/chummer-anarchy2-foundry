@@ -9,3 +9,4 @@
 .ca2i-choices { display: flex; gap: 0.75rem; flex-wrap: wrap; }
 .ca2i-textonly { font-size: var(--font-size-12, 12px); }
 .ca2i-import-btn { flex: 0 0 100%; }
+.ca2i-counts, .ca2i-pack { font-size: var(--font-size-12, 12px); }

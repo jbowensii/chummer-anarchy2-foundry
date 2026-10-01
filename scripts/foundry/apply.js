@@ -11,9 +11,9 @@ const newest = docs => docs.sort((a, b) => time(flagOf(b)) - time(flagOf(a)))[0]
 export const findExisting = runnerId =>
   newest(game.actors.filter(a => flagOf(a)?.id === runnerId && !flagOf(a).runner))
 
-async function ensureFolder(name, parent = null) {
-  const found = game.folders.find(f => f.type === 'Actor' && f.name === name && (f.folder?.id ?? null) === (parent?.id ?? null))
-  return found ?? Folder.create({ name, type: 'Actor', folder: parent?.id ?? null })
+export async function ensureFolder(name, parent = null, type = 'Actor') {
+  const found = game.folders.find(f => f.type === type && f.name === name && (f.folder?.id ?? null) === (parent?.id ?? null))
+  return found ?? Folder.create({ name, type, folder: parent?.id ?? null })
 }
 
 // data URL -> world file; returns its path. As sra2 does (helpers/gemini-image.ts): browse, and on failure create each

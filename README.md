@@ -1,6 +1,6 @@
 # Chummer Anarchy 2.0 Importer
 
-A Foundry VTT module that imports runners exported from [Chummer Anarchy 2.0](https://github.com/jbowensii/chummer-anarchy2) into the Shadowrun Anarchy 2 (`sra2`) system.
+A Foundry VTT module that imports runners and book data exported from [Chummer Anarchy 2.0](https://github.com/jbowensii/chummer-anarchy2) into the Shadowrun Anarchy 2 (`sra2`) system.
 
 Tested with sra2 14.3.3 on Foundry 14.
 
@@ -37,9 +37,33 @@ Imported runners go in the Actors folder "Chummer Anarchy", each runner's vehicl
 
 "Apply to all" sets the same choice on every row; with Skip it also unticks runners that are new to the world.
 
+## Book data
+
+The GM can bring the catalogues of the books they own into Foundry as compendiums.
+
+### Export from Chummer
+
+In Chummer, choose **Game data → Export book data for Foundry** (GMs only). For your own Foundry only. Don’t share this file.
+
+### Import into Foundry
+
+Open **Import from Chummer**, choose the book-data file, untick any book you don't want, and click **Import**. Each book gets its own folder, "<book name> (<book id>)", inside the Compendium folder "Chummer Anarchy", with a compendium for each kind of entry the book has:
+
+- **Amps**: qualities, cyberware and the other amps as sra2 feats, with Risk Reduction, wound boxes and thresholds. An equipment amp that is a weapon or armor becomes that feat type.
+- **Weapons**, **Armor**, **Gear** and **Spells**: feats of that type (weapon damage and ranges, armor value).
+- **Vehicles**: custom vehicle actors.
+- **Skills & specializations**: only the skills and specializations sra2 doesn't already have; sra2's own are not duplicated.
+- **Rules**: one journal per rules section, one page per rule, sorted by page. Without descriptions a page says where to read it ("See MUC p.50").
+
+Every item and vehicle carries its book and page in its reference field; rules carry theirs in their flags. Your table rules from Chummer, if the file has any, go in the compendium "Table rules — Chummer" in the "Chummer Anarchy" folder.
+
+### Importing a book again
+
+A re-import replaces the entries that came from the file, keeping their ids so links to them keep working. In a rules or table-rules journal, the imported pages are rebuilt from the file and pages you added are kept. Entries missing from the file are never deleted: entries you made yourself, and older entries the new file no longer has, stay as they are. A rules section renamed in Chummer arrives as a new journal; the journal with the old name stays until you delete it.
+
 ## Not imported yet, or imported differently
 
-- Book data (the amps, gear and vehicles catalogues): comes in 0.2.0.
+- Vehicle-template amps (book data) stay feats for now, with a note; they are not turned into vehicles.
 - Vehicle damage thresholds, contact names, and a cyberdeck's firewall and attack.
 - Knowledge and languages, Edge, and lifestyle: kept in the actor's notes.
 - Armor bonuses from amps: the runner's armor comes from armor items only. sra2 adds up every active armor item, so only one worn chain is active, as Chummer counts it: an armor item plus what it is worn over. The chain with the highest total stays active (the first on a tie); every other armor item is imported inactive.
@@ -60,7 +84,7 @@ For your own Foundry only. Don’t share the export file. A file exported with d
 2. Open the Quench test runner.
 3. Tick the "Chummer Importer" batches and run them.
 
-The batches import `samples/test-export.json` (a made-up file with no book text) into a throwaway Actors folder, "Chummer Importer tests", and delete it when they finish. They don't touch anything else in the world.
+The batches import `samples/test-export.json` (a made-up file with no book text) into a throwaway Actors folder, "Chummer Importer tests", and `samples/test-books.json` (a made-up book file) into compendiums named `ca2test-…` in a Compendium folder of the same name. They delete what they made when they finish and don't touch anything else in the world.
 
 ## License
 

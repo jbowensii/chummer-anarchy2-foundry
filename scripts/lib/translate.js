@@ -59,81 +59,16 @@ export function translateRunner(runner, { exportedAt, appVersion, sanitize = esc
     }
   }
 
-  // rr target per ruling: ATTR key / skill slug / spec slug under the skill that owns the spec.
-  function rrTarget(l) {
-    if (l.on === 'attribute') return Object.hasOwn(ATTR, l.id) ? ATTR[l.id] : null
-    if (l.on === 'skill') return skillFor({ id: l.id }).slug
-    if (l.on !== 'spec') return null
-    const owner = skills.find(s => (s.specs ?? []).some(x => x.id === l.id))
-    const skillId = l.skill ?? owner?.id
-    if (!skillId) return null
-    const spec = owner?.specs.find(x => x.id === l.id) ?? l
-    return specFor(skillFor({ id: skillId }).slug, { id: l.id, name: spec.name, attr: spec.attr }).slug
-  }
-
-  // An amp's rr lines and text effects (shared by feats and vehicle actors, which both have rrList + narrativeEffects).
-  function ampParts(amp) {
-    const narrative = [], rrList = []
-    const say = (text, isNegative = false) => { narrative.push({ text, isNegative, value: 0 }); textOnly.push(`${amp.name}: ${text} → narrative effect`) }
-    for (const l of amp.rr ?? []) {
-      const target = rrTarget(l), value = l.value ?? 1, label = l.name ?? l.id
-      if (!target || !RR_TYPE[l.on]) { say(`Risk Reduction ${label} ${value}`); continue }
-      rrList.push({ rrType: RR_TYPE[l.on], rrValue: Math.min(3, value), rrTarget: target })
-      if (value > 3) textOnly.push(`${amp.name}: Risk Reduction ${label} ${value} → 3 (sra2 maximum)`)
-    }
-    for (const e of amp.effects ?? []) {
-      if (NOT_TEXT.has(e.id)) continue
-      const extra = [e.param, e.value, e.note].filter(x => x != null && x !== '')
-      say(extra.length ? `${e.name} (${extra.join(', ')})` : e.name, e.category === 'negative' || e.id === 'negative')
-    }
-    return { narrative, rrList }
-  }
-
-  for (const amp of runner.amps ?? []) {
-    if (vehicleUids.has(amp.uid)) continue
-    const b = amp.bonuses ?? {}, type = featType(amp.type)
-    const { narrative, rrList } = ampParts(amp)
-    if (b.initiative > 0 && !(amp.effects ?? []).some(e => /^init-\d$/.test(e.id))) {
-      narrative.push({ text: `Initiative ${b.initiative}`, isNegative: false, value: 0 })
-      textOnly.push(`${amp.name}: Initiative ${b.initiative} → narrative effect`)
-    }
-    // sra2 takes the runner's armor from armor feats; an amp's armor count stays text (the runner's totals are authoritative).
-    if (b.armor > 0) textOnly.push(`${amp.name}: Armor ${b.armor} → notes (runner armor comes from armor items)`)
-    const system = {
-      featType: type, rating: amp.rating ?? 0, essenceCost: Math.max(0, amp.essence ?? 0), isBioware: amp.type === 'bioware',
-      rrList, bonusLightDamage: b.light ?? 0, bonusSevereDamage: b.serious ?? 0, bonusMentalThreshold: b.mentalThreshold ?? 0,
-      bonusMatrixThreshold: b.matrixThreshold ?? 0, narrativeEffects: narrative, cost: 'free-equipment', reference: ref(amp),
-      description: sanitize(amp.description) + sanitize(`Chummer: ${amp.typeName ?? amp.type}${amp.source ? `, ${ref(amp)}` : ''}`) }
-    // a deck's wound box is its own (the export gives it bonus 0): sra2's boolean deck field
-    if (type === 'cyberdeck' && (amp.effects ?? []).some(e => e.id === 'wound-light')) system.cyberdeckBonusLightDamage = true
-    items.push({ name: amp.name, type: 'feat', flags: flag(amp.uid), system })
-  }
+  const rrTarget = rrResolver(skills)
+  // the shared mapping (ampFeat/itemFeat/vehicleActor) with the runner's rr resolution and flags
+  const ctx = { flag: x => flag(x.uid), sanitize, rrTarget, say: t => textOnly.push(t) }
+  for (const amp of runner.amps ?? []) if (!vehicleUids.has(amp.uid)) items.push(ampFeat(amp, ctx))
 
   const armors = []  // [Chummer item, feat system]
   for (const it of runner.items ?? []) {
-    let extra = ''
-    const system = { featType: ITEM_FEAT[it.kind] ?? 'equipment', cost: it.starting ? 'free-equipment' : 'equipment', reference: ref(it) }
-    if (it.kind === 'weapon') {
-      const w = it.weapon ?? {}, r = w.ranges ?? {}
-      const vd = parseDv(w.dv)
-      if (!vd) { extra = sanitize(`Chummer DV: ${w.dvText || w.dv || ''}`); textOnly.push(`${it.name}: DV ${w.dvText || w.dv || ''} → description (not understood)`) }
-      Object.assign(system, { weaponType: weaponType(it.name), damageType: 'physical', ...vd ?? { damageValue: '0', vdMode: 'custom', vdCustomValue: 0 },
-        meleeRange: r.melee ?? 'none', shortRange: r.short ?? 'none', mediumRange: r.medium ?? 'none', longRange: r.long ?? 'none' })
-      // sra2 rolls a custom-weapon with these links (its defaults are Ranged Weapons / Athletics, wrong for melee)
-      if (system.weaponType === 'custom-weapon') {
-        const melee = system.meleeRange !== 'none' && [system.shortRange, system.mediumRange, system.longRange].every(x => x === 'none')
-        Object.assign(system, melee
-          ? { linkedAttackSkill: 'close-combat', linkedAttackSpecialization: '', linkedDefenseSkill: 'close-combat', linkedDefenseSpecialization: 'spec_defense' }
-          : { linkedAttackSkill: 'ranged-weapons', linkedAttackSpecialization: '', linkedDefenseSkill: 'athletics', linkedDefenseSpecialization: 'spec_ranged-defense' })
-      }
-    }
-    if (it.kind === 'armor') {
-      system.armorValue = Math.max(0, Math.min(5, it.armor?.value ?? 0))
-      armors.push([it, system])
-    }
-    if (it.kind === 'spell') system.spellType = 'direct'
-    system.description = sanitize(it.description) + sanitize(it.note) + extra + sanitize(`Chummer price: ${it.price ?? 0}¥`)
-    items.push({ name: it.name, type: 'feat', flags: flag(it.uid), system })
+    const doc = itemFeat(it, ctx)
+    if (it.kind === 'armor') armors.push([it, doc.system])
+    items.push(doc)
   }
 
   // sra2 sums every active armor feat; Chummer counts one worn chain (an add-on plus what it is worn over, as its
@@ -153,19 +88,10 @@ export function translateRunner(runner, { exportedAt, appVersion, sanitize = esc
     if (off.length) textOnly.push(`Armor: ${best.map(([it]) => it.name).join(' over ')} active (${sum(best)}); inactive: ${off.map(([it]) => it.name).join(', ')}`)
   }
 
-  // Always custom-vehicle: sra2 reads the custom* stats only then, and Chummer's numbers include upgrades.
   const vehicles = (runner.vehicles ?? []).map(v => {
-    const amp = (runner.amps ?? []).find(a => a.uid === v.uid) ?? { name: v.name }
-    const { narrative, rrList } = ampParts(amp)
-    const chassis = v.chassis ?? v.name
-    const about = `Chummer: ${chassis} (closest sra2 type: ${vehicleType(v.chassisId ?? amp.vehicle, chassis)}), mount: ${v.mount || 'none'}`
-    return { items: [], actor: { name: v.name, type: 'vehicle',
-      flags: { [MODULE_ID]: { id: v.uid, runner: runner.id, exportedAt, appVersion } },
-      system: { vehicleType: 'custom-vehicle', controlMode: 'rigged',
-        customAutopilot: Math.min(12, v.pilot ?? 0), customStructure: v.body ?? 0, customHandling: v.handling ?? 0, customSpeed: v.speed ?? 0,
-        customArmor: v.armor ?? 0, customWeaponMount: mountOf(v.mount), isFlying: !!v.flying, ...v.flying ? { customFlyingSpeed: v.speed ?? 0 } : {},
-        rrList, narrativeEffects: narrative, reference: ref(amp),
-        description: sanitize(amp.description) + sanitize(about) + (v.count > 1 ? sanitize(`Chummer: ${v.count} × ${chassis}`) : '') } } }
+    const actor = vehicleActor(v, ctx, (runner.amps ?? []).find(a => a.uid === v.uid))
+    actor.flags[MODULE_ID].runner = runner.id
+    return { items: [], actor }
   })
 
   for (const k of runner.knowledge ?? []) textOnly.push(`Knowledge: ${k.name} (${k.kind}${k.native ? ', native' : ''}) → notes`)
@@ -191,4 +117,101 @@ export function translateRunner(runner, { exportedAt, appVersion, sanitize = esc
       reference: `Chummer Anarchy 2.0 ${appVersion}`, maxEssence: 6,
     } }
   return { actor, items, vehicles, textOnly }
+}
+
+// rr target per ruling: ATTR key / skill slug / spec slug under the skill that owns the spec (skills: [{ id, specs: [{ id, name, attr }] }]).
+export const rrResolver = skills => l => {
+  if (l.on === 'attribute') return Object.hasOwn(ATTR, l.id) ? ATTR[l.id] : null
+  if (l.on === 'skill') return skillFor({ id: l.id }).slug
+  if (l.on !== 'spec') return null
+  const owner = skills.find(s => (s.specs ?? []).some(x => x.id === l.id))
+  const skillId = l.skill ?? owner?.id
+  if (!skillId) return null
+  const spec = owner?.specs.find(x => x.id === l.id) ?? l
+  return specFor(skillFor({ id: skillId }).slug, { id: l.id, name: spec.name, attr: spec.attr }).slug
+}
+
+// An amp's rr lines and text effects (shared by feats and vehicle actors, which both have rrList + narrativeEffects).
+function ampParts(amp, { rrTarget, say: note }) {
+  const narrative = [], rrList = []
+  const say = (text, isNegative = false) => { narrative.push({ text, isNegative, value: 0 }); note(`${amp.name}: ${text} → narrative effect`) }
+  for (const l of amp.rr ?? []) {
+    const target = rrTarget(l), value = l.value ?? 1, label = l.name ?? l.id
+    if (!target || !RR_TYPE[l.on]) { say(`Risk Reduction ${label} ${value}`); continue }
+    rrList.push({ rrType: RR_TYPE[l.on], rrValue: Math.min(3, value), rrTarget: target })
+    if (value > 3) note(`${amp.name}: Risk Reduction ${label} ${value} → 3 (sra2 maximum)`)
+  }
+  for (const e of amp.effects ?? []) {
+    if (NOT_TEXT.has(e.id)) continue
+    const extra = [e.param, e.value, e.note].filter(x => x != null && x !== '')
+    say(extra.length ? `${e.name} (${extra.join(', ')})` : e.name, e.category === 'negative' || e.id === 'negative')
+  }
+  return { narrative, rrList }
+}
+
+/*
+ * The amp/item/vehicle mapping shared by runners and books. ctx: { flag(x) -> flags object, sanitize (plain text -> HTML),
+ * text? (for book text; default sanitize), rrTarget(rr line) -> sra2 slug | null, say(line) -> records a textOnly line }.
+ */
+export function ampFeat(amp, ctx) {
+  const { sanitize, text = sanitize, say } = ctx
+  const b = amp.bonuses ?? {}, type = featType(amp.type)
+  const { narrative, rrList } = ampParts(amp, ctx)
+  if (b.initiative > 0 && !(amp.effects ?? []).some(e => /^init-\d$/.test(e.id))) {
+    narrative.push({ text: `Initiative ${b.initiative}`, isNegative: false, value: 0 })
+    say(`${amp.name}: Initiative ${b.initiative} → narrative effect`)
+  }
+  // sra2 takes the runner's armor from armor feats; an amp's armor count stays text (the runner's totals are authoritative).
+  if (b.armor > 0) say(`${amp.name}: Armor ${b.armor} → notes (runner armor comes from armor items)`)
+  // book amps only (ctx.book): add-ons and a printed rating that differs from the computed one
+  const notes = !ctx.book ? '' : (amp.mod ? sanitize('Add-on') : '')
+    + (amp.printedRating != null && amp.printedRating !== amp.rating ? sanitize(`Printed rating: ${amp.printedRating}`) : '')
+  const system = {
+    featType: type, rating: amp.rating ?? 0, essenceCost: Math.max(0, amp.essence ?? 0), isBioware: amp.type === 'bioware',
+    rrList, bonusLightDamage: b.light ?? 0, bonusSevereDamage: b.serious ?? 0, bonusMentalThreshold: b.mentalThreshold ?? 0,
+    bonusMatrixThreshold: b.matrixThreshold ?? 0, narrativeEffects: narrative, cost: 'free-equipment', reference: ref(amp),
+    description: text(amp.description) + notes + sanitize(`Chummer: ${amp.typeName ?? amp.type}${amp.source ? `, ${ref(amp)}` : ''}`) }
+  // a deck's wound box is its own (the export gives it bonus 0): sra2's boolean deck field
+  if (type === 'cyberdeck' && (amp.effects ?? []).some(e => e.id === 'wound-light')) system.cyberdeckBonusLightDamage = true
+  return { name: amp.name, type: 'feat', flags: ctx.flag(amp), system }
+}
+
+// A runner-shaped item ({ kind, weapon: { dv, dvText, ranges }, armor: { value }, price?, starting?, note? }) -> feat.
+export function itemFeat(it, ctx) {
+  const { sanitize, text = sanitize, say } = ctx
+  let extra = ''
+  const system = { featType: ITEM_FEAT[it.kind] ?? 'equipment', cost: it.starting ? 'free-equipment' : 'equipment', reference: ref(it) }
+  if (it.kind === 'weapon') {
+    const w = it.weapon ?? {}, r = w.ranges ?? {}
+    const vd = parseDv(w.dv)
+    if (!vd) { extra = sanitize(`Chummer DV: ${w.dvText || w.dv || ''}`); say(`${it.name}: DV ${w.dvText || w.dv || ''} → description (not understood)`) }
+    Object.assign(system, { weaponType: weaponType(it.name), damageType: 'physical', ...vd ?? { damageValue: '0', vdMode: 'custom', vdCustomValue: 0 },
+      meleeRange: r.melee ?? 'none', shortRange: r.short ?? 'none', mediumRange: r.medium ?? 'none', longRange: r.long ?? 'none' })
+    // sra2 rolls a custom-weapon with these links (its defaults are Ranged Weapons / Athletics, wrong for melee)
+    if (system.weaponType === 'custom-weapon') {
+      const melee = system.meleeRange !== 'none' && [system.shortRange, system.mediumRange, system.longRange].every(x => x === 'none')
+      Object.assign(system, melee
+        ? { linkedAttackSkill: 'close-combat', linkedAttackSpecialization: '', linkedDefenseSkill: 'close-combat', linkedDefenseSpecialization: 'spec_defense' }
+        : { linkedAttackSkill: 'ranged-weapons', linkedAttackSpecialization: '', linkedDefenseSkill: 'athletics', linkedDefenseSpecialization: 'spec_ranged-defense' })
+    }
+  }
+  if (it.kind === 'armor') system.armorValue = Math.max(0, Math.min(5, it.armor?.value ?? 0))
+  if (it.kind === 'spell') system.spellType = 'direct'
+  system.description = text(it.description) + sanitize(it.note) + extra + (it.price != null ? sanitize(`Chummer price: ${it.price}¥`) : '')
+  return { name: it.name, type: 'feat', flags: ctx.flag(it), system }
+}
+
+// Always custom-vehicle: sra2 reads the custom* stats only then, and Chummer's numbers include upgrades.
+// v is runner-shaped ({ uid, chassisId, chassis, count, flying, flyingSpeed?, ... }); amp is its vehicle amp, when there is one.
+export function vehicleActor(v, ctx, amp = { name: v.name }) {
+  const { sanitize, text = sanitize } = ctx
+  const { narrative, rrList } = ampParts(amp, ctx)
+  const chassis = v.chassis ?? v.name
+  const about = `Chummer: ${chassis} (closest sra2 type: ${vehicleType(v.chassisId ?? amp.vehicle, chassis)}), mount: ${v.mount || 'none'}`
+  return { name: v.name, type: 'vehicle', flags: ctx.flag(v),
+    system: { vehicleType: 'custom-vehicle', controlMode: 'rigged',
+      customAutopilot: Math.min(12, v.pilot ?? 0), customStructure: v.body ?? 0, customHandling: v.handling ?? 0, customSpeed: v.speed ?? 0,
+      customArmor: v.armor ?? 0, customWeaponMount: mountOf(v.mount), isFlying: !!v.flying, ...v.flying ? { customFlyingSpeed: v.flyingSpeed ?? v.speed ?? 0 } : {},
+      rrList, narrativeEffects: narrative, reference: ref(amp),
+      description: text(amp.description) + sanitize(about) + (v.count > 1 ? sanitize(`Chummer: ${v.count} × ${chassis}`) : '') } }
 }

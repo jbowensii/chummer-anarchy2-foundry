@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0
+
+- Book data: the GM imports a book-data file exported from Chummer (Game data → Export book data for Foundry) into world compendiums, one folder per book inside "Chummer Anarchy": amps, weapons, armor, gear, spells, vehicles, the skills and specializations sra2 doesn't already have, and rules journals (one per section, pages sorted by page).
+- Entries keep a stable id from Chummer: a re-import replaces its own entries in place, so links stay. Entries missing from the file are never deleted, and entries the GM made stay. In a journal, imported pages are rebuilt from the file and pages the GM added are kept.
+- Every item and vehicle carries its book and page in its reference field (rules carry it in their flags); descriptions only when the file includes them.
+- Table rules from Chummer go in the compendium "Table rules — Chummer".
+- Vehicle-template amps stay feats for now, with a note.
+- In-Foundry tests (Quench) for book data.
+
 ## 0.1.1
 
 - Fixed: melee weapons Chummer names in its own words (e.g. "Short weapon") now roll Close Combat; clubs, batons, staffs, maces, hammers and shock weapons come in as sra2 advanced melee.
