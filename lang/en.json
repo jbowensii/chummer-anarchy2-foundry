@@ -46,6 +46,10 @@
     "PackTypeClash": "A compendium named {id} already holds {type}; delete it or move its contents, then import again.",
     "NothingSelected": "Nothing selected to import.",
     "NothingToImport": "Nothing to import.",
+    "RunnersAndNpcs": "{runners} runners · {npcs} NPCs. NPCs go into the Actors folder “Chummer NPCs”.",
+    "NpcLabel": "{kind} · {tier}",
+    "Kind": { "npc": "NPC", "critter": "Critter", "spirit": "Spirit" },
+    "Tier": { "prime": "prime NPC", "regular": "regular NPC" },
     "Icons": {
       "Title": "Apply icons",
       "Button": "Apply icons",
@@ -63,6 +67,7 @@
       "spells": "Spells",
       "vehicles": "Vehicles",
       "characters": "Characters",
+      "npcs": "NPCs & Critters",
       "metatypes": "Metatypes",
       "skills": "Skills & specializations",
       "rules": "Rules"

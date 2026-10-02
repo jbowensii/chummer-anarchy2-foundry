@@ -60,6 +60,7 @@
     {{/if}}
 
     {{#if rows}}
+      {{#if summary}}<p>{{summary}}</p>{{/if}}
       <label class="ca2i-all">{{localize "CA2I.ApplyAll"}}
         <select name="applyAll">
           <option value="">—</option>
@@ -74,7 +75,7 @@
           <input type="checkbox" name="tick-{{@index}}" checked aria-label="{{../includeLabel}}: {{name}}">
           {{#if portrait}}<img src="{{portrait}}" alt="">{{else}}<i class="fas fa-user ca2i-noportrait"></i>{{/if}}
           <div class="ca2i-info">
-            <strong>{{name}}</strong> <span class="ca2i-date">{{exported}}</span>
+            <strong>{{name}}</strong>{{#if npc}} <span class="ca2i-date">{{npc}}</span>{{/if}} <span class="ca2i-date">{{exported}}</span>
             {{#if inWorld}}
               <div class="{{#if older}}ca2i-error{{/if}}">{{inWorld}}</div>
               {{#if older}}<div class="ca2i-error">{{localize "CA2I.OlderWarning"}}</div>{{/if}}

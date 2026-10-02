@@ -37,6 +37,18 @@ Imported runners go in the Actors folder "Chummer Anarchy", each runner's vehicl
 
 "Apply to all" sets the same choice on every row; with Skip it also unticks runners that are new to the world.
 
+## NPCs, critters and spirits
+
+Chummer 0.7.0 lets GMs make NPCs, critters and spirits and export them for Foundry like runners (the same kind of file). They import as sra2 characters, since sra2 has no NPC actor type:
+
+- Into the Actors folder "Chummer NPCs" (runners keep going into "Chummer Anarchy"). Replace, Add as new version and Skip work as for runners; the import window marks each NPC row with its kind and tier.
+- The GM-only facts go in the actor's **GM description** (shown on the sheet to the GM in sra2's advanced mode): kind, tier (prime or regular), fighting spirit with what it means, and for a regular NPC the average hits of each dice pool, written like the book: "Ranged Weapons 5 (5+A, RR 1)" (round(dice pool / 3) + Risk Reduction + 1; skill rating + attribute initial).
+- Tokens are hostile. A prime NPC's token is linked to its actor, like a runner's; a regular NPC's is not, so each copy on the map takes its own damage.
+- A critter or spirit without a metatype gets no metatype item.
+- An NPC without a portrait gets the module's NPC, critter or spirit icon as its image and token.
+
+A book's NPCs, critters and spirits go in its compendium **NPCs & Critters** (see Book data).
+
 ## Book data
 
 The GM can bring the catalogues of the books they own into Foundry as compendiums.
@@ -53,6 +65,7 @@ In the Compendium sidebar (or the Actors sidebar), click **Import from Chummer**
 - **Weapons**, **Armor**, **Gear** and **Spells**: feats of that type (weapon damage and ranges, armor value).
 - **Vehicles**: custom vehicle actors.
 - **Characters**: the book's pregenerated characters, each with its linked token, and their vehicles as separate entries named "<runner> — <vehicle>".
+- **NPCs & Critters**: the book's NPCs, critters and spirits, as above (Chummer 0.7.0's export).
 - **Metatypes**: the book's metatypes, with attribute caps, Anarchy bonus, edge and racial quality.
 - **Skills & specializations**: every skill and specialization in the file, using the same slugs as sra2's own, so they are interchangeable with the system's.
 - **Rules**: one journal per topic (rules sheet), with a chapter per section and one page per rule, sorted by page. Without descriptions a page says where to read it ("See MUC p.50").
@@ -103,7 +116,7 @@ For your own Foundry only. Don’t share the export file. A file exported with d
 2. Open the Quench test runner.
 3. Tick the "Chummer Importer" batches and run them.
 
-The batches import `samples/test-export.json` (a made-up file with no book text) into a throwaway Actors folder, "Chummer Importer tests", and `samples/test-books.json` (a made-up book file) into compendiums named `ca2test-…` in a Compendium folder of the same name. They delete what they made when they finish and don't touch anything else in the world.
+The batches import `samples/test-export.json` (a made-up file with no book text) into a throwaway Actors folder, "Chummer Importer tests", `samples/test-npcs.json` (made-up NPCs) into "Chummer NPCs" (that folder is deleted again if the batch made it and it is left empty), and `samples/test-books.json` (a made-up book file) into compendiums named `ca2test-…` in a Compendium folder of the same name. They delete what they made when they finish and don't touch anything else in the world.
 
 ## License
 

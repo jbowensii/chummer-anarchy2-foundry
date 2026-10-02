@@ -20,6 +20,8 @@ export function createImportApp(getIcons = () => null) {
   // Plain text -> escaped paragraphs -> Foundry's cleaner (translate.js: wrap the cleaner around escapeText, never replace it).
   const clean = foundry.utils.cleanHTML ?? (h => h)
   const sanitize = s => clean(escapeText(s))
+  // "Critter · regular NPC" for a row from a runners file, '' for a runner
+  const npcLabel = n => n ? F('CA2I.NpcLabel', { kind: L(`CA2I.Kind.${n.kind}`), tier: L(`CA2I.Tier.${n.tier}`) }) : ''
 
   return class ChummerImportApp extends HandlebarsApplicationMixin(ApplicationV2) {
     static DEFAULT_OPTIONS = {
@@ -44,6 +46,7 @@ export function createImportApp(getIcons = () => null) {
         const d = time(row.exportedAt) - time(worldAt)
         return {
           name: row.runner.streetName, portrait: row.portrait, exported: F('CA2I.Exported', { date: date(row.exportedAt) }),
+          npc: npcLabel(row.runner.npc),
           older: row.existing && d < 0,
           inWorld: row.existing ? F('CA2I.InWorld', { world: date(worldAt), file: date(row.exportedAt),
             compare: L(d > 0 ? 'CA2I.Newer' : d < 0 ? 'CA2I.Older' : 'CA2I.Same') }) : '',
@@ -61,7 +64,9 @@ export function createImportApp(getIcons = () => null) {
           const n = k === 'rules' ? docs.reduce((n, j) => n + j.pages.filter(p => p.title?.level === 2).length, 0) : docs.length
           return `${L(`CA2I.Pack.${k}`)} ${n}` }).join(' · '),
       }))
-      return { systemError, systemWarning, rows, books, bookReport: this.bookReport, refused: this.refused, busy: this.busy, report: this.report,
+      const nNpc = this.rows?.filter(r => r.runner.npc).length ?? 0
+      const summary = nNpc ? F('CA2I.RunnersAndNpcs', { runners: this.rows.length - nNpc, npcs: nNpc }) : ''
+      return { systemError, systemWarning, rows, summary, books, bookReport: this.bookReport, refused: this.refused, busy: this.busy, report: this.report,
         tableRules: this.tableRules && F('CA2I.TableRules', { n: this.tableRules.length }),
         includeLabel: L('CA2I.Include'), bookLabel: L('CA2I.IncludeBook'), progress: '' }
     }

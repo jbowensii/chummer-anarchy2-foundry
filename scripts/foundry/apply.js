@@ -3,6 +3,7 @@ import { MODULE_ID } from '../lib/constants.js'
 import { keepItemArt, newVersionName, replaceUpdate, tokenUpdate } from '../lib/plan.js'
 
 export const FOLDER = 'Chummer Anarchy'
+export const NPC_FOLDER = 'Chummer NPCs'  // NPCs from a runners file (flags npc)
 const flagOf = d => d?.flags?.[MODULE_ID]
 const time = f => Date.parse(f?.exportedAt ?? '') || 0
 const newest = docs => docs.sort((a, b) => time(flagOf(b)) - time(flagOf(a)))[0] ?? null
@@ -52,10 +53,11 @@ const createVehicle = (v, name, folder) =>
   Actor.create({ ...v.actor, name, folder: folder.id, items: v.items, prototypeToken: { actorLink: true } })
 
 /**
- * choice: 'create' | 'new' | 'replace' | 'skip'. folder: the root Actors folder, by name or a Folder (the Quench tests pass their own). Never throws: a failure deletes what this runner created and returns
+ * choice: 'create' | 'new' | 'replace' | 'skip'. folder: the root Actors folder, by name or a Folder (the Quench tests pass their own);
+ * by default FOLDER for a runner, NPC_FOLDER for an NPC. Never throws: a failure deletes what this runner created and returns
  * { actor: null, action: 'failed', error } so the caller reports it and carries on with the other runners.
  */
-export async function applyRunner(t, choice, { portrait, exportedAt, folder = FOLDER } = {}) {
+export async function applyRunner(t, choice, { portrait, exportedAt, folder = flagOf(t.actor)?.npc ? NPC_FOLDER : FOLDER } = {}) {
   const runnerId = flagOf(t.actor).id
   if (choice === 'skip') return { actor: findExisting(runnerId), action: 'skip' }
   const created = []  // actors created in this run: all a failure deletes
@@ -98,7 +100,7 @@ export async function applyRunner(t, choice, { portrait, exportedAt, folder = FO
     }
     actor.system.linkedVehicles = vUuids
     doc = await Actor.create({ ...actor, name: suffix(actor.name), folder: root.id, items: t.items,
-      prototypeToken: { actorLink: true, ...actor.img ? { texture: { src: actor.img } } : {} } })
+      prototypeToken: { actorLink: true, ...actor.prototypeToken, ...actor.img ? { texture: { src: actor.img } } : {} } })
     created.push(doc)
     return { actor: doc, action: choice === 'new' ? 'new' : 'create' }
   } catch (error) {
