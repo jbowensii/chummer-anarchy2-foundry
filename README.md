@@ -67,6 +67,15 @@ Items and vehicles carry their book and page in their reference field (pregens' 
 
 A re-import replaces the entries that came from the file, keeping their ids so links to them keep working. In a rules or table-rules journal, the imported pages are rebuilt from the file (a page the file no longer has goes) and the pages you added are kept. Entries missing from the file are never deleted: entries you made yourself, and older entries the new file no longer has, stay as they are. A topic renamed in Chummer arrives as a new journal; the journal with the old name stays until you delete it. In Characters, items you added to a pregen are kept. The one-journal-per-section journals from 0.2.x are left alone; you can delete them by hand.
 
+## Icons
+
+Imported items, vehicles and metatypes (on runners, in the world and in the book compendiums) get an icon from the module:
+
+- **Defaults** by category and sub-kind: weapons by weapon type, vehicles by the closest sra2 vehicle type, spells by type, skills by group, qualities as positive or negative, bioware, commlinks, SINs, and so on.
+- **Specific art** by item name: a file `icons/items/<name-slug>.webp` in the module (the name in lowercase, everything that isn't a letter or digit turned into `-`, e.g. `ares-predator-vi.webp`) is used for every item of that name; `icons/items/<book>.<name-slug>.webp` (e.g. `crb.ares-predator-vi.webp`) only for that book's version. Only files listed in `icons/index.json` are used, so add the new file's path there too (`npm run icons` rebuilds the list in a checkout of this repo). A module update replaces the module folder, so keep a copy of art you add.
+
+**Apply icons** (Game Settings → Configure Settings → Chummer Anarchy 2.0 Importer, GM only) re-applies the icons to everything already imported, for example after you add art. It never overwrites an image you chose yourself: it only replaces images that are empty, Foundry's or sra2's stock images, or the module's own icons. Character portraits and tokens are never touched.
+
 ## Not imported yet, or imported differently
 
 - Vehicle-template amps (book data) stay feats for now, with a note; they are not turned into vehicles.
@@ -94,4 +103,4 @@ The batches import `samples/test-export.json` (a made-up file with no book text)
 
 ## License
 
-MIT
+MIT. Icon art © John Bowens, made for this module.

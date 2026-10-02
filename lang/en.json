@@ -46,6 +46,15 @@
     "PackTypeClash": "A compendium named {id} already holds {type}; delete it or move its contents, then import again.",
     "NothingSelected": "Nothing selected to import.",
     "NothingToImport": "Nothing to import.",
+    "Icons": {
+      "Title": "Apply icons",
+      "Button": "Apply icons",
+      "Hint": "Point imported items, vehicles and metatypes at the module's icons again, e.g. after adding art to its icons/items folder.",
+      "Explain": "Sets the module's icons on imported items, vehicles and metatypes in the world, on runners and in the Chummer compendiums. An image you chose yourself is never replaced: only empty images, Foundry's and sra2's stock images, and the module's own icons are. Character portraits and tokens are not touched.",
+      "Working": "Applying icons…",
+      "Done": "Updated {updated} · kept {kept} you chose · {unchanged} already right",
+      "NoIndex": "The module's icon list couldn't be loaded (see the console), so no icons can be applied."
+    },
     "Pack": {
       "amps": "Amps",
       "weapons": "Weapons",

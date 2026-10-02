@@ -9,6 +9,8 @@ import { applyRunner, findExisting } from './apply.js'
 import { translateBook } from '../lib/books.js'
 import { docId } from '../lib/ids.js'
 import { importBook } from './books.js'
+import { applyIcons, loadIconIndex } from './icons.js'
+import { iconFor, MODULE_ICON_ROOT, slugName } from '../lib/icons.js'
 
 const TEST_FOLDER = 'Chummer Importer tests'
 const SAMPLE = `modules/${MODULE_ID}/samples/test-export.json`
@@ -27,10 +29,10 @@ async function loadSample() {
 }
 
 // As the window does it (app.js #onImport): same sanitizer, same translate and apply calls; no portrait upload.
-function importRunner(file, runner, choice, folder) {
+function importRunner(file, runner, choice, folder, icons) {
   const clean = foundry.utils.cleanHTML ?? (h => h)
   const exportedAt = runner.exportedAt ?? file.exportedAt
-  const t = translateRunner(runner, { exportedAt, appVersion: file.app?.version ?? '', sanitize: s => clean(escapeText(s)) })
+  const t = translateRunner(runner, { exportedAt, appVersion: file.app?.version ?? '', sanitize: s => clean(escapeText(s)), icons })
   return applyRunner(t, choice, { exportedAt, folder })
 }
 
@@ -306,6 +308,48 @@ export function registerQuench(quench) {
         const max = await pack('characters').getDocument(maxId)
         assert.ok(max.items.get(gmItem.id), 'GM item on the pregen kept')
         assert.lengthOf(itemsOf(max, 'skill'), 1, 'imported items rebuilt, not doubled')
+      })
+    })
+  })
+
+  batch('icons', ({ describe, it, assert, before, after }) => {
+    // Imports the sample runner with the shipped icon index into this batch's own Actors folder, then runs Apply icons
+    // over that runner only (never the rest of the world); after() deletes it.
+    describe('icons on import and Apply icons', function () {
+      this.timeout(30000)
+      const PISTOL = 'Made-Up Heavy Pistol'
+      let tag, folder, index, mara
+      const flagIcon = i => flagOf(i).icon
+      before(async function () {
+        index = await loadIconIndex()
+        assert.isArray(index, 'icons/index.json')
+        const s = await loadSample(); tag = s.tag
+        folder = await makeFolder()
+        const res = await importRunner(s.file, s.file.runners[0], 'create', folder, index)
+        assert.equal(res.action, 'create', res.error?.message)
+        mara = res.actor
+      })
+      after(() => cleanUp(tag, folder))
+
+      it('an imported weapon gets its default icon', () => {
+        const pistol = byName(mara, PISTOL), f = flagIcon(pistol)
+        assert.match(f.key, /^weapon\//)
+        assert.equal(pistol.img, `${MODULE_ICON_ROOT}icons/defaults/${f.key}.webp`)
+      })
+      it('Apply icons keeps a chosen image, replaces a stock default, and upgrades to more specific art', async () => {
+        const [custom, stock] = mara.items.filter(i => flagOf(i)?.icon && i.name !== PISTOL)
+        const pistol = byName(mara, PISTOL)
+        await mara.updateEmbeddedDocuments('Item', [{ _id: custom.id, img: 'worlds/x/custom.webp' },
+          { _id: stock.id, img: 'icons/svg/item-bag.svg' }])
+        // a specific file for the pistol, by name (not shipped: only the index says it exists)
+        const specific = `icons/items/${slugName(PISTOL)}.webp`
+        const counts = await applyIcons({ index: [...index, specific], items: [], actors: [mara], packs: [] })
+        assert.include(counts, { updated: 2, kept: 1 })
+        const a = game.actors.get(mara.id)
+        assert.equal(a.items.get(custom.id).img, 'worlds/x/custom.webp')
+        const sf = flagIcon(stock)
+        assert.equal(a.items.get(stock.id).img, iconFor(sf.key, sf.name, sf.book, index))
+        assert.equal(a.items.get(pistol.id).img, MODULE_ICON_ROOT + specific)
       })
     })
   })

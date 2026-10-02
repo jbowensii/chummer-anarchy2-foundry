@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.4.0
+
+- Icons: imported items, vehicles and metatypes get the module's icons, a default per category and sub-kind (weapon type, vehicle type, spell type, skill group and so on). Art added for a single item (`icons/items/<name>.webp`, or `<book>.<name>.webp` for one book's version) wins over the default.
+- New settings menu "Apply icons" (GM): re-applies the icons to the world, runners' items and the Chummer compendiums. An image you chose yourself is never replaced, and character portraits and tokens are not touched.
+- In-Foundry tests (Quench) for icons.
+
 ## 0.3.0
 
 - Rules: one journal per topic (rules sheet) with a chapter per section and the rules as pages inside, instead of one journal per section. The old per-section journals from 0.2.x are left alone; delete them by hand if you like.
