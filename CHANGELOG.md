@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.6.0
+
+- GM compendiums (Chummer 0.8.0): a book-data file whose book is a GM's compendium (`source.compendium`) imports like a book, into "<name> (<id>)" inside the Compendium folder "Chummer compendiums", with its packs labelled "(House)" and every entry flagged `compendium`. The import window marks it. Re-import replaces by id as for books; no empty compendiums.
+- Export schema updated from Chummer (optional `source.compendium`).
+- Made-up sample `samples/test-compendium.json`; tests and In-Foundry tests (Quench) for compendiums.
+
 ## 0.5.0
 
 - NPCs, critters and spirits (Chummer 0.7.0): they import as sra2 characters (sra2 has no NPC actor type). Kind, tier, fighting spirit and, for a regular NPC, the average hits of each dice pool ("Ranged Weapons 5 (5+A, RR 1)") go in the actor's GM description, which only the GM sees.
