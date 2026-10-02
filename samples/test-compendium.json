@@ -1,0 +1,271 @@
+{
+  "format": "chummer-anarchy2-export",
+  "version": 1,
+  "kind": "books",
+  "exportedAt": "2026-10-02T10:00:00.000Z",
+  "app": {
+    "name": "Chummer Anarchy 2.0",
+    "version": "0.6.0"
+  },
+  "descriptions": true,
+  "tableRules": [],
+  "books": [
+    {
+      "source": {
+        "id": "MYH",
+        "name": "Made-Up House Stuff",
+        "publisher": "Made-Up GM",
+        "canon": false,
+        "compendium": true
+      },
+      "amps": [
+        {
+          "id": "myh.made-up-knack",
+          "source": "MYH",
+          "page": 1,
+          "canon": false,
+          "mod": false,
+          "type": "quality",
+          "typeName": "Quality",
+          "name": "House Knack",
+          "rating": 1,
+          "essence": 0,
+          "effects": [
+            {
+              "id": "rr-spec",
+              "name": "Risk Reduction on a specialization",
+              "category": "rr",
+              "param": "ranged-weapons.pistols",
+              "value": 1
+            }
+          ],
+          "rr": [
+            {
+              "on": "spec",
+              "id": "ranged-weapons.pistols",
+              "name": "Pistols",
+              "value": 1,
+              "skill": "ranged-weapons"
+            }
+          ],
+          "bonuses": {
+            "light": 0,
+            "serious": 0,
+            "physicalThreshold": 0,
+            "mentalThreshold": 0,
+            "matrixThreshold": 0,
+            "armor": 0,
+            "anarchy": 0,
+            "initiative": 0
+          },
+          "description": "The GM’s own made-up note on House Knack."
+        },
+        {
+          "id": "myh.made-up-implant",
+          "source": "MYH",
+          "page": 1,
+          "canon": false,
+          "mod": false,
+          "type": "cyberware",
+          "typeName": "Cyberware",
+          "name": "House Implant",
+          "rating": 1,
+          "essence": 0.5,
+          "effects": [
+            {
+              "id": "wound-light",
+              "name": "Light wound box +1",
+              "category": "body"
+            }
+          ],
+          "rr": [],
+          "bonuses": {
+            "light": 1,
+            "serious": 0,
+            "physicalThreshold": 0,
+            "mentalThreshold": 0,
+            "matrixThreshold": 0,
+            "armor": 0,
+            "anarchy": 0,
+            "initiative": 0
+          },
+          "description": "The GM’s own made-up note on House Implant."
+        }
+      ],
+      "items": [
+        {
+          "id": "myh.made-up-blade",
+          "source": "MYH",
+          "page": 1,
+          "canon": false,
+          "kind": "weapon",
+          "name": "House Short Blade",
+          "specialist": false,
+          "dv": "STR+1",
+          "ranges": {
+            "melee": "ok",
+            "short": "none",
+            "medium": "none",
+            "long": "none"
+          },
+          "description": "The GM’s own made-up note on House Short Blade."
+        },
+        {
+          "id": "myh.made-up-vest",
+          "source": "MYH",
+          "page": 1,
+          "canon": false,
+          "kind": "armor",
+          "name": "House Vest",
+          "specialist": false,
+          "armor": 2,
+          "description": "The GM’s own made-up note on House Vest."
+        },
+        {
+          "id": "myh.made-up-widget",
+          "source": "MYH",
+          "page": 1,
+          "canon": false,
+          "kind": "gear",
+          "name": "House Widget",
+          "specialist": false,
+          "description": "The GM’s own made-up note on House Widget."
+        },
+        {
+          "id": "myh.made-up-charm",
+          "source": "MYH",
+          "page": 1,
+          "canon": false,
+          "kind": "spell",
+          "name": "House Charm",
+          "category": "Combat",
+          "specialist": false,
+          "description": "The GM’s own made-up note on House Charm."
+        }
+      ],
+      "vehicles": [
+        {
+          "id": "myh.made-up-cart",
+          "source": "MYH",
+          "page": 1,
+          "name": "House Cart",
+          "pilot": 1,
+          "body": 2,
+          "handling": 1,
+          "speed": 2,
+          "armor": 1,
+          "mount": "none",
+          "canon": false,
+          "description": "The GM’s own made-up note on House Cart."
+        }
+      ],
+      "skills": [],
+      "specs": [],
+      "rules": [],
+      "npcs": [
+        {
+          "id": "myh-npc-wisp",
+          "updatedAt": "2026-10-02T09:15:00.000Z",
+          "exportedAt": "2026-10-02T09:15:00.000Z",
+          "streetName": "House Wisp",
+          "realName": "",
+          "finalized": false,
+          "metatype": {
+            "id": "",
+            "name": "Spirit",
+            "ranges": {},
+            "edge": 0
+          },
+          "level": {
+            "id": "runner",
+            "name": "Runner"
+          },
+          "lifestyle": {
+            "id": "low",
+            "name": "Low",
+            "perRun": 5000
+          },
+          "portrait": null,
+          "attributes": {
+            "str": 2,
+            "agi": 5,
+            "wil": 5,
+            "log": 3,
+            "cha": 4
+          },
+          "edge": 0,
+          "essence": 6,
+          "skills": [
+            {
+              "id": "astral-combat",
+              "name": "Astral Combat",
+              "attr": "wil",
+              "rating": 4,
+              "specs": []
+            }
+          ],
+          "knowledge": [],
+          "amps": [],
+          "items": [],
+          "vehicles": [],
+          "monitor": {
+            "light": 2,
+            "serious": 1,
+            "incap": 1
+          },
+          "thresholds": {
+            "physicalNone": [
+              2,
+              5,
+              8
+            ],
+            "physicalMain": [
+              2,
+              5,
+              8
+            ],
+            "physicalAlt": [
+              2,
+              5,
+              8
+            ],
+            "mental": [
+              2,
+              5,
+              8
+            ]
+          },
+          "armor": {
+            "main": 0,
+            "alt": 0
+          },
+          "initiative": null,
+          "pools": [
+            {
+              "skill": "astral-combat",
+              "label": "Astral Combat",
+              "attr": "wil",
+              "dp": 9,
+              "rr": 0
+            }
+          ],
+          "narrative": {
+            "keywords": [],
+            "dispositions": [],
+            "cues": []
+          },
+          "background": "",
+          "notes": "",
+          "nuyen": {
+            "balance": 0
+          },
+          "ledger": [],
+          "npc": {
+            "kind": "spirit",
+            "tier": "regular"
+          }
+        }
+      ]
+    }
+  ]
+}

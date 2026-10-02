@@ -265,3 +265,28 @@ describe('planning the packs of a book (never an empty compendium)', () => {
     expect(planBookPacks(translateBook(empty, opts))).toEqual([])
   })
 })
+
+describe('a compendium book (source.compendium)', () => {
+  const cf = JSON.parse(readFileSync('samples/test-compendium.json', 'utf8'))
+  const [house] = cf.books
+  const ct = translateBook(house, { exportedAt: cf.exportedAt, appVersion: cf.app.version, descriptions: true })
+  const plain = structuredClone(house)
+  delete plain.source.compendium
+  const pt = translateBook(plain, { exportedAt: cf.exportedAt, appVersion: cf.app.version, descriptions: true })
+
+  test('plans the same packs as a plain book of the same content, labelled (House)', () => {
+    const p = planBookPacks(ct)
+    expect(p.map(x => x.key)).toEqual(['amps', 'weapons', 'armor', 'gear', 'spells', 'vehicles', 'npcs'])
+    expect(p.map(x => [x.key, x.name, x.type, x.docs.length])).toEqual(planBookPacks(pt).map(x => [x.key, x.name, x.type, x.docs.length]))
+    expect(p.find(x => x.key === 'npcs').label).toBe('NPCs & Critters — MYH (House)')
+    expect(planBookPacks(pt).find(x => x.key === 'npcs').label).toBe('NPCs & Critters — MYH')
+  })
+
+  test('every entry is flagged compendium; a plain book has no such flag', () => {
+    const all = Object.values(ct.packs).flat()
+    expect(all.every(d => d.flags[MODULE_ID].compendium === true && d.flags[MODULE_ID].canon === false)).toBe(true)
+    expect(Object.values(pt.packs).flat().some(d => 'compendium' in d.flags[MODULE_ID])).toBe(false)
+    expect(Object.values(t.packs).flat().some(d => 'compendium' in d.flags[MODULE_ID])).toBe(false)
+    expect(ct.packs.weapons[0].system.description).toContain('GM’s own made-up note')
+  })
+})

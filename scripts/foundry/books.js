@@ -4,7 +4,7 @@ import { MODULE_ID } from '../lib/constants.js'
 import { packName, planBookPacks } from '../lib/books.js'
 import { keepArt, mergeActorItems, mergeJournalPages, planPack } from '../lib/plan.js'
 import { replaceable } from '../lib/icons.js'
-import { ensureFolder, FOLDER, uploadPortrait } from './apply.js'
+import { COMPENDIUM_FOLDER, ensureFolder, FOLDER, uploadPortrait } from './apply.js'
 
 const CHUNK = 100
 
@@ -120,10 +120,10 @@ async function writePack(pack, incoming, after) {
 const fail = (pack, name, error) => { console.error(`${MODULE_ID} | ${name}`, error); return { pack, name, error } }
 
 /**
- * t: translateBook output. onProgress({ key, n, total }), key = the pack key before each pack is written. Packs go in `<book name> (<source id>)` inside topFolder; pack names get `prefix` (Quench).
+ * t: translateBook output. onProgress({ key, n, total }), key = the pack key before each pack is written. Packs go in `<book name> (<source id>)` inside topFolder (by default FOLDER, COMPENDIUM_FOLDER for a GM's compendium); pack names get `prefix` (Quench).
  * Returns { source, counts: { [pack name]: { label, created, replaced, duplicates: [entry name] } }, failed: [{ pack, name, error }], notes: [portrait lines] }.
  */
-export async function importBook(t, { onProgress, prefix = '', topFolder = FOLDER } = {}) {
+export async function importBook(t, { onProgress, prefix = '', topFolder = t.source.compendium ? COMPENDIUM_FOLDER : FOLDER } = {}) {
   const src = t.source, counts = {}, failed = [], made = [], notes = []
   // nothing to write: no pack and no folder (0.2.x made the book folder anyway, e.g. for a pregens-only book)
   const packs = planBookPacks(t, prefix)

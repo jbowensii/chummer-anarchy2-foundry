@@ -4,6 +4,7 @@ import { keepItemArt, newVersionName, replaceUpdate, tokenUpdate } from '../lib/
 
 export const FOLDER = 'Chummer Anarchy'
 export const NPC_FOLDER = 'Chummer NPCs'  // NPCs from a runners file (flags npc)
+export const COMPENDIUM_FOLDER = 'Chummer compendiums'  // Compendium folder for GMs' compendiums (source.compendium)
 const flagOf = d => d?.flags?.[MODULE_ID]
 const time = f => Date.parse(f?.exportedAt ?? '') || 0
 const newest = docs => docs.sort((a, b) => time(flagOf(b)) - time(flagOf(a)))[0] ?? null

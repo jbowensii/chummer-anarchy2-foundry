@@ -16,9 +16,11 @@ export const packName = s => s.toLowerCase().replace(/[^a-z0-9_-]/g, '-')
 /**
  * The packs importBook writes for a translated book: one per known pack key with at least one entry, in PACKS order.
  * Never an empty compendium: a book with nothing to write plans nothing, and importBook then makes no folder either.
+ * A GM's compendium (source.compendium) gets the same packs, labelled "(House)".
  */
 export const planBookPacks = (t, prefix = '') => Object.keys(PACKS).filter(k => t.packs[k]?.length)
-  .map(k => ({ key: k, docs: t.packs[k], type: PACKS[k][1], name: packName(`${prefix}ca2-${t.source.id}-${k}`), label: `${PACKS[k][0]} — ${t.source.id}` }))
+  .map(k => ({ key: k, docs: t.packs[k], type: PACKS[k][1], name: packName(`${prefix}ca2-${t.source.id}-${k}`),
+    label: `${PACKS[k][0]} — ${t.source.id}${t.source.compendium ? ' (House)' : ''}` }))
 
 const PACK_OF = { weapon: 'weapons', armor: 'armor', gear: 'gear', spell: 'spells', 'complex-form': 'spells' }
 const SRA2_ATTRS = Object.values(ATTR)
@@ -35,7 +37,8 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
   const icon = (d, key) => withIcon(d, key, src.id, iconSet)
   const add = (pack, doc) => (packs[pack] ??= []).push(doc)
   const ref = page => `${src.id}${page ? ` p.${page}` : ''}`
-  const flags = (id, page, canon = src.canon) => ({ [MODULE_ID]: { id, exportedAt, appVersion, source: src.id, page, canon } })
+  const comp = src.compendium === true ? { compendium: true } : {}  // a GM's compendium (Chummer 0.8.0), not a book
+  const flags = (id, page, canon = src.canon) => ({ [MODULE_ID]: { id, exportedAt, appVersion, source: src.id, page, canon, ...comp } })
   const text = descriptions ? sanitize : () => ''
   const skills = [...book.skills ?? [], ...(book.specs ?? []).map(sp => ({ id: sp.skill, specs: [sp] }))]
   const ctx = { book: true, flag: x => flags(x.id, x.page, x.canon), icon, sanitize, text, rrTarget: rrResolver(skills), say: l => textOnly.push(l) }
@@ -73,7 +76,7 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
   // A pregen's token is linked; an NPC's token is as translateRunner sets it (hostile, linked only for a prime NPC).
   const people = (pack, kind, vehicleKind, list) => { for (const r of list ?? []) {
     try {
-      const c = translateRunner(r, { exportedAt: r.exportedAt ?? exportedAt, appVersion, sanitize, icons: iconSet }), fl = { source: src.id, canon: src.canon }
+      const c = translateRunner(r, { exportedAt: r.exportedAt ?? exportedAt, appVersion, sanitize, icons: iconSet }), fl = { source: src.id, canon: src.canon, ...comp }
       const _id = docId(`${src.id}:${kind}:${r.id}`)
       add(pack, { _id, ...c.actor, flags: { [MODULE_ID]: { ...c.actor.flags[MODULE_ID], ...fl } }, items: c.items,
         prototypeToken: { actorLink: true, ...c.actor.prototypeToken } })

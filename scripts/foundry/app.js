@@ -56,7 +56,7 @@ export function createImportApp(getIcons = () => null) {
       })
       const books = this.books?.map(({ book, t, error }) => ({
         name: book.source.name, id: book.source.id, error: error && F('CA2I.Failed', { reason: error }),
-        canon: L(book.source.canon ? 'CA2I.Canon' : 'CA2I.NonCanon'),
+        canon: L(book.source.compendium ? 'CA2I.Compendium' : book.source.canon ? 'CA2I.Canon' : 'CA2I.NonCanon'),
         descriptions: L(this.file.descriptions === true ? 'CA2I.DescriptionsIn' : 'CA2I.DescriptionsOut'),
         // after de-duplicating ids, as the write does (planPack: an id the file has twice keeps its last entry);
         // rules count their rule pages (level 2), not the journals or the section pages
