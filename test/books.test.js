@@ -21,7 +21,8 @@ describe('translating a book', () => {
     const blade = find('weapons', 'Made-up Short Blade')
     expect(blade._id).toBe(docId('muc.made-up-blade'))
     expect(translateBook(muc, opts).packs.weapons[0]._id).toBe(blade._id)
-    expect(blade.flags[MODULE_ID]).toEqual({ id: 'muc.made-up-blade', exportedAt: opts.exportedAt, appVersion: '0.6.0', source: 'MUC', page: 20, canon: true })
+    expect(blade.flags[MODULE_ID]).toEqual({ id: 'muc.made-up-blade', exportedAt: opts.exportedAt, appVersion: '0.6.0', source: 'MUC', page: 20, canon: true,
+      icon: { key: 'weapon/short-weapons', name: blade.name, book: 'MUC' } })
     expect(blade.system.reference).toBe('MUC p.20')
     const extra = translateBook(mux, opts).packs.amps[0]
     expect(extra.flags[MODULE_ID]).toMatchObject({ source: 'MUX', page: 5, canon: false })

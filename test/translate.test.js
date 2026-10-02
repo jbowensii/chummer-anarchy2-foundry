@@ -95,11 +95,14 @@ describe('translating a runner', () => {
     expect(v.actor.system).toMatchObject({ vehicleType: 'custom-vehicle', controlMode: 'rigged', customAutopilot: 3, customStructure: 2,
       customHandling: 2, customSpeed: 3, customFlyingSpeed: 3, customArmor: 1, customWeaponMount: 'smg', isFlying: true })
     expect(v.actor.system.description).toContain('Chummer: Medium Drone (closest sra2 type: medium-drone), mount: Made-up light mount')
-    expect(v.actor.flags[MODULE_ID]).toEqual({ id: 'v-drone', runner: 'r-mara', exportedAt: opts.exportedAt, appVersion: '0.6.0' })
+    expect(v.actor.flags[MODULE_ID]).toEqual({ id: 'v-drone', runner: 'r-mara', exportedAt: opts.exportedAt, appVersion: '0.6.0',
+      icon: { key: 'vehicle/medium-drone', name: 'Made-Up Scout Drone', book: null } })
+    expect(v.actor.img).toBeUndefined()  // no icons option: no img
   })
 
   test('every item carries its Chummer id and the export', () => {
-    for (const i of t.items) expect(i.flags[MODULE_ID], i.name).toEqual({ id: expect.any(String), exportedAt: opts.exportedAt, appVersion: '0.6.0' })
+    for (const i of t.items) expect(i.flags[MODULE_ID], i.name).toEqual({ id: expect.any(String), exportedAt: opts.exportedAt, appVersion: '0.6.0',
+      icon: { key: expect.any(String), name: i.name, book: null } })
     expect(flagId(t.actor)).toBe('r-mara')
   })
 

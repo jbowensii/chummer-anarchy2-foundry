@@ -2,6 +2,7 @@
 import { MODULE_ID } from './constants.js'
 import { docId } from './ids.js'
 import { ATTR, metatypeAnarchy, skillFor, specFor } from './sra2.js'
+import { skillIconKey, withIcon } from './icons.js'
 import { ampFeat, escapeText, itemFeat, metatypeMax, rrResolver, translateRunner, vehicleActor } from './translate.js'
 
 // pack key -> [label, document type], in the order they are written
@@ -29,14 +30,15 @@ const titleCase = s => s.split(/[-_\s]+/).filter(Boolean).map(w => w[0].toUpperC
 const asItem = (it, name = it.name) => ({ ...it, name, weapon: { dv: it.dv, dvText: it.dv, ranges: it.ranges }, armor: { value: it.armor ?? 0 } })
 
 /** sanitize: plain text -> safe HTML, as for translateRunner. Book text is left out unless descriptions is true. */
-export function translateBook(book, { exportedAt, appVersion, descriptions = false, sanitize = escapeText }) {
-  const src = book.source, textOnly = [], packs = {}, portraits = {}
+export function translateBook(book, { exportedAt, appVersion, descriptions = false, sanitize = escapeText, icons }) {
+  const src = book.source, textOnly = [], packs = {}, portraits = {}, iconSet = icons ? new Set(icons) : null
+  const icon = (d, key) => withIcon(d, key, src.id, iconSet)
   const add = (pack, doc) => (packs[pack] ??= []).push(doc)
   const ref = page => `${src.id}${page ? ` p.${page}` : ''}`
   const flags = (id, page, canon = src.canon) => ({ [MODULE_ID]: { id, exportedAt, appVersion, source: src.id, page, canon } })
   const text = descriptions ? sanitize : () => ''
   const skills = [...book.skills ?? [], ...(book.specs ?? []).map(sp => ({ id: sp.skill, specs: [sp] }))]
-  const ctx = { book: true, flag: x => flags(x.id, x.page, x.canon), sanitize, text, rrTarget: rrResolver(skills), say: l => textOnly.push(l) }
+  const ctx = { book: true, flag: x => flags(x.id, x.page, x.canon), icon, sanitize, text, rrTarget: rrResolver(skills), say: l => textOnly.push(l) }
   const doc = (x, d) => ({ _id: docId(x.id), ...d, system: { ...d.system, reference: ref(x.page) } })
   const attrOk = (attr, fallback, what) => {
     if (SRA2_ATTRS.includes(attr)) return attr
@@ -70,7 +72,7 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
   // a portrait is uploaded by importBook (portraits: actor _id -> data URL)
   for (const r of book.characters ?? []) {
     try {
-      const c = translateRunner(r, { exportedAt: r.exportedAt ?? exportedAt, appVersion, sanitize }), fl = { source: src.id, canon: src.canon }
+      const c = translateRunner(r, { exportedAt: r.exportedAt ?? exportedAt, appVersion, sanitize, icons: iconSet }), fl = { source: src.id, canon: src.canon }
       const _id = docId(`${src.id}:character:${r.id}`)
       add('characters', { _id, ...c.actor, flags: { [MODULE_ID]: { ...c.actor.flags[MODULE_ID], ...fl } }, items: c.items,
         prototypeToken: { actorLink: true } })
@@ -87,21 +89,21 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
   for (const m of book.metatypes ?? []) {
     const anarchy = metatypeAnarchy(m.name)
     if (anarchy == null) textOnly.push(`Metatype ${m.name}: not an sra2 metatype → Anarchy bonus 0`)
-    add('metatypes', doc(m, { name: m.name, type: 'metatype', flags: flags(m.id, m.page, m.canon), system: {
-      ...metatypeMax(m.ranges), anarchyBonus: anarchy ?? 0, description: sanitize(`Edge: ${m.edge}`) + (m.racialQuality ? sanitize(`Racial quality: ${m.racialQuality}`) : '') } }))
+    add('metatypes', doc(m, icon({ name: m.name, type: 'metatype', flags: flags(m.id, m.page, m.canon), system: {
+      ...metatypeMax(m.ranges), anarchyBonus: anarchy ?? 0, description: sanitize(`Edge: ${m.edge}`) + (m.racialQuality ? sanitize(`Racial quality: ${m.racialQuality}`) : '') } }, 'metatype')))
   }
 
   // every skill and spec, those sra2 already has too (same slug, so interchangeable with sra2's own)
   const spec = (skillSlug, skillAttr, sp, page) => {
     const p = specFor(skillSlug, sp)
-    add('skills', doc({ ...sp, page }, { name: `Spec: ${p.name}`, type: 'specialization', flags: flags(sp.id, page),
-      system: { linkedSkill: skillSlug, linkedAttribute: attrOk(p.attr, skillAttr, `Spec: ${p.name}`), slug: p.slug } }))
+    add('skills', doc({ ...sp, page }, icon({ name: `Spec: ${p.name}`, type: 'specialization', flags: flags(sp.id, page),
+      system: { linkedSkill: skillSlug, linkedAttribute: attrOk(p.attr, skillAttr, `Spec: ${p.name}`), slug: p.slug } }, skillIconKey(skillSlug))))
   }
   for (const sk of book.skills ?? []) {
     const s = skillFor({ id: sk.id, attr: sk.attr })
     const attr = s.known ? s.attr : attrOk(s.attr, 'strength', sk.name)
     if (sk.alt) textOnly.push(`${sk.name}: alternative attribute ${sk.alt} → notes (sra2 links one attribute: ${attr})`)
-    add('skills', doc(sk, { name: s.known ? s.name : sk.name, type: 'skill', flags: flags(sk.id, sk.page), system: { rating: 0, linkedAttribute: attr, slug: s.slug } }))
+    add('skills', doc(sk, icon({ name: s.known ? s.name : sk.name, type: 'skill', flags: flags(sk.id, sk.page), system: { rating: 0, linkedAttribute: attr, slug: s.slug } }, skillIconKey(s.slug))))
     for (const sp of sk.specs ?? []) spec(s.slug, attr, sp, sk.page)
   }
   for (const sp of book.specs ?? []) { const s = skillFor({ id: sp.skill }); spec(s.slug, s.attr, sp, sp.page) }
