@@ -47,8 +47,8 @@ export function itemIconKey(it) {
   if (it.kind === 'armor') return 'armor'
   if (it.kind === 'complex-form') return 'complex-form'
   if (it.kind === 'spell') { const m = SPELL.exec(String(it.category ?? '').toLowerCase()); return m ? `spell/${m[1]}` : 'spell' }
-  if (/sin\b/.test(it.starting ?? '') || /\bsin\b/i.test(it.name ?? '')) return 'equipment/sin'
-  if (it.starting === 'commlink' || /\bcommlink\b/i.test(it.name ?? '')) return 'equipment/commlink'
+  if (it.starting === 'fake-sin' || it.starting === 'real-sin') return 'equipment/sin'
+  if (it.starting === 'commlink') return 'equipment/commlink'
   return 'equipment'
 }
 

@@ -223,5 +223,5 @@ export function vehicleActor(v, ctx, amp = { name: v.name }) {
       customAutopilot: Math.min(12, v.pilot ?? 0), customStructure: v.body ?? 0, customHandling: v.handling ?? 0, customSpeed: v.speed ?? 0,
       customArmor: v.armor ?? 0, customWeaponMount: mountOf(v.mount), isFlying: !!v.flying, ...v.flying ? { customFlyingSpeed: v.flyingSpeed ?? v.speed ?? 0 } : {},
       rrList, narrativeEffects: narrative, reference: ref(amp),
-      description: text(amp.description) + sanitize(about) + (v.count > 1 ? sanitize(`Chummer: ${v.count} × ${chassis}`) : '') } }, `vehicle/${type}`, v)
+      description: text(amp.description) + sanitize(about) + (v.count > 1 ? sanitize(`Chummer: ${v.count} × ${chassis}`) : '') } }, `vehicle/${type}`, { source: amp.source ?? v.source })
 }

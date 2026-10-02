@@ -28,7 +28,10 @@ describe('icon keys', () => {
     expect(itemIconKey({ kind: 'armor', name: 'Vest' })).toBe('armor')
     expect(itemIconKey({ kind: 'gear', name: 'Made-Up Phone', starting: 'commlink' })).toBe('equipment/commlink')
     expect(itemIconKey({ kind: 'gear', name: 'Papers', starting: 'fake-sin' })).toBe('equipment/sin')
+    expect(itemIconKey({ kind: 'gear', name: 'Papers', starting: 'real-sin' })).toBe('equipment/sin')
     expect(itemIconKey({ kind: 'gear', name: 'Rope' })).toBe('equipment')
+    expect(itemIconKey({ kind: 'gear', name: 'Fake SIN' })).toBe('equipment')  // starting kind only
+    expect(itemIconKey({ kind: 'gear', name: 'Commlink' })).toBe('equipment')
     expect(itemIconKey({ kind: 'spell', name: 'Bolt', category: 'Combat' })).toBe('spell/combat')
     expect(itemIconKey({ kind: 'spell', name: 'Charm' })).toBe('spell')
     expect(itemIconKey({ kind: 'complex-form', name: 'Puppeteer' })).toBe('complex-form')
@@ -69,6 +72,22 @@ describe('translators with icons', () => {
     expect(t.actor.img).toBeUndefined()
     expect(t.actor.flags[MODULE_ID].icon).toBeUndefined()
   })
+  test('without the icons option no document gets an img', () => {
+    const t = translateRunner(file.runners[0], { ...opts, icons: undefined })
+    expect(t.items.length).toBeGreaterThan(0)
+    for (const i of t.items) { expect(i.img, i.name).toBeUndefined(); expect(i.flags[MODULE_ID].icon, i.name).toBeTruthy() }
+    expect(t.vehicles[0].actor.img).toBeUndefined()
+  })
+  test('runner amps: negative quality, adept power; vehicle book from its amp', () => {
+    const r = structuredClone(file.runners[0])
+    r.amps.push({ uid: 'a-neg', type: 'quality', name: 'Made-Up Bad Luck', rating: 1, effects: [{ id: 'negative', name: 'Negative', category: 'negative' }] })
+    r.amps.find(a => a.uid === 'v-drone').source = 'CRB'
+    const t = translateRunner(r, opts), key = n => t.items.find(i => i.name === n).flags[MODULE_ID].icon.key
+    expect(key('Made-Up Bad Luck')).toBe('trait/negative')
+    expect(key('Made-Up Steady Hands')).toBe('trait/positive')
+    expect(key('Made-Up Quick Flow')).toBe('adept-power')
+    expect(t.vehicles[0].actor.flags[MODULE_ID].icon.book).toBe('CRB')
+  })
   test('book entries carry the book id', () => {
     const books = JSON.parse(readFileSync('samples/test-books.json', 'utf8'))
     const t = translateBook(books.books?.[0] ?? books, opts)
@@ -78,5 +97,15 @@ describe('translators with icons', () => {
       expect(d.flags[MODULE_ID].icon.book, d.name).toBe(t.source.id)
       expect(d.img, d.name).toMatch(/^modules\/chummer-anarchy2-importer\/icons\/defaults\//)
     }
+    const charm = all.find(d => d.name === 'Made-up Charm')
+    expect(charm.flags[MODULE_ID].icon.key).toBe('spell/combat')
+    expect(charm.img).toBe(`${M}icons/defaults/spell/combat.webp`)
+  })
+  test('a book quality printed with a negative rating is trait/negative', () => {
+    const b = structuredClone(JSON.parse(readFileSync('samples/test-books.json', 'utf8')).books[0])
+    const q = b.amps.find(a => a.type === 'quality')
+    Object.assign(q, { rating: 0, printedRating: -2, effects: [] })
+    const t = translateBook(b, opts)
+    expect(t.packs.amps.find(d => d.name === q.name).flags[MODULE_ID].icon.key).toBe('trait/negative')
   })
 })
