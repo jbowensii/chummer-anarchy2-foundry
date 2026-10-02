@@ -942,6 +942,9 @@
             },
             "canon": {
               "type": "boolean"
+            },
+            "compendium": {
+              "const": true
             }
           }
         },

@@ -5,7 +5,7 @@ import { MODULE_ID } from '../lib/constants.js'
 import { readExport } from '../lib/read.js'
 import { escapeText, translateRunner } from '../lib/translate.js'
 import { defaultChoice, newVersionName } from '../lib/plan.js'
-import { applyRunner, findExisting, NPC_FOLDER } from './apply.js'
+import { applyRunner, COMPENDIUM_FOLDER, findExisting, NPC_FOLDER } from './apply.js'
 import { translateBook } from '../lib/books.js'
 import { docId } from '../lib/ids.js'
 import { importBook } from './books.js'
@@ -16,6 +16,7 @@ const TEST_FOLDER = 'Chummer Importer tests'
 const SAMPLE = `modules/${MODULE_ID}/samples/test-export.json`
 const BOOKS = `modules/${MODULE_ID}/samples/test-books.json`
 const NPCS = `modules/${MODULE_ID}/samples/test-npcs.json`
+const COMPENDIUM = `modules/${MODULE_ID}/samples/test-compendium.json`
 const PREFIX = 'ca2test-'
 const flagOf = d => d?.flags?.[MODULE_ID]
 
@@ -318,6 +319,66 @@ export function registerQuench(quench) {
         const max = await pack('characters').getDocument(maxId)
         assert.ok(max.items.get(gmItem.id), 'GM item on the pregen kept')
         assert.lengthOf(itemsOf(max, 'skill'), 1, 'imported items rebuilt, not doubled')
+      })
+    })
+  })
+
+  batch('compendium', ({ describe, it, assert, before, after }) => {
+    // Imports the made-up compendium file as the window does (no topFolder: a compendium book goes to the Compendium
+    // folder "Chummer compendiums"), into packs named ca2test-ca2-myh-…. Cleanup deletes those packs, the book folder,
+    // and "Chummer compendiums" only when this batch made it and it is left empty.
+    describe('importing the compendium sample', function () {
+      this.timeout(60000)
+      const clean = foundry.utils.cleanHTML ?? (h => h)
+      let file, house, res, hadTop
+      const pack = k => game.packs.get(`world.${PREFIX}ca2-myh-${k}`)
+      const top = () => game.folders.find(f => f.type === 'Compendium' && f.name === COMPENDIUM_FOLDER && !f.folder)
+      const bookFolder = () => game.folders.find(f => f.type === 'Compendium' && f.name === 'Made-Up House Stuff (MYH)' && f.folder?.id === top()?.id)
+      const run = book => importBook(translateBook(book, { exportedAt: file.exportedAt, appVersion: file.app?.version ?? '',
+        descriptions: true, sanitize: s => clean(escapeText(s)) }), { prefix: PREFIX })
+      const cleanUpHouse = async () => {
+        for (const p of game.packs.filter(p => p.collection.startsWith(`world.${PREFIX}ca2-myh-`))) await p.deleteCompendium()
+        await bookFolder()?.delete()
+        const t = top()
+        if (t && !hadTop && !t.getSubfolders().length && !game.packs.some(p => p.folder?.id === t.id)) await t.delete()
+      }
+      before(async function () {
+        const r = readExport(await (await fetch(COMPENDIUM)).text())
+        if (!r.ok) throw new Error(r.reason)
+        file = r.file; [house] = file.books
+        hadTop = !!top()
+        await cleanUpHouse()
+        res = await run(house)
+      })
+      after(async function () { if (file) await cleanUpHouse() })
+
+      it('imports every pack into "Chummer compendiums/<name> (<id>)", labelled (House)', () => {
+        assert.isEmpty(res.failed, res.failed.map(f => f.error?.message).join('; '))
+        for (const k of ['amps', 'weapons', 'armor', 'gear', 'spells', 'vehicles', 'npcs']) {
+          const p = pack(k)
+          assert.ok(p, `pack ${k}`)
+          assert.equal(p.folder?.name, 'Made-Up House Stuff (MYH)', k)
+          assert.equal(p.folder?.folder?.name, COMPENDIUM_FOLDER, k)
+          assert.match(p.title, / — MYH \(House\)$/, k)
+        }
+      })
+      it('has the NPC actor, flagged compendium', async () => {
+        const wisp = await pack('npcs').getDocument(docId('MYH:npc:myh-npc-wisp'))
+        assert.ok(wisp, 'NPC')
+        assert.equal(wisp.name, 'House Wisp')
+        assert.include(flagOf(wisp), { source: 'MYH', canon: false, compendium: true })
+      })
+      it('re-import replaces its entries by id and leaves what the GM added', async () => {
+        const weapons = pack('weapons'), id = docId('myh.made-up-blade')
+        const gm = await Item.create({ name: 'GM-made weapon', type: 'feat', system: { featType: 'weapon' } }, { pack: weapons.collection })
+        const changed = structuredClone(house)
+        changed.items[0].name = 'House Short Blade II'
+        const again = await run(changed)
+        assert.isEmpty(again.failed, again.failed.map(f => f.error?.message).join('; '))
+        assert.equal(again.counts[`${PREFIX}ca2-myh-weapons`].replaced, 1)
+        assert.equal((await weapons.getDocument(id))?.name, 'House Short Blade II')
+        assert.ok(await weapons.getDocument(gm.id), 'GM entry kept')
+        assert.equal(weapons.index.size, 2)
       })
     })
   })

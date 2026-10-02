@@ -42,3 +42,11 @@ describe('reading a Chummer file', () => {
     expect(r.reason).toMatch(reason)
   })
 })
+
+test('the compendium sample is valid and reads as one compendium book', () => {
+  const text = readFileSync('samples/test-compendium.json', 'utf8')
+  const check = new Ajv2020({ strict: false, validateFormats: false }).compile(JSON.parse(readFileSync('schema/export.schema.json', 'utf8')))
+  expect(check(JSON.parse(text)), JSON.stringify(check.errors)).toBe(true)
+  const r = readExport(text)
+  expect(r.ok && r.file.books.map(b => [b.source.id, b.source.compendium])).toEqual([['MYH', true]])
+})

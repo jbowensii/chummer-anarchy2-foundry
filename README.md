@@ -80,6 +80,10 @@ Items and vehicles carry their book and page in their reference field (pregens' 
 
 A re-import replaces the entries that came from the file, keeping their ids so links to them keep working. In a rules or table-rules journal, the imported pages are rebuilt from the file (a page the file no longer has goes) and the pages you added are kept. Entries missing from the file are never deleted: entries you made yourself, and older entries the new file no longer has, stay as they are. A topic renamed in Chummer arrives as a new journal; the journal with the old name stays until you delete it. In Characters, items you added to a pregen are kept. The one-journal-per-section journals from 0.2.x are left alone; you can delete them by hand.
 
+## GM compendiums
+
+A compendium a GM made in Chummer (0.8.0: their own amps, weapons, armor, gear, spells, complex forms, vehicles and NPCs) exports from its Compendiums page as a book-data file with one book, and imports the same way as a book (**Import from Chummer**). The window marks it as a GM's compendium. It goes in its own folder, "<compendium name> (<id>)", inside the Compendium folder **"Chummer compendiums"** (books stay in "Chummer Anarchy"), with the same compendiums a book would get, labelled "(House)", e.g. "Weapons — MYH (House)". Its entries are non-canon, carry the compendium's id as their source, are flagged `compendium`, and have the GM's own descriptions. Importing it again works as for a book: entries from the file are replaced by id, the rest are left alone, and no compendium is made empty.
+
 ## Icons
 
 Imported items, skills, specializations, vehicles and metatypes (on runners, in the world and in the book compendiums) get an icon. The icons ship with the module:
@@ -116,7 +120,7 @@ For your own Foundry only. Don’t share the export file. A file exported with d
 2. Open the Quench test runner.
 3. Tick the "Chummer Importer" batches and run them.
 
-The batches import `samples/test-export.json` (a made-up file with no book text) into a throwaway Actors folder, "Chummer Importer tests", `samples/test-npcs.json` (made-up NPCs) into "Chummer NPCs" (that folder is deleted again if the batch made it and it is left empty), and `samples/test-books.json` (a made-up book file) into compendiums named `ca2test-…` in a Compendium folder of the same name. They delete what they made when they finish and don't touch anything else in the world.
+The batches import `samples/test-export.json` (a made-up file with no book text) into a throwaway Actors folder, "Chummer Importer tests", `samples/test-npcs.json` (made-up NPCs) into "Chummer NPCs" (that folder is deleted again if the batch made it and it is left empty), `samples/test-books.json` (a made-up book file) into compendiums named `ca2test-…` in a Compendium folder of the same name, and `samples/test-compendium.json` (a made-up GM compendium) into compendiums named `ca2test-ca2-myh-…` in "Chummer compendiums" (that folder is deleted again if the batch made it and it is left empty). They delete what they made when they finish and don't touch anything else in the world.
 
 ## License
 
