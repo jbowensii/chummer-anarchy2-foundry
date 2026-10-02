@@ -33,7 +33,7 @@ const asItem = (it, name = it.name) => ({ ...it, name, weapon: { dv: it.dv, dvTe
 
 /** sanitize: plain text -> safe HTML, as for translateRunner. Book text is left out unless descriptions is true. */
 export function translateBook(book, { exportedAt, appVersion, descriptions = false, sanitize = escapeText, icons }) {
-  const src = book.source, textOnly = [], packs = {}, portraits = {}, iconSet = icons ? new Set(icons) : null
+  const src = book.source, textOnly = [], packs = {}, portraits = {}, tokens = {}, iconSet = icons ? new Set(icons) : null
   const icon = (d, key) => withIcon(d, key, src.id, iconSet)
   const add = (pack, doc) => (packs[pack] ??= []).push(doc)
   const ref = page => `${src.id}${page ? ` p.${page}` : ''}`
@@ -72,7 +72,8 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
     add('vehicles', doc(v, vehicleActor({ ...v, chassisId: v.id, flying: v.flyingSpeed > 0 }, ctx, { name: v.name })))
 
   // the book's pregens (pack characters) and NPCs/critters/spirits (pack npcs): an actor each (translateRunner, embedded
-  // items), its vehicles as separate actors, not linked; a portrait is uploaded by importBook (portraits: actor _id -> data URL).
+  // items), its vehicles as separate actors, not linked; a portrait and a token image are uploaded by importBook
+  // (portraits, tokens: actor _id -> data URL).
   // A pregen's token is linked; an NPC's token is as translateRunner sets it (hostile, linked only for a prime NPC).
   const people = (pack, kind, vehicleKind, list) => { for (const r of list ?? []) {
     try {
@@ -81,6 +82,7 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
       add(pack, { _id, ...c.actor, flags: { [MODULE_ID]: { ...c.actor.flags[MODULE_ID], ...fl } }, items: c.items,
         prototypeToken: { actorLink: true, ...c.actor.prototypeToken } })
       if (PORTRAIT.test(r.portrait ?? '')) portraits[_id] = r.portrait
+      if (PORTRAIT.test(r.token ?? '')) tokens[_id] = r.token
       ;(r.vehicles ?? []).forEach((v, i) => {
         const { actor, items } = c.vehicles[i]
         add(pack, { _id: docId(`${src.id}:${vehicleKind}:${r.id}:${v.uid}`), ...actor, name: `${r.streetName} — ${actor.name}`,
@@ -133,7 +135,7 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
     const id = `${src.id}:rules-sheet:${sheet}`
     add('rules', { _id: docId(id), name, flags: flags(id), pages })
   }
-  return { source: src, packs, portraits, textOnly }
+  return { source: src, packs, portraits, tokens, textOnly }
 }
 
 // The GM's own table rules. Their text follows the file's descriptions choice: Chummer blanks it when descriptions

@@ -53,7 +53,7 @@ describe('icon keys', () => {
 
 test('replaceable', () => {
   for (const img of [null, '', 'icons/svg/item-bag.svg', 'icons/svg/mystery-man.svg', '/icons/svg/sword.svg',
-    'systems/sra2/icons/feat.svg', `${M}icons/defaults/armor.webp`, 'worlds/w/chummer/portraits/r-1.png']) expect(replaceable(img), img).toBe(true)
+    'systems/sra2/icons/feat.svg', `${M}icons/defaults/armor.webp`, 'worlds/w/chummer/portraits/r-1.png', 'worlds/w/chummer/tokens/r-1.png']) expect(replaceable(img), img).toBe(true)
   for (const img of ['worlds/w/mara.png', 'icons/weapons/guns/pistol.webp', 'uploads/x.webp', 'modules/other/x.webp', 'worlds/w/chummer/x.webp'])
     expect(replaceable(img), img).toBe(false)
 })
@@ -107,5 +107,32 @@ describe('translators with icons', () => {
     Object.assign(q, { rating: 0, printedRating: -2, effects: [] })
     const t = translateBook(b, opts)
     expect(t.packs.amps.find(d => d.name === q.name).flags[MODULE_ID].icon.key).toBe('trait/negative')
+  })
+})
+
+describe('runner and NPC items carry the catalog category (export v1, optional)', () => {
+  const file = JSON.parse(readFileSync('samples/test-export.json', 'utf8'))
+  const books = JSON.parse(readFileSync('samples/test-books.json', 'utf8'))
+  const index = JSON.parse(readFileSync('icons/index.json', 'utf8'))
+  const opts = { exportedAt: file.exportedAt, appVersion: file.app.version, icons: index }
+  const spell = { uid: 'i-bolt', kind: 'spell', name: 'Made-Up Bolt', canon: false, price: 0, category: 'combat' }
+  test('a runner spell gets the same per-category icon as the same spell from a book', () => {
+    const r = structuredClone(file.runners[0])
+    r.items.push(spell, { ...spell, uid: 'i-blur', name: 'Made-Up Blur', category: undefined })
+    const t = translateRunner(r, opts), find = n => t.items.find(i => i.name === n)
+    expect(find('Made-Up Bolt').flags[MODULE_ID].icon.key).toBe('spell/combat')
+    expect(find('Made-Up Bolt').img).toBe(`${M}icons/defaults/spell/combat.webp`)
+    expect(find('Made-Up Blur').img).toBe(`${M}icons/defaults/spell.webp`)  // no category: the kind default, as before
+    const b = structuredClone(books.books[0])
+    b.items = [{ id: 'muc.made-up-bolt', source: 'MUC', page: 1, kind: 'spell', name: 'Made-Up Bolt', canon: true, specialist: false, category: 'combat' }]
+    expect(translateBook(b, opts).packs.spells[0].img).toBe(find('Made-Up Bolt').img)
+  })
+  test('a book NPC’s item uses its category; a name-specific icon still wins', () => {
+    const b = structuredClone(books.books[0])
+    b.npcs[0].items = [{ ...spell, category: 'health' }]
+    const npc = translateBook(b, opts).packs.npcs.find(d => d.type === 'character')
+    expect(npc.items.find(i => i.name === 'Made-Up Bolt').img).toBe(`${M}icons/defaults/spell/health.webp`)
+    const named = translateRunner({ ...structuredClone(file.runners[0]), items: [spell] }, { ...opts, icons: [...index, 'icons/items/made-up-bolt.webp'] })
+    expect(named.items.find(i => i.name === 'Made-Up Bolt').img).toBe(`${M}icons/items/made-up-bolt.webp`)
   })
 })

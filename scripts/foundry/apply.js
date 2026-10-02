@@ -19,11 +19,12 @@ export async function ensureFolder(name, parent = null, type = 'Actor') {
   return found ?? Folder.create({ name, type, folder: parent?.id ?? null })
 }
 
-// data URL -> world file; returns its path. As sra2 does (helpers/gemini-image.ts): browse, and on failure create each
-// level, swallowing "already exists"; a real problem surfaces as the upload failing.
-export async function uploadPortrait(dataUrl, runnerId, exportedAt) {
+// data URL -> world file in worlds/<world>/chummer/<sub> (portraits or tokens: lib/icons.js replaceable); returns its path.
+// As sra2 does (helpers/gemini-image.ts): browse, and on failure create each level, swallowing "already exists"; a real
+// problem surfaces as the upload failing.
+export async function uploadPortrait(dataUrl, runnerId, exportedAt, sub = 'portraits') {
   const FP = foundry.applications.apps.FilePicker.implementation
-  const base = `worlds/${game.world.id}/chummer`, dir = `${base}/portraits`
+  const base = `worlds/${game.world.id}/chummer`, dir = `${base}/${sub}`
   try { await FP.browse('data', dir) } catch {
     for (const d of [base, dir]) { try { await FP.createDirectory('data', d, {}) } catch { /* may already exist */ } }
   }
@@ -31,7 +32,7 @@ export async function uploadPortrait(dataUrl, runnerId, exportedAt) {
   const ext = /jpe?g/i.test(blob.type) ? 'jpg' : 'png'
   const file = new File([blob], `${String(runnerId).replace(/[^\w-]/g, '-')}-${String(exportedAt).replace(/\D/g, '')}.${ext}`, { type: blob.type })
   const res = await FP.upload('data', dir, file, {}, { notify: false })
-  if (!res?.path) throw new Error(`Portrait upload failed for ${runnerId}`)
+  if (!res?.path) throw new Error(`${sub === 'tokens' ? 'Token' : 'Portrait'} upload failed for ${runnerId}`)
   return res.path
 }
 
@@ -39,10 +40,11 @@ export async function uploadPortrait(dataUrl, runnerId, exportedAt) {
 // and so does art the user chose, on the document and its rebuilt items (lib/plan.js replaceUpdate, keepItemArt).
 // Update first, then new items, old items deleted last. If deleting the old ones fails, this document's new items are
 // removed again, so a failure never leaves it without its Chummer items or with them twice. Throws on failure.
-async function replaceDoc(doc, t) {
+// token: the uploaded token image, else the token follows the new img.
+async function replaceDoc(doc, t, token) {
   const old = doc.items.filter(i => flagOf(i)).map(i => i.id)
   const items = keepItemArt(doc.items, t.items)
-  await doc.update({ ...replaceUpdate(t.actor, doc.name, doc.img), ...tokenUpdate(doc, t.actor.img) })
+  await doc.update({ ...replaceUpdate(t.actor, doc.name, doc.img), ...tokenUpdate(doc, token ?? t.actor.img) })
   const made = items.length ? await doc.createEmbeddedDocuments('Item', items) : []
   try { if (old.length) await doc.deleteEmbeddedDocuments('Item', old) } catch (e) {
     try { await doc.deleteEmbeddedDocuments('Item', made.map(i => i.id)) } catch {}
@@ -54,18 +56,21 @@ const createVehicle = (v, name, folder) =>
   Actor.create({ ...v.actor, name, folder: folder.id, items: v.items, prototypeToken: { actorLink: true } })
 
 /**
- * choice: 'create' | 'new' | 'replace' | 'skip'. folder: the root Actors folder, by name or a Folder (the Quench tests pass their own);
+ * choice: 'create' | 'new' | 'replace' | 'skip'. portrait / token: image data URLs (the actor's img, its prototype token's
+ * image; without a token the token shows the img). folder: the root Actors folder, by name or a Folder (the Quench tests pass their own);
  * by default FOLDER for a runner, NPC_FOLDER for an NPC. Never throws: a failure deletes what this runner created and returns
  * { actor: null, action: 'failed', error } so the caller reports it and carries on with the other runners.
  */
-export async function applyRunner(t, choice, { portrait, exportedAt, folder = flagOf(t.actor)?.npc ? NPC_FOLDER : FOLDER } = {}) {
+export async function applyRunner(t, choice, { portrait, token, exportedAt, folder = flagOf(t.actor)?.npc ? NPC_FOLDER : FOLDER } = {}) {
   const runnerId = flagOf(t.actor).id
   if (choice === 'skip') return { actor: findExisting(runnerId), action: 'skip' }
   const created = []  // actors created in this run: all a failure deletes
   let doc = null, linksWritten = false
   try {
     const actor = structuredClone(t.actor)
-    if (portrait) actor.img = await uploadPortrait(portrait, runnerId, exportedAt ?? flagOf(t.actor).exportedAt)
+    const at = exportedAt ?? flagOf(t.actor).exportedAt
+    if (portrait) actor.img = await uploadPortrait(portrait, runnerId, at)
+    const tokenImg = token ? await uploadPortrait(token, runnerId, at, 'tokens') : null
     const root = typeof folder === 'string' ? await ensureFolder(folder) : folder
     let vf = null  // the vehicles subfolder, made only when a vehicle is created
     const vFolder = async () => (vf ??= await ensureFolder(`${t.actor.name} vehicles`, root))
@@ -88,7 +93,7 @@ export async function applyRunner(t, choice, { portrait, exportedAt, folder = fl
       actor.system.linkedVehicles = [...ours, ...kept]
       // the runner first, then its vehicles
       linksWritten = true
-      await replaceDoc(doc, { actor, items: t.items })
+      await replaceDoc(doc, { actor, items: t.items }, tokenImg)
       for (const [match, v] of matched) await replaceDoc(match, v)
       return { actor: doc, action: 'replace' }
     }
@@ -101,7 +106,7 @@ export async function applyRunner(t, choice, { portrait, exportedAt, folder = fl
     }
     actor.system.linkedVehicles = vUuids
     doc = await Actor.create({ ...actor, name: suffix(actor.name), folder: root.id, items: t.items,
-      prototypeToken: { actorLink: true, ...actor.prototypeToken, ...actor.img ? { texture: { src: actor.img } } : {} } })
+      prototypeToken: { actorLink: true, ...actor.prototypeToken, ...tokenImg ?? actor.img ? { texture: { src: tokenImg ?? actor.img } } : {} } })
     created.push(doc)
     return { actor: doc, action: choice === 'new' ? 'new' : 'create' }
   } catch (error) {

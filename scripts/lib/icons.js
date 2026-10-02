@@ -19,12 +19,12 @@ export function iconFor(key, name, book, index) {
   return hit ? MODULE_ICON_ROOT + hit : null
 }
 
-// Replace only empty images, Foundry's stock svg defaults, sra2's defaults, the module's own art and the portraits the
-// importer uploads (worlds/<world>/chummer/portraits, foundry/apply.js uploadPortrait). Anything else the user chose.
+// Replace only empty images, Foundry's stock svg defaults, sra2's defaults, the module's own art and the portraits and
+// tokens the importer uploads (worlds/<world>/chummer/portraits|tokens, foundry/apply.js uploadPortrait). Anything else the user chose.
 export function replaceable(img) {
   const p = String(img ?? '').trim().replace(/^\/+/, '')
   return !p || p.startsWith('icons/svg/') || p.startsWith('systems/sra2/') || p.startsWith(MODULE_ICON_ROOT)
-    || /^worlds\/[^/]+\/chummer\/portraits\//.test(p)
+    || /^worlds\/[^/]+\/chummer\/(portraits|tokens)\//.test(p)
 }
 
 // Stores flags.icon (always) and sets img when an icon resolves (icons: the index as a Set, or null for none).
@@ -43,7 +43,7 @@ const SKILL_GROUP = { athletics: 'physical', 'close-combat': 'physical', 'ranged
 export const skillIconKey = slug => (Object.hasOwn(SKILL_GROUP, slug) ? `skill/${SKILL_GROUP[slug]}` : 'skill')
 
 const SPELL = /\b(combat|detection|health|illusion|manipulation)\b/
-// a runner-shaped item ({ kind, name, starting?, category? })
+// a runner-shaped item ({ kind, name, starting?, category? }); category is the catalog's, on book and runner items alike
 export function itemIconKey(it) {
   if (it.kind === 'weapon') return `weapon/${weaponType(it.name)}`
   if (it.kind === 'armor') return 'armor'

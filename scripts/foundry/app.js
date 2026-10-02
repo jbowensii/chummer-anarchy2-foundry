@@ -104,7 +104,8 @@ export function createImportApp(getIcons = () => null) {
       this.tableRules = books && Array.isArray(res.file.tableRules) && res.file.tableRules.length ? res.file.tableRules : null
       this.rows = res.ok && !books ? res.file.runners.map(runner => {
         const existing = findExisting(runner.id), exportedAt = runner.exportedAt ?? res.file.exportedAt
-        return { runner, existing, exportedAt, portrait: PORTRAIT.test(runner.portrait ?? '') ? runner.portrait : null,
+        const image = s => (PORTRAIT.test(s ?? '') ? s : null)
+        return { runner, existing, exportedAt, portrait: image(runner.portrait), token: image(runner.token),
           choice: defaultChoice(flagOf(existing), { exportedAt }) }
       }) : null
       this.render()
@@ -131,7 +132,7 @@ export function createImportApp(getIcons = () => null) {
         try {
           const t = translateRunner(row.runner, { exportedAt: row.exportedAt, appVersion: this.file.app?.version ?? '', sanitize, icons: getIcons() })
           textOnly = t.textOnly
-          res = await applyRunner(t, choice, { portrait: row.portrait, exportedAt: row.exportedAt })
+          res = await applyRunner(t, choice, { portrait: row.portrait, token: row.token, exportedAt: row.exportedAt })
         } catch (error) { res = { action: 'failed', error } }  // translate threw: nothing in the world changed
         const failed = res.action === 'failed'
         report.push({ name, failed, textOnly: failed ? [] : textOnly,

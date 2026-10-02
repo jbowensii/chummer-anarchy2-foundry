@@ -50,3 +50,14 @@ test('the compendium sample is valid and reads as one compendium book', () => {
   const r = readExport(text)
   expect(r.ok && r.file.books.map(b => [b.source.id, b.source.compendium])).toEqual([['MYH', true]])
 })
+
+test('the schema allows the optional runner token and item category (0.7.0)', () => {
+  const check = new Ajv2020({ strict: false, validateFormats: false }).compile(JSON.parse(readFileSync('schema/export.schema.json', 'utf8')))
+  const f = JSON.parse(sample)
+  f.runners[0].token = 'data:image/png;base64,AAAA'
+  f.runners[1].token = null
+  f.runners[0].items[0].category = 'combat'
+  expect(check(f), JSON.stringify(check.errors)).toBe(true)
+  f.runners[0].items[0].category = 3
+  expect(check(f)).toBe(false)
+})
