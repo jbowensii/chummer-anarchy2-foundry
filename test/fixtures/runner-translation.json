@@ -56,7 +56,12 @@
           "chummer-anarchy2-importer": {
             "id": "human",
             "exportedAt": "2026-10-02T09:15:00.000Z",
-            "appVersion": "0.6.0"
+            "appVersion": "0.6.0",
+            "icon": {
+              "key": "metatype",
+              "name": "Human",
+              "book": null
+            }
           }
         },
         "system": {
@@ -75,7 +80,12 @@
           "chummer-anarchy2-importer": {
             "id": "ranged-weapons",
             "exportedAt": "2026-10-02T09:15:00.000Z",
-            "appVersion": "0.6.0"
+            "appVersion": "0.6.0",
+            "icon": {
+              "key": "skill/physical",
+              "name": "Ranged Weapons",
+              "book": null
+            }
           }
         },
         "system": {
@@ -91,7 +101,12 @@
           "chummer-anarchy2-importer": {
             "id": "ranged-weapons.pistols",
             "exportedAt": "2026-10-02T09:15:00.000Z",
-            "appVersion": "0.6.0"
+            "appVersion": "0.6.0",
+            "icon": {
+              "key": "skill/physical",
+              "name": "Spec: Pistols",
+              "book": null
+            }
           }
         },
         "system": {
@@ -107,7 +122,12 @@
           "chummer-anarchy2-importer": {
             "id": "athletics",
             "exportedAt": "2026-10-02T09:15:00.000Z",
-            "appVersion": "0.6.0"
+            "appVersion": "0.6.0",
+            "icon": {
+              "key": "skill/physical",
+              "name": "Athletics",
+              "book": null
+            }
           }
         },
         "system": {
@@ -123,7 +143,12 @@
           "chummer-anarchy2-importer": {
             "id": "network",
             "exportedAt": "2026-10-02T09:15:00.000Z",
-            "appVersion": "0.6.0"
+            "appVersion": "0.6.0",
+            "icon": {
+              "key": "skill/social",
+              "name": "Networking",
+              "book": null
+            }
           }
         },
         "system": {
@@ -139,7 +164,12 @@
           "chummer-anarchy2-importer": {
             "id": "custom:Fixers",
             "exportedAt": "2026-10-02T09:15:00.000Z",
-            "appVersion": "0.6.0"
+            "appVersion": "0.6.0",
+            "icon": {
+              "key": "skill/social",
+              "name": "Spec: Fixers",
+              "book": null
+            }
           }
         },
         "system": {
@@ -155,7 +185,12 @@
           "chummer-anarchy2-importer": {
             "id": "a-cyber",
             "exportedAt": "2026-10-02T09:15:00.000Z",
-            "appVersion": "0.6.0"
+            "appVersion": "0.6.0",
+            "icon": {
+              "key": "cyberware",
+              "name": "Made-Up Reflex Wiring",
+              "book": null
+            }
           }
         },
         "system": {
@@ -187,7 +222,12 @@
           "chummer-anarchy2-importer": {
             "id": "a-quality",
             "exportedAt": "2026-10-02T09:15:00.000Z",
-            "appVersion": "0.6.0"
+            "appVersion": "0.6.0",
+            "icon": {
+              "key": "trait/positive",
+              "name": "Made-Up Steady Hands",
+              "book": null
+            }
           }
         },
         "system": {
@@ -219,7 +259,12 @@
           "chummer-anarchy2-importer": {
             "id": "a-adept",
             "exportedAt": "2026-10-02T09:15:00.000Z",
-            "appVersion": "0.6.0"
+            "appVersion": "0.6.0",
+            "icon": {
+              "key": "adept-power",
+              "name": "Made-Up Quick Flow",
+              "book": null
+            }
           }
         },
         "system": {
@@ -256,7 +301,12 @@
           "chummer-anarchy2-importer": {
             "id": "i-commlink",
             "exportedAt": "2026-10-02T09:15:00.000Z",
-            "appVersion": "0.6.0"
+            "appVersion": "0.6.0",
+            "icon": {
+              "key": "equipment/commlink",
+              "name": "Made-Up Commlink",
+              "book": null
+            }
           }
         },
         "system": {
@@ -273,7 +323,12 @@
           "chummer-anarchy2-importer": {
             "id": "i-sin",
             "exportedAt": "2026-10-02T09:15:00.000Z",
-            "appVersion": "0.6.0"
+            "appVersion": "0.6.0",
+            "icon": {
+              "key": "equipment/sin",
+              "name": "Made-Up Fake SIN",
+              "book": null
+            }
           }
         },
         "system": {
@@ -290,7 +345,12 @@
           "chummer-anarchy2-importer": {
             "id": "i-pistol",
             "exportedAt": "2026-10-02T09:15:00.000Z",
-            "appVersion": "0.6.0"
+            "appVersion": "0.6.0",
+            "icon": {
+              "key": "weapon/heavy-pistols",
+              "name": "Made-Up Heavy Pistol",
+              "book": null
+            }
           }
         },
         "system": {
@@ -316,7 +376,12 @@
           "chummer-anarchy2-importer": {
             "id": "i-vest",
             "exportedAt": "2026-10-02T09:15:00.000Z",
-            "appVersion": "0.6.0"
+            "appVersion": "0.6.0",
+            "icon": {
+              "key": "armor",
+              "name": "Made-Up Vest",
+              "book": null
+            }
           }
         },
         "system": {
@@ -337,9 +402,14 @@
           "flags": {
             "chummer-anarchy2-importer": {
               "id": "v-drone",
-              "runner": "r-mara",
               "exportedAt": "2026-10-02T09:15:00.000Z",
-              "appVersion": "0.6.0"
+              "appVersion": "0.6.0",
+              "icon": {
+                "key": "vehicle/medium-drone",
+                "name": "Made-Up Scout Drone",
+                "book": null
+              },
+              "runner": "r-mara"
             }
           },
           "system": {
@@ -424,7 +494,12 @@
           "chummer-anarchy2-importer": {
             "id": "human",
             "exportedAt": "2026-10-02T09:15:00.000Z",
-            "appVersion": "0.6.0"
+            "appVersion": "0.6.0",
+            "icon": {
+              "key": "metatype",
+              "name": "Human",
+              "book": null
+            }
           }
         },
         "system": {
@@ -443,7 +518,12 @@
           "chummer-anarchy2-importer": {
             "id": "athletics",
             "exportedAt": "2026-10-02T09:15:00.000Z",
-            "appVersion": "0.6.0"
+            "appVersion": "0.6.0",
+            "icon": {
+              "key": "skill/physical",
+              "name": "Athletics",
+              "book": null
+            }
           }
         },
         "system": {

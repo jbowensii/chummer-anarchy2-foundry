@@ -67,6 +67,19 @@ Items and vehicles carry their book and page in their reference field (pregens' 
 
 A re-import replaces the entries that came from the file, keeping their ids so links to them keep working. In a rules or table-rules journal, the imported pages are rebuilt from the file (a page the file no longer has goes) and the pages you added are kept. Entries missing from the file are never deleted: entries you made yourself, and older entries the new file no longer has, stay as they are. A topic renamed in Chummer arrives as a new journal; the journal with the old name stays until you delete it. In Characters, items you added to a pregen are kept. The one-journal-per-section journals from 0.2.x are left alone; you can delete them by hand.
 
+## Icons
+
+Imported items, skills, specializations, vehicles and metatypes (on runners, in the world and in the book compendiums) get an icon. The icons ship with the module:
+
+- **Defaults** by category and sub-kind: weapons by weapon type, vehicles by the closest sra2 vehicle type, spells by type, skills and specializations by skill group, qualities as positive or negative, bioware, commlinks, SINs, and so on.
+- **Specific art** by item name, and optionally for one book's version of an item, wins over the default. More of it is added in module updates.
+
+A picture you pick in Foundry is never replaced, not by Apply icons and not by importing the runner or book again: only empty images, Foundry's and sra2's stock images, the module's own icons and portraits imported from Chummer are.
+
+**Apply icons** (Game Settings → Configure Settings → Chummer Anarchy 2.0 Importer, GM only) re-applies the icons to everything already imported, so it picks up newly shipped art after a module update. Character portraits and tokens are never touched.
+
+Entries imported before 0.4.0 carry no icon information, so they get no icons, from Apply icons either: import the runner or book once more to give them icons.
+
 ## Not imported yet, or imported differently
 
 - Vehicle-template amps (book data) stay feats for now, with a note; they are not turned into vehicles.
@@ -94,4 +107,4 @@ The batches import `samples/test-export.json` (a made-up file with no book text)
 
 ## License
 
-MIT
+Code: MIT. Icon art © John Bowens, made for and distributed with this module.

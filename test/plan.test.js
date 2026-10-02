@@ -2,7 +2,7 @@ import { readFileSync } from 'node:fs'
 import { describe, expect, test } from 'vitest'
 import { MODULE_ID } from '../scripts/lib/constants.js'
 import { translateRunner } from '../scripts/lib/translate.js'
-import { defaultChoice, mergeActorItems, mergeJournalPages, newVersionName, planPack, replaceUpdate, tokenUpdate } from '../scripts/lib/plan.js'
+import { defaultChoice, keepArt, keepItemArt, mergeActorItems, mergeJournalPages, newVersionName, planPack, replaceUpdate, tokenUpdate } from '../scripts/lib/plan.js'
 
 const file = JSON.parse(readFileSync('samples/test-export.json', 'utf8'))
 const t = translateRunner(file.runners[0], { exportedAt: file.exportedAt, appVersion: file.app.version })
@@ -38,10 +38,10 @@ describe('planning an import', () => {
   })
 
   test('the token image follows a new portrait only while it shows the actor image', () => {
-    const doc = src => ({ img: 'old.png', prototypeToken: { texture: { src } } })
-    expect(tokenUpdate(doc('old.png'), 'new.png')).toEqual({ 'prototypeToken.texture.src': 'new.png' })
+    const doc = src => ({ img: 'worlds/w/chummer/portraits/old.png', prototypeToken: { texture: { src } } })
+    expect(tokenUpdate(doc('worlds/w/chummer/portraits/old.png'), 'new.png')).toEqual({ 'prototypeToken.texture.src': 'new.png' })
     expect(tokenUpdate(doc('gm-token.webp'), 'new.png')).toEqual({}) // a GM's custom token image stays
-    expect(tokenUpdate(doc('old.png'), undefined)).toEqual({}) // no portrait in the file
+    expect(tokenUpdate(doc('worlds/w/chummer/portraits/old.png'), undefined)).toEqual({}) // no portrait in the file
   })
 
   test('replace update without a portrait leaves the image alone', () => {
@@ -101,5 +101,34 @@ describe('planning a pack write', () => {
     const fresh = { name: 'New', flags: { [MODULE_ID]: { id: 'x' } } }
     expect(mergeActorItems([old, gm], [fresh])).toEqual([fresh, gm])
     expect(mergeActorItems(undefined, [fresh])).toEqual([fresh])
+  })
+
+  describe('re-import never overwrites art the user chose', () => {
+    const M = 'modules/chummer-anarchy2-importer/'
+    const it = (id, img) => ({ name: id, img, flags: { [MODULE_ID]: { id } } })
+    test('replaceUpdate and tokenUpdate change the image only while it is replaceable', () => {
+      const v = { ...t.vehicles[0].actor, img: M + 'icons/defaults/vehicle.webp' }
+      expect(replaceUpdate(v, 'x', 'worlds/test/custom.webp').img).toBeUndefined()
+      expect(replaceUpdate(v, 'x', 'icons/svg/mystery-man.svg').img).toBe(v.img)
+      expect(replaceUpdate(v, 'x', 'worlds/w/chummer/portraits/r.png').img).toBe(v.img)
+      const doc = img => ({ img, prototypeToken: { texture: { src: img } } })
+      expect(tokenUpdate(doc('worlds/test/custom.webp'), 'new.png')).toEqual({})
+      expect(tokenUpdate(doc('icons/svg/mystery-man.svg'), 'new.png')).toEqual({ 'prototypeToken.texture.src': 'new.png' })
+    })
+    test('keepItemArt: rebuilt items keep a chosen image, by flag id', () => {
+      const old = [it('a', 'worlds/test/custom.webp'), it('b', M + 'icons/defaults/armor.webp'), { name: 'gm', img: 'worlds/x.webp', flags: {} }]
+      const fresh = [it('a', M + 'icons/defaults/weapon.webp'), it('b', M + 'icons/items/vest.webp'), it('c', undefined)]
+      expect(keepItemArt(old, fresh).map(i => i.img)).toEqual(['worlds/test/custom.webp', M + 'icons/items/vest.webp', undefined])
+      expect(keepItemArt(undefined, fresh)).toEqual(fresh)
+    })
+    test('keepArt: a replaced pack entry and its items keep chosen images', () => {
+      const old = { _id: 'p', img: 'worlds/test/custom.webp', items: [it('a', 'worlds/test/a.webp')] }
+      const fresh = { _id: 'p', img: M + 'icons/defaults/x.webp', items: [it('a', M + 'icons/defaults/y.webp')] }
+      const k = keepArt(old, fresh)
+      expect(k.img).toBe('worlds/test/custom.webp')
+      expect(k.items[0].img).toBe('worlds/test/a.webp')
+      expect(keepArt({ img: 'icons/svg/item-bag.svg' }, { img: 'new.webp' }).img).toBe('new.webp')
+      expect(keepArt({ pages: [] }, { name: 'J', pages: [] })).toEqual({ name: 'J', pages: [] }) // journals: no img added
+    })
   })
 })

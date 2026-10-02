@@ -133,6 +133,7 @@
           "canon": true,
           "kind": "spell",
           "name": "Made-up Charm",
+          "category": "Combat",
           "specialist": false
         }
       ],

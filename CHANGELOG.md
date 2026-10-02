@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.4.0
+
+- Icons: imported items, skills, specializations, vehicles and metatypes get the module's icons, a default per category and sub-kind (weapon type, vehicle type, spell type, skill group and so on). Specific art for an item (by name, optionally for one book's version) wins over the default; more ships in module updates.
+- New settings menu "Apply icons" (GM): re-applies the icons to the world, runners' items and the Chummer compendiums, e.g. to pick up art a module update adds. Character portraits and tokens are not touched.
+- A picture you pick in Foundry is never replaced, by Apply icons or by importing a runner or book again.
+- Entries imported before 0.4.0 carry no icon information: import the runner or book once more to give them icons.
+- In-Foundry tests (Quench) for icons.
+
 ## 0.3.0
 
 - Rules: one journal per topic (rules sheet) with a chapter per section and the rules as pages inside, instead of one journal per section. The old per-section journals from 0.2.x are left alone; delete them by hand if you like.

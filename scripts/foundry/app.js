@@ -12,7 +12,8 @@ const time = x => Date.parse(x ?? '') || 0
 // Only a real image goes into <img> and the world's files (apply.js names it .png or .jpg).
 const OUTCOME = { create: 'CA2I.Created', replace: 'CA2I.Replaced', new: 'CA2I.NewVersion', skip: 'CA2I.Skipped' }
 
-export function createImportApp() {
+// getIcons() -> icons/index.json as loaded at ready, or null (no icons).
+export function createImportApp(getIcons = () => null) {
   const { ApplicationV2, HandlebarsApplicationMixin } = foundry.applications.api
   const L = k => game.i18n.localize(k), F = (k, d) => game.i18n.format(k, d)
   const date = x => time(x) ? new Date(x).toLocaleString(game.i18n.lang, { dateStyle: 'medium', timeStyle: 'short' }) : '—'
@@ -92,7 +93,7 @@ export function createImportApp() {
       this.books = books ? res.file.books.map(book => {
         try {
           return { book, t: translateBook(book, { exportedAt: book.exportedAt ?? res.file.exportedAt, appVersion,
-            descriptions: res.file.descriptions === true, sanitize }) }
+            descriptions: res.file.descriptions === true, sanitize, icons: getIcons() }) }
         } catch (e) { return { book, error: e?.message ?? String(e) } }
       }) : null
       this.tableRules = books && Array.isArray(res.file.tableRules) && res.file.tableRules.length ? res.file.tableRules : null
@@ -123,7 +124,7 @@ export function createImportApp() {
         if (progress) progress.textContent = F('CA2I.Progress', { n: ++n, total })
         let res, textOnly = []
         try {
-          const t = translateRunner(row.runner, { exportedAt: row.exportedAt, appVersion: this.file.app?.version ?? '', sanitize })
+          const t = translateRunner(row.runner, { exportedAt: row.exportedAt, appVersion: this.file.app?.version ?? '', sanitize, icons: getIcons() })
           textOnly = t.textOnly
           res = await applyRunner(t, choice, { portrait: row.portrait, exportedAt: row.exportedAt })
         } catch (error) { res = { action: 'failed', error } }  // translate threw: nothing in the world changed

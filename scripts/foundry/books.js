@@ -2,7 +2,8 @@
 // (node --check clean). Never throws: a failing pack is reported in `failed` and the other packs carry on.
 import { MODULE_ID } from '../lib/constants.js'
 import { packName, planBookPacks } from '../lib/books.js'
-import { mergeActorItems, mergeJournalPages, planPack } from '../lib/plan.js'
+import { keepArt, mergeActorItems, mergeJournalPages, planPack } from '../lib/plan.js'
+import { replaceable } from '../lib/icons.js'
 import { ensureFolder, FOLDER, uploadPortrait } from './apply.js'
 
 const CHUNK = 100
@@ -54,11 +55,12 @@ async function dropEmptyFolders(made) {
 
 // Book pregens' portraits (img and token), uploaded only once their pack is written: Foundry has no call to delete
 // an uploaded file, so a failed write must never have uploaded one. A failed upload keeps the default artwork.
-// The file name is fixed per pregen and export, so a re-import overwrites it rather than adding another.
+// The file name is fixed per pregen and export, so a re-import overwrites it rather than adding another. A pregen
+// showing an image the user chose (kept by writePack) gets no portrait.
 const portraitsAfter = (portraits = {}, say) => async (docs, op) => {
   for (const d of docs) {
     const url = portraits[d._id], f = d.flags[MODULE_ID]
-    if (!url) continue
+    if (!url || !replaceable(d.img)) continue
     try {
       const img = await uploadPortrait(url, `${f.source}-${f.id}`, f.exportedAt)
       await Actor.updateDocuments([{ _id: d._id, img, 'prototypeToken.texture.src': img }], op)
@@ -71,7 +73,8 @@ const portraitsAfter = (portraits = {}, say) => async (docs, op) => {
 
 // Replace by id: delete the entries the file has, then create all of them with their ids, in chunks. If a create
 // fails, what this run made is deleted and the replaced entries are put back, so a failure never loses them.
-// A replaced journal keeps the pages the GM added to it, a replaced actor the GM's own items (lib/plan.js).
+// A replaced journal keeps the pages the GM added to it, a replaced actor the GM's own items, and a replaced entry
+// (and a replaced actor's rebuilt items) the image the user chose (lib/plan.js keepArt).
 // after(docs, op): run once everything is written, while the pack is still unlocked.
 async function writePack(pack, incoming, after) {
   const Doc = pack.documentClass, op = { pack: pack.collection }
@@ -84,9 +87,14 @@ async function writePack(pack, incoming, after) {
   try {
     const old = replace.length ? (await pack.getDocuments({ _id__in: replace })).map(d => d.toObject()) : []
     const [kept, merge] = { JournalEntry: ['pages', mergeJournalPages], Actor: ['items', mergeActorItems] }[pack.documentName] ?? []
-    if (merge && old.length) {
+    if (old.length) {
       const was = new Map(old.map(d => [d._id, d]))
-      docs = docs.map(d => was.has(d._id) ? { ...d, [kept]: merge(was.get(d._id)[kept], d[kept] ?? []) } : d)
+      docs = docs.map(d => {
+        const o = was.get(d._id)
+        if (!o) return d
+        const k = keepArt(o, d)
+        return merge ? { ...k, [kept]: merge(o[kept], k[kept] ?? []) } : k
+      })
     }
     if (replace.length) await Doc.deleteDocuments(replace, op)
     const made = []

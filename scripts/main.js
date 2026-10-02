@@ -1,11 +1,16 @@
 // Entry point: the import window is built at init; GMs get an "Import from Chummer" button in the Actors sidebar.
 import { createImportApp } from './foundry/app.js'
 import { registerQuench } from './foundry/quench.js'
+import { createIconsApp, loadIconIndex } from './foundry/icons.js'
+import { MODULE_ID } from './lib/constants.js'
 
 let ImportApp = null
+let icons = null  // icons/index.json, loaded once at init; null = no icons
+let iconsLoaded = null  // that load: the import window waits for it, so an import never starts without the index
 const APP_ID = 'chummer-anarchy2-import'
 
-function openImporter() {
+async function openImporter() {
+  await iconsLoaded
   const open = foundry.applications.instances.get(APP_ID)
   if (open) open.bringToFront()
   else new ImportApp().render({ force: true })
@@ -28,7 +33,12 @@ function addButton(root, tab) {
   footer.append(button)
 }
 
-Hooks.once('init', () => { ImportApp = createImportApp() })
+Hooks.once('init', () => {
+  iconsLoaded = loadIconIndex().then(i => { icons = i })
+  ImportApp = createImportApp(() => icons)
+  game.settings.registerMenu(MODULE_ID, 'applyIcons', { name: 'CA2I.Icons.Title', label: 'CA2I.Icons.Button',
+    hint: 'CA2I.Icons.Hint', icon: 'fas fa-image', type: createIconsApp(() => icons), restricted: true })
+})
 Hooks.on('renderActorDirectory', (app, html) => addButton(html, 'actors'))
 Hooks.on('renderCompendiumDirectory', (app, html) => addButton(html, 'compendium'))
 Hooks.on('changeSidebarTab', app => { if (app.tabName === 'actors' || app.tabName === 'compendium') addButton(null, app.tabName) })

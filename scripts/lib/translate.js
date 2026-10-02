@@ -1,6 +1,7 @@
 // One Chummer runner (docs/export-format.md) -> sra2 v14.3.3 document data. Pure: no Foundry calls.
 import { MODULE_ID } from './constants.js'
 import { ATTR, featType, metatypeAnarchy, skillFor, specFor, vehicleType, weaponType } from './sra2.js'
+import { ampIconKey, itemIconKey, skillIconKey, withIcon } from './icons.js'
 
 const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
 // Plain text -> HTML: escaped, one <p> per paragraph (blank-line separated).
@@ -34,10 +35,12 @@ export const metatypeMax = (ranges = {}) => {
 /**
  * sanitize: a function that takes PLAIN TEXT and returns safe HTML. Callers wrap Foundry's cleaner AROUND escapeText
  * (e.g. t => clean(escapeText(t))), never replace escapeText with the cleaner: a cleaner neither escapes text nor makes paragraphs.
+ * icons: icons/index.json (array or Set); without it no img is set (flags.icon is stored either way).
  */
-export function translateRunner(runner, { exportedAt, appVersion, sanitize = escapeText }) {
-  const textOnly = [], items = []
+export function translateRunner(runner, { exportedAt, appVersion, sanitize = escapeText, icons }) {
+  const textOnly = [], items = [], iconSet = icons ? new Set(icons) : null
   const flag = id => ({ [MODULE_ID]: { id, exportedAt, appVersion } })
+  const icon = (doc, key, x) => withIcon(doc, key, x?.source ?? null, iconSet)
   const skills = runner.skills ?? []
   const vehicleUids = new Set((runner.vehicles ?? []).map(v => v.uid))
   const ranges = runner.metatype?.ranges ?? {}
@@ -50,23 +53,23 @@ export function translateRunner(runner, { exportedAt, appVersion, sanitize = esc
 
   const metaName = runner.metatype?.name ?? 'Metatype', anarchyBonus = metatypeAnarchy(metaName)
   if (anarchyBonus == null) textOnly.push(`Metatype ${metaName}: not an sra2 metatype → Anarchy bonus 0`)
-  items.push({ name: metaName, type: 'metatype', flags: flag(runner.metatype?.id ?? 'metatype'),
-    system: { ...metatypeMax(ranges), anarchyBonus: anarchyBonus ?? 0 } })
+  items.push(icon({ name: metaName, type: 'metatype', flags: flag(runner.metatype?.id ?? 'metatype'),
+    system: { ...metatypeMax(ranges), anarchyBonus: anarchyBonus ?? 0 } }, 'metatype'))
 
   for (const sk of skills) {
     const s = skillFor(sk), name = s.known ? s.name : sk.name
     const attr = attrOk(s.attr, 'strength', name)
-    items.push({ name, type: 'skill', flags: flag(sk.id), system: { rating: sk.rating ?? 0, linkedAttribute: attr, slug: s.slug } })
+    items.push(icon({ name, type: 'skill', flags: flag(sk.id), system: { rating: sk.rating ?? 0, linkedAttribute: attr, slug: s.slug } }, skillIconKey(s.slug)))
     for (const sp of sk.specs ?? []) {
       const p = specFor(s.slug, sp)
-      items.push({ name: `Spec: ${p.name}`, type: 'specialization', flags: flag(sp.id),
-        system: { linkedSkill: s.slug, linkedAttribute: attrOk(p.attr, attr, `Spec: ${p.name}`), slug: p.slug } })
+      items.push(icon({ name: `Spec: ${p.name}`, type: 'specialization', flags: flag(sp.id),
+        system: { linkedSkill: s.slug, linkedAttribute: attrOk(p.attr, attr, `Spec: ${p.name}`), slug: p.slug } }, skillIconKey(s.slug)))
     }
   }
 
   const rrTarget = rrResolver(skills)
   // the shared mapping (ampFeat/itemFeat/vehicleActor) with the runner's rr resolution and flags
-  const ctx = { flag: x => flag(x.uid), sanitize, rrTarget, say: t => textOnly.push(t) }
+  const ctx = { flag: x => flag(x.uid), icon, sanitize, rrTarget, say: t => textOnly.push(t) }
   for (const amp of runner.amps ?? []) if (!vehicleUids.has(amp.uid)) items.push(ampFeat(amp, ctx))
 
   const armors = []  // [Chummer item, feat system]
@@ -156,7 +159,8 @@ function ampParts(amp, { rrTarget, say: note }) {
 
 /*
  * The amp/item/vehicle mapping shared by runners and books. ctx: { flag(x) -> flags object, sanitize (plain text -> HTML),
- * text? (for book text; default sanitize), rrTarget(rr line) -> sra2 slug | null, say(line) -> records a textOnly line }.
+ * text? (for book text; default sanitize), rrTarget(rr line) -> sra2 slug | null, say(line) -> records a textOnly line,
+ * icon(doc, key, x) -> doc with flags.icon (and img) }.
  */
 export function ampFeat(amp, ctx) {
   const { sanitize, text = sanitize, say } = ctx
@@ -178,7 +182,7 @@ export function ampFeat(amp, ctx) {
     description: text(amp.description) + notes + sanitize(`Chummer: ${amp.typeName ?? amp.type}${amp.source ? `, ${ref(amp)}` : ''}`) }
   // a deck's wound box is its own (the export gives it bonus 0): sra2's boolean deck field
   if (type === 'cyberdeck' && (amp.effects ?? []).some(e => e.id === 'wound-light')) system.cyberdeckBonusLightDamage = true
-  return { name: amp.name, type: 'feat', flags: ctx.flag(amp), system }
+  return ctx.icon({ name: amp.name, type: 'feat', flags: ctx.flag(amp), system }, ampIconKey(amp), amp)
 }
 
 // A runner-shaped item ({ kind, weapon: { dv, dvText, ranges }, armor: { value }, price?, starting?, note? }) -> feat.
@@ -203,7 +207,7 @@ export function itemFeat(it, ctx) {
   if (it.kind === 'armor') system.armorValue = Math.max(0, Math.min(5, it.armor?.value ?? 0))
   if (it.kind === 'spell') system.spellType = 'direct'
   system.description = text(it.description) + sanitize(it.note) + extra + (it.price != null ? sanitize(`Chummer price: ${it.price}¥`) : '')
-  return { name: it.name, type: 'feat', flags: ctx.flag(it), system }
+  return ctx.icon({ name: it.name, type: 'feat', flags: ctx.flag(it), system }, itemIconKey(it), it)
 }
 
 // Always custom-vehicle: sra2 reads the custom* stats only then, and Chummer's numbers include upgrades.
@@ -212,11 +216,12 @@ export function vehicleActor(v, ctx, amp = { name: v.name }) {
   const { sanitize, text = sanitize } = ctx
   const { narrative, rrList } = ampParts(amp, ctx)
   const chassis = v.chassis ?? v.name
-  const about = `Chummer: ${chassis} (closest sra2 type: ${vehicleType(v.chassisId ?? amp.vehicle, chassis)}), mount: ${v.mount || 'none'}`
-  return { name: v.name, type: 'vehicle', flags: ctx.flag(v),
+  const type = vehicleType(v.chassisId ?? amp.vehicle, chassis)
+  const about = `Chummer: ${chassis} (closest sra2 type: ${type}), mount: ${v.mount || 'none'}`
+  return ctx.icon({ name: v.name, type: 'vehicle', flags: ctx.flag(v),
     system: { vehicleType: 'custom-vehicle', controlMode: 'rigged',
       customAutopilot: Math.min(12, v.pilot ?? 0), customStructure: v.body ?? 0, customHandling: v.handling ?? 0, customSpeed: v.speed ?? 0,
       customArmor: v.armor ?? 0, customWeaponMount: mountOf(v.mount), isFlying: !!v.flying, ...v.flying ? { customFlyingSpeed: v.flyingSpeed ?? v.speed ?? 0 } : {},
       rrList, narrativeEffects: narrative, reference: ref(amp),
-      description: text(amp.description) + sanitize(about) + (v.count > 1 ? sanitize(`Chummer: ${v.count} × ${chassis}`) : '') } }
+      description: text(amp.description) + sanitize(about) + (v.count > 1 ? sanitize(`Chummer: ${v.count} × ${chassis}`) : '') } }, `vehicle/${type}`, { source: amp.source ?? v.source })
 }
