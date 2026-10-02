@@ -91,7 +91,7 @@ describe('translators with icons', () => {
   test('book entries carry the book id', () => {
     const books = JSON.parse(readFileSync('samples/test-books.json', 'utf8'))
     const t = translateBook(books.books?.[0] ?? books, opts)
-    const all = Object.entries(t.packs).filter(([k]) => k !== 'rules' && k !== 'characters').flatMap(([, d]) => d)
+    const all = Object.entries(t.packs).filter(([k]) => k !== 'rules' && k !== 'characters' && k !== 'npcs').flatMap(([, d]) => d)
     expect(all.length).toBeGreaterThan(0)
     for (const d of all) {
       expect(d.flags[MODULE_ID].icon.book, d.name).toBe(t.source.id)

@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.5.0
+
+- NPCs, critters and spirits (Chummer 0.7.0): they import as sra2 characters (sra2 has no NPC actor type). Kind, tier, fighting spirit and, for a regular NPC, the average hits of each dice pool ("Ranged Weapons 5 (5+A, RR 1)") go in the actor's GM description, which only the GM sees.
+- NPC tokens are hostile; a prime NPC's token is linked to its actor, a regular NPC's is not, so each copy on the map has its own wounds.
+- A critter or spirit without a metatype gets no metatype item.
+- An NPC without a portrait gets the module's NPC, critter or spirit icon as its image and token.
+- NPCs from a runners file go in the Actors folder "Chummer NPCs"; Replace, Add as new version and Skip work as for runners. The import window marks NPC rows and counts them.
+- Book data: a book's NPCs, critters and spirits go in its new compendium "NPCs & Critters" (only when the book has some).
+- In-Foundry tests (Quench) for NPCs.
+
 ## 0.4.0
 
 - Icons: imported items, skills, specializations, vehicles and metatypes get the module's icons, a default per category and sub-kind (weapon type, vehicle type, spell type, skill group and so on). Specific art for an item (by name, optionally for one book's version) wins over the default; more ships in module updates.

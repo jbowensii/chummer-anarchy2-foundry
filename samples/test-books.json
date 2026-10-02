@@ -392,6 +392,110 @@
           },
           "ledger": []
         }
+      ],
+      "npcs": [
+        {
+          "id": "muc-npc-wisp",
+          "updatedAt": "2026-10-02T09:15:00.000Z",
+          "exportedAt": "2026-10-02T09:15:00.000Z",
+          "streetName": "Made-Up Wisp",
+          "realName": "",
+          "finalized": false,
+          "metatype": {
+            "id": "",
+            "name": "Spirit",
+            "ranges": {},
+            "edge": 0
+          },
+          "level": {
+            "id": "runner",
+            "name": "Runner"
+          },
+          "lifestyle": {
+            "id": "low",
+            "name": "Low",
+            "perRun": 5000
+          },
+          "portrait": null,
+          "attributes": {
+            "str": 2,
+            "agi": 5,
+            "wil": 5,
+            "log": 3,
+            "cha": 4
+          },
+          "edge": 0,
+          "essence": 6,
+          "skills": [
+            {
+              "id": "astral-combat",
+              "name": "Astral Combat",
+              "attr": "wil",
+              "rating": 4,
+              "specs": []
+            }
+          ],
+          "knowledge": [],
+          "amps": [],
+          "items": [],
+          "vehicles": [],
+          "monitor": {
+            "light": 2,
+            "serious": 1,
+            "incap": 1
+          },
+          "thresholds": {
+            "physicalNone": [
+              2,
+              5,
+              8
+            ],
+            "physicalMain": [
+              2,
+              5,
+              8
+            ],
+            "physicalAlt": [
+              2,
+              5,
+              8
+            ],
+            "mental": [
+              2,
+              5,
+              8
+            ]
+          },
+          "armor": {
+            "main": 0,
+            "alt": 0
+          },
+          "initiative": null,
+          "pools": [
+            {
+              "skill": "astral-combat",
+              "label": "Astral Combat",
+              "attr": "wil",
+              "dp": 9,
+              "rr": 0
+            }
+          ],
+          "narrative": {
+            "keywords": [],
+            "dispositions": [],
+            "cues": []
+          },
+          "background": "",
+          "notes": "",
+          "nuyen": {
+            "balance": 0
+          },
+          "ledger": [],
+          "npc": {
+            "kind": "spirit",
+            "tier": "regular"
+          }
+        }
       ]
     },
     {

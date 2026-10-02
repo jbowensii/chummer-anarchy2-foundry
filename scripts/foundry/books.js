@@ -53,7 +53,7 @@ async function dropEmptyFolders(made) {
   }
 }
 
-// Book pregens' portraits (img and token), uploaded only once their pack is written: Foundry has no call to delete
+// Book pregens' and NPCs' portraits (img and token), uploaded only once their pack is written: Foundry has no call to delete
 // an uploaded file, so a failed write must never have uploaded one. A failed upload keeps the default artwork.
 // The file name is fixed per pregen and export, so a re-import overwrites it rather than adding another. A pregen
 // showing an image the user chose (kept by writePack) gets no portrait.
@@ -131,7 +131,7 @@ export async function importBook(t, { onProgress, prefix = '', topFolder = FOLDE
   for (const [i, p] of packs.entries()) {
     onProgress?.({ key: p.key, n: i + 1, total: packs.length })
     try {
-      const after = p.key === 'characters' ? portraitsAfter(t.portraits, l => notes.push(l)) : undefined
+      const after = p.key === 'characters' || p.key === 'npcs' ? portraitsAfter(t.portraits, l => notes.push(l)) : undefined
       counts[p.name] = await writeNew(p.name, p.label, p.type, await folder(), p.docs, after)
     } catch (error) { failed.push(fail(p.name, p.label, error)) }
   }

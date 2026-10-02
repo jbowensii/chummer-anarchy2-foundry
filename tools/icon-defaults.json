@@ -72,5 +72,8 @@
  "skill/magic": "magic_type",
  "skill/resonance": "resonance",
  "skill/perception": "sense",
+ "npc": "grunt",
+ "npc/critter": "critter_awakened",
+ "npc/spirit": "spirit",
  "rules": "ruleset"
 }

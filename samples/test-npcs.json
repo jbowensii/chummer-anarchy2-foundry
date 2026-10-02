@@ -1,0 +1,269 @@
+{
+  "format": "chummer-anarchy2-export",
+  "version": 1,
+  "kind": "runners",
+  "exportedAt": "2026-10-02T09:15:00.000Z",
+  "app": {
+    "name": "Chummer Anarchy 2.0",
+    "version": "0.6.0"
+  },
+  "descriptions": false,
+  "runners": [
+    {
+      "id": "npc-ganger",
+      "updatedAt": "2026-10-01T18:00:00.000Z",
+      "exportedAt": "2026-10-02T09:15:00.000Z",
+      "streetName": "Made-Up Ganger",
+      "realName": "",
+      "finalized": false,
+      "metatype": {
+        "id": "human",
+        "name": "Human",
+        "ranges": {
+          "str": [
+            1,
+            6
+          ],
+          "agi": [
+            1,
+            6
+          ],
+          "wil": [
+            1,
+            6
+          ],
+          "log": [
+            1,
+            6
+          ],
+          "cha": [
+            1,
+            6
+          ]
+        },
+        "edge": 2
+      },
+      "level": {
+        "id": "runner",
+        "name": "Runner"
+      },
+      "lifestyle": {
+        "id": "low",
+        "name": "Low",
+        "perRun": 5000
+      },
+      "portrait": null,
+      "attributes": {
+        "str": 3,
+        "agi": 3,
+        "wil": 2,
+        "log": 2,
+        "cha": 2
+      },
+      "edge": 0,
+      "essence": 6,
+      "skills": [
+        {
+          "id": "ranged-weapons",
+          "name": "Ranged Weapons",
+          "attr": "agi",
+          "rating": 5,
+          "specs": [
+            {
+              "id": "ranged-weapons.pistols",
+              "name": "Pistols",
+              "attr": "agi",
+              "custom": false
+            }
+          ]
+        },
+        {
+          "id": "athletics",
+          "name": "Athletics",
+          "attr": "str",
+          "rating": 2,
+          "specs": []
+        }
+      ],
+      "knowledge": [],
+      "amps": [],
+      "items": [],
+      "vehicles": [],
+      "monitor": {
+        "light": 2,
+        "serious": 1,
+        "incap": 1
+      },
+      "thresholds": {
+        "physicalNone": [
+          2,
+          5,
+          8
+        ],
+        "physicalMain": [
+          2,
+          5,
+          8
+        ],
+        "physicalAlt": [
+          2,
+          5,
+          8
+        ],
+        "mental": [
+          2,
+          5,
+          8
+        ]
+      },
+      "armor": {
+        "main": 0,
+        "alt": 0
+      },
+      "initiative": null,
+      "pools": [
+        {
+          "skill": "ranged-weapons",
+          "label": "Ranged Weapons",
+          "attr": "agi",
+          "dp": 8,
+          "rr": 1
+        },
+        {
+          "skill": "ranged-weapons",
+          "spec": "ranged-weapons.pistols",
+          "label": "Ranged Weapons (Pistols)",
+          "attr": "agi",
+          "dp": 10,
+          "rr": 1
+        },
+        {
+          "skill": "athletics",
+          "label": "Athletics",
+          "attr": "str",
+          "dp": 5,
+          "rr": 0
+        }
+      ],
+      "narrative": {
+        "keywords": [],
+        "dispositions": [],
+        "cues": []
+      },
+      "background": "",
+      "notes": "Made-up street tough.",
+      "nuyen": {
+        "balance": 0
+      },
+      "ledger": [],
+      "npc": {
+        "kind": "npc",
+        "tier": "regular",
+        "fightingSpirit": "low"
+      }
+    },
+    {
+      "id": "npc-hound",
+      "updatedAt": "2026-10-01T18:00:00.000Z",
+      "exportedAt": "2026-10-02T09:15:00.000Z",
+      "streetName": "Made-Up Hound",
+      "realName": "",
+      "finalized": false,
+      "metatype": {
+        "id": "",
+        "name": "Critter",
+        "ranges": {},
+        "edge": 0
+      },
+      "level": {
+        "id": "runner",
+        "name": "Runner"
+      },
+      "lifestyle": {
+        "id": "low",
+        "name": "Low",
+        "perRun": 5000
+      },
+      "portrait": null,
+      "attributes": {
+        "str": 7,
+        "agi": 4,
+        "wil": 3,
+        "log": 1,
+        "cha": 1
+      },
+      "edge": 1,
+      "essence": 6,
+      "skills": [
+        {
+          "id": "close-combat",
+          "name": "Close Combat",
+          "attr": "agi",
+          "rating": 3,
+          "specs": []
+        }
+      ],
+      "knowledge": [],
+      "amps": [],
+      "items": [],
+      "vehicles": [],
+      "monitor": {
+        "light": 2,
+        "serious": 1,
+        "incap": 1
+      },
+      "thresholds": {
+        "physicalNone": [
+          2,
+          5,
+          8
+        ],
+        "physicalMain": [
+          2,
+          5,
+          8
+        ],
+        "physicalAlt": [
+          2,
+          5,
+          8
+        ],
+        "mental": [
+          2,
+          5,
+          8
+        ]
+      },
+      "armor": {
+        "main": 0,
+        "alt": 0
+      },
+      "initiative": null,
+      "pools": [
+        {
+          "skill": "close-combat",
+          "label": "Close Combat",
+          "attr": "agi",
+          "dp": 7,
+          "rr": 0
+        }
+      ],
+      "narrative": {
+        "keywords": [],
+        "dispositions": [],
+        "cues": []
+      },
+      "background": "",
+      "notes": "",
+      "nuyen": {
+        "balance": 0
+      },
+      "ledger": [],
+      "npc": {
+        "kind": "critter",
+        "tier": "prime",
+        "fightingSpirit": "high"
+      }
+    }
+  ]
+}

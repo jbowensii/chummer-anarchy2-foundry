@@ -5,7 +5,7 @@ import { MODULE_ID } from '../lib/constants.js'
 import { readExport } from '../lib/read.js'
 import { escapeText, translateRunner } from '../lib/translate.js'
 import { defaultChoice, newVersionName } from '../lib/plan.js'
-import { applyRunner, findExisting } from './apply.js'
+import { applyRunner, findExisting, NPC_FOLDER } from './apply.js'
 import { translateBook } from '../lib/books.js'
 import { docId } from '../lib/ids.js'
 import { importBook } from './books.js'
@@ -15,12 +15,13 @@ import { iconFor, MODULE_ICON_ROOT, slugName } from '../lib/icons.js'
 const TEST_FOLDER = 'Chummer Importer tests'
 const SAMPLE = `modules/${MODULE_ID}/samples/test-export.json`
 const BOOKS = `modules/${MODULE_ID}/samples/test-books.json`
+const NPCS = `modules/${MODULE_ID}/samples/test-npcs.json`
 const PREFIX = 'ca2test-'
 const flagOf = d => d?.flags?.[MODULE_ID]
 
 // The sample, with its runners given ids no real import uses, so findExisting only ever sees this run's actors.
-async function loadSample() {
-  const text = await (await fetch(SAMPLE)).text()
+async function loadSample(url = SAMPLE) {
+  const text = await (await fetch(url)).text()
   const res = readExport(text)
   if (!res.ok) throw new Error(res.reason)
   const tag = `quench-${foundry.utils.randomID()}-`
@@ -222,7 +223,7 @@ export function registerQuench(quench) {
         for (const r of [res, muxRes, emptyRes]) assert.isEmpty(r.failed, r.failed.map(f => f.error?.message).join('; '))
       })
       it('puts the packs in the book folder inside the test folder', () => {
-        for (const k of ['amps', 'weapons', 'armor', 'gear', 'spells', 'vehicles', 'characters', 'metatypes', 'skills', 'rules']) {
+        for (const k of ['amps', 'weapons', 'armor', 'gear', 'spells', 'vehicles', 'characters', 'npcs', 'metatypes', 'skills', 'rules']) {
           const p = pack(k)
           assert.ok(p, `pack ${k}`)
           assert.equal(p.folder?.name, 'Made-Up Core (MUC)', k)
@@ -232,8 +233,17 @@ export function registerQuench(quench) {
       it('has the expected entry counts', () => {
         const n = k => pack(k)?.index.size
         assert.deepEqual({ amps: n('amps'), weapons: n('weapons'), armor: n('armor'), gear: n('gear'), spells: n('spells'),
-          vehicles: n('vehicles'), characters: n('characters'), metatypes: n('metatypes'), skills: n('skills'), rules: n('rules') },
-        { amps: 2, weapons: 1, armor: 1, gear: 1, spells: 1, vehicles: 1, characters: 2, metatypes: 1, skills: 3, rules: 2 })
+          vehicles: n('vehicles'), characters: n('characters'), npcs: n('npcs'), metatypes: n('metatypes'), skills: n('skills'), rules: n('rules') },
+        { amps: 2, weapons: 1, armor: 1, gear: 1, spells: 1, vehicles: 1, characters: 2, npcs: 1, metatypes: 1, skills: 3, rules: 2 })
+      })
+      it('has the book’s spirit as an unlinked hostile character with its GM description and no metatype', async () => {
+        const wisp = await pack('npcs').getDocument(docId('MUC:npc:muc-npc-wisp'))
+        assert.ok(wisp, 'NPC')
+        assert.equal(pack('npcs').title, 'NPCs & Critters — MUC')
+        assert.equal(wisp.type, 'character')
+        assert.include(wisp.prototypeToken, { actorLink: false, disposition: CONST.TOKEN_DISPOSITIONS.HOSTILE })
+        assert.include(wisp.system.bio.gmDescription, 'Spirit, regular NPC')
+        assert.isEmpty(itemsOf(wisp, 'metatype'))
       })
       it('makes no pack for a type the book lacks, and no folder for a book with nothing', () => {
         assert.sameMembers(game.packs.filter(p => p.collection.startsWith(`world.${PREFIX}ca2-mux-`)).map(p => p.collection),
@@ -308,6 +318,61 @@ export function registerQuench(quench) {
         const max = await pack('characters').getDocument(maxId)
         assert.ok(max.items.get(gmItem.id), 'GM item on the pregen kept')
         assert.lengthOf(itemsOf(max, 'skill'), 1, 'imported items rebuilt, not doubled')
+      })
+    })
+  })
+
+  batch('NPCs', ({ describe, it, assert, before, after }) => {
+    // Imports the made-up NPC file as the window does, without a folder: NPCs go to the Actors folder "Chummer NPCs".
+    // after() deletes this run's actors, and that folder only when this batch made it and it is left empty.
+    describe('importing the NPC sample', function () {
+      this.timeout(30000)
+      let tag, file, ganger, hound, hadFolder, index
+      const npcFolder = () => game.folders.find(f => f.type === 'Actor' && f.name === NPC_FOLDER && !f.folder)
+      before(async function () {
+        index = await loadIconIndex()
+        hadFolder = !!npcFolder()
+        const s = await loadSample(NPCS); tag = s.tag; file = s.file
+        const results = []
+        for (const r of file.runners) results.push(await importRunner(file, r, 'create', undefined, index))
+        for (const r of results) assert.equal(r.action, 'create', r.error?.message)
+        ;[ganger, hound] = results.map(r => r.actor)
+      })
+      after(async function () {
+        await cleanUp(tag, null)
+        const f = npcFolder()
+        if (f && !hadFolder && !f.contents.length && !f.getSubfolders().length) await f.delete()
+      })
+
+      it('puts NPCs in the folder Chummer NPCs', () => {
+        assert.equal(ganger.folder?.name, NPC_FOLDER)
+        assert.equal(hound.folder?.name, NPC_FOLDER)
+      })
+      it('writes the GM description: kind, tier, fighting spirit, average hits', () => {
+        const gm = ganger.system.bio.gmDescription
+        assert.include(gm, 'NPC, regular NPC')
+        assert.include(gm, 'Fighting spirit: Low')
+        assert.include(gm, 'Ranged Weapons 5 (5+A, RR 1)')
+      })
+      it('makes hostile tokens, linked only for a prime NPC', () => {
+        assert.include(ganger.prototypeToken, { disposition: CONST.TOKEN_DISPOSITIONS.HOSTILE, actorLink: false })
+        assert.include(hound.prototypeToken, { disposition: CONST.TOKEN_DISPOSITIONS.HOSTILE, actorLink: true })
+      })
+      it('gives a critter without a metatype no metatype item, and the critter icon', () => {
+        assert.isEmpty(itemsOf(hound, 'metatype'))
+        assert.lengthOf(itemsOf(ganger, 'metatype'), 1)
+        assert.equal(hound.img, `${MODULE_ICON_ROOT}icons/defaults/npc/critter.webp`)
+        assert.equal(hound.prototypeToken.texture.src, hound.img)
+      })
+      it('Replace updates the same NPC in place', async () => {
+        const newer = structuredClone(file.runners[0])
+        newer.exportedAt = '2026-10-05T12:00:00.000Z'
+        newer.npc.fightingSpirit = 'extreme'
+        assert.equal(defaultChoice(flagOf(findExisting(newer.id)), newer), 'replace')
+        const res = await importRunner(file, newer, 'replace', undefined, index)
+        assert.equal(res.action, 'replace', res.error?.message)
+        assert.equal(res.actor.id, ganger.id)
+        assert.include(game.actors.get(ganger.id).system.bio.gmDescription, 'Fighting spirit: Extreme')
       })
     })
   })

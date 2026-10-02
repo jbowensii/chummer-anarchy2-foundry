@@ -61,3 +61,17 @@ test('replace: success links matched and new vehicles', async () => {
   expect(runner.system.linkedVehicles).toEqual([vC.uuid])
   expect(runner.items).toEqual([])
 })
+
+test('create: an NPC goes to the folder Chummer NPCs with its token settings, a runner to Chummer Anarchy', async () => {
+  const made = []
+  globalThis.Folder = { create: async d => { const f = { id: `f-${d.name}`, ...d }; made.push(f); return f } }
+  const npc = { actor: { name: 'N', img: 'modules/x/npc.webp', flags: flags({ id: 'n1', npc: { kind: 'npc', tier: 'regular' } }), system: {},
+    prototypeToken: { disposition: -1, actorLink: false, texture: { src: 'modules/x/npc.webp' } } }, items: [], vehicles: [] }
+  const res = await applyRunner(npc, 'create')
+  expect(res.action).toBe('create')
+  expect(res.actor.folder).toBe('f-Chummer NPCs')
+  expect(res.actor.prototypeToken).toEqual({ disposition: -1, actorLink: false, texture: { src: 'modules/x/npc.webp' } })
+  const r = await applyRunner({ actor: { name: 'R', flags: flags({ id: 'r9' }), system: {} }, items: [], vehicles: [] }, 'create')
+  expect(r.actor.folder).toBe('f-Chummer Anarchy')
+  expect(r.actor.prototypeToken).toEqual({ actorLink: true })
+})

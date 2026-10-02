@@ -1,7 +1,7 @@
 // One Chummer runner (docs/export-format.md) -> sra2 v14.3.3 document data. Pure: no Foundry calls.
 import { MODULE_ID } from './constants.js'
 import { ATTR, featType, metatypeAnarchy, skillFor, specFor, vehicleType, weaponType } from './sra2.js'
-import { ampIconKey, itemIconKey, skillIconKey, withIcon } from './icons.js'
+import { ampIconKey, iconFor, itemIconKey, skillIconKey, withIcon } from './icons.js'
 
 const ESC = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }
 // Plain text -> HTML: escaped, one <p> per paragraph (blank-line separated).
@@ -51,10 +51,13 @@ export function translateRunner(runner, { exportedAt, appVersion, sanitize = esc
     return a
   }
 
-  const metaName = runner.metatype?.name ?? 'Metatype', anarchyBonus = metatypeAnarchy(metaName)
-  if (anarchyBonus == null) textOnly.push(`Metatype ${metaName}: not an sra2 metatype → Anarchy bonus 0`)
-  items.push(icon({ name: metaName, type: 'metatype', flags: flag(runner.metatype?.id ?? 'metatype'),
-    system: { ...metatypeMax(ranges), anarchyBonus: anarchyBonus ?? 0 } }, 'metatype'))
+  // a critter or spirit may have no metatype (id ''): no metatype item then
+  if (!(runner.npc && !runner.metatype?.id)) {
+    const metaName = runner.metatype?.name ?? 'Metatype', anarchyBonus = metatypeAnarchy(metaName)
+    if (anarchyBonus == null) textOnly.push(`Metatype ${metaName}: not an sra2 metatype → Anarchy bonus 0`)
+    items.push(icon({ name: metaName, type: 'metatype', flags: flag(runner.metatype?.id ?? 'metatype'),
+      system: { ...metatypeMax(ranges), anarchyBonus: anarchyBonus ?? 0 } }, 'metatype'))
+  }
 
   for (const sk of skills) {
     const s = skillFor(sk), name = s.known ? s.name : sk.name
@@ -124,7 +127,41 @@ export function translateRunner(runner, { exportedAt, appVersion, sanitize = esc
       bio: { background: sanitize(runner.background), notes: sanitize(runner.notes) + '<h3>From Chummer</h3>' + sanitize(facts.join('\n\n')) },
       reference: `Chummer Anarchy 2.0 ${appVersion}`, maxEssence: 6,
     } }
+  // An NPC (sra2 has no NPC actor type): GM-only facts in the GM description, a hostile token, linked only for a prime
+  // NPC, and the default icon as its image (a portrait, set by the importer, replaces it).
+  if (runner.npc) {
+    const n = runner.npc, key = n.kind === 'npc' ? 'npc' : `npc/${n.kind}`
+    actor.flags[MODULE_ID].npc = { ...n }
+    actor.system.bio.gmDescription = '<h3>NPC</h3>' + sanitize(npcLines(runner).join('\n\n'))
+    actor.prototypeToken = { disposition: -1, actorLink: n.tier === 'prime' }
+    const img = iconSet && iconFor(key, null, null, iconSet)
+    if (img) { actor.img = img; actor.prototypeToken.texture = { src: img } }
+  }
   return { actor, items, vehicles, textOnly }
+}
+
+// Average hits on a dice pool dp with Risk Reduction rr (CRB p.81), as Chummer's engine/npc.ts.
+export const averageHits = (dp, rr) => Math.round(dp / 3) + rr + 1
+const KIND = { npc: 'NPC', critter: 'Critter', spirit: 'Spirit' }
+// In our own words, as Chummer's NpcBlock.
+const SPIRIT = {
+  null: 'Avoids combat, surrenders if threatened',
+  low: 'Stops at the first light wound, or when a quarter of the allies are down',
+  high: 'Fights on through light wounds; stops at the first serious one, or when half the allies are down',
+  extreme: 'Keeps going until incapacitated; stops only when three quarters of the allies are down',
+}
+// An NPC's GM lines (plain text): kind and tier, fighting spirit, and for a regular NPC each pool's average hits,
+// "Ranged Weapons 5 (5+A, RR 1)" (skill rating without a spec's +2, attribute initial, Risk Reduction).
+export function npcLines(runner) {
+  const n = runner.npc, regular = n.tier === 'regular'
+  const out = [`${KIND[n.kind] ?? n.kind}, ${n.tier} NPC. ${regular ? 'No Edge.' : `Edge ${runner.edge ?? 0}.`}`]
+  if (n.fightingSpirit) out.push(`Fighting spirit: ${n.fightingSpirit[0].toUpperCase()}${n.fightingSpirit.slice(1)}.${SPIRIT[n.fightingSpirit] ? ` ${SPIRIT[n.fightingSpirit]}.` : ''}`)
+  if (regular && runner.pools?.length) {
+    const rating = id => runner.skills?.find(s => s.id === id)?.rating ?? 0
+    out.push('Average hits (skill rating + attribute, Risk Reduction):',
+      ...runner.pools.map(p => `${p.label} ${averageHits(p.dp ?? 0, p.rr ?? 0)} (${rating(p.skill)}+${String(p.attr ?? '?')[0].toUpperCase()}, RR ${p.rr ?? 0})`))
+  }
+  return out
 }
 
 // rr target per ruling: ATTR key / skill slug / spec slug under the skill that owns the spec (skills: [{ id, specs: [{ id, name, attr }] }]).
