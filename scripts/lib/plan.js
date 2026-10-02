@@ -1,5 +1,6 @@
 // Pure import decisions: what to do with a runner already in the world, and what Replace may overwrite.
 import { MODULE_ID } from './constants.js'
+import { replaceable } from './icons.js'
 
 const time = x => Date.parse(x?.exportedAt ?? '') || 0
 
@@ -21,19 +22,35 @@ const START_ONLY = ['controlMode']
 /**
  * The Replace update for a translated actor (runner or vehicle): its name, image, flags and the system fields the
  * translation produces, less START_ONLY. Play state (damage, anarchy, ownership, token settings and a custom token image) is never in it.
- * A world copy named like a new version ("Mara (2 Oct 2026)") keeps its dated name.
+ * A world copy named like a new version ("Mara (2 Oct 2026)") keeps its dated name. The image changes only while the
+ * world copy's is replaceable (lib/icons.js): art the user chose is never overwritten.
  */
-export function replaceUpdate(translated, existingName = '') {
+export function replaceUpdate(translated, existingName = '', existingImg = '') {
   const system = structuredClone(translated.system)
   for (const k of START_ONLY) delete system[k]
   const u = { name: DATED.test(existingName) ? existingName : translated.name, flags: structuredClone(translated.flags), system }
-  if (translated.img) u.img = translated.img
+  if (translated.img && replaceable(existingImg)) u.img = translated.img
   return u
 }
 
-// Replace with a new portrait: the token follows it only while it still shows the actor's image (a GM's own token image stays).
-export const tokenUpdate = (existing, img) =>
-  img && existing?.prototypeToken?.texture?.src === existing?.img ? { 'prototypeToken.texture.src': img } : {}
+// A new image (portrait or icon): the token follows it only while the actor's image may change (replaceable) and the
+// token still shows it (a GM's own token image stays).
+export const tokenUpdate = (existing, img) => img && replaceable(existing?.img)
+  && existing?.prototypeToken?.texture?.src === existing?.img ? { 'prototypeToken.texture.src': img } : {}
+
+const flagId = d => d?.flags?.[MODULE_ID]?.id
+// Recreated flagged items take the old item's image (matched by flag id) when the user chose it (not replaceable).
+export function keepItemArt(oldItems, newItems) {
+  const chosen = new Map([...oldItems ?? []].filter(i => flagId(i) != null && !replaceable(i.img)).map(i => [flagId(i), i.img]))
+  return newItems.map(i => chosen.has(flagId(i)) ? { ...i, img: chosen.get(flagId(i)) } : i)
+}
+
+// A replaced pack entry keeps the image the user chose, and a replaced actor's recreated items keep theirs.
+export function keepArt(old, doc) {
+  const d = replaceable(old?.img) ? { ...doc } : { ...doc, img: old.img }
+  if (Array.isArray(doc.items)) d.items = keepItemArt(old?.items, doc.items)
+  return d
+}
 
 // Re-import by id: incoming entries already in the pack are replaced (deleted, then created with the same id), the
 // rest are created. Pack entries not in the file are never touched. An id the file has twice keeps its last entry

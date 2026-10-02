@@ -53,8 +53,8 @@ describe('icon keys', () => {
 
 test('replaceable', () => {
   for (const img of [null, '', 'icons/svg/item-bag.svg', 'icons/svg/mystery-man.svg', '/icons/svg/sword.svg',
-    'systems/sra2/icons/feat.svg', `${M}icons/defaults/armor.webp`]) expect(replaceable(img), img).toBe(true)
-  for (const img of ['worlds/w/mara.png', 'icons/weapons/guns/pistol.webp', 'uploads/x.webp', 'modules/other/x.webp'])
+    'systems/sra2/icons/feat.svg', `${M}icons/defaults/armor.webp`, 'worlds/w/chummer/portraits/r-1.png']) expect(replaceable(img), img).toBe(true)
+  for (const img of ['worlds/w/mara.png', 'icons/weapons/guns/pistol.webp', 'uploads/x.webp', 'modules/other/x.webp', 'worlds/w/chummer/x.webp'])
     expect(replaceable(img), img).toBe(false)
 })
 

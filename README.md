@@ -69,12 +69,16 @@ A re-import replaces the entries that came from the file, keeping their ids so l
 
 ## Icons
 
-Imported items, vehicles and metatypes (on runners, in the world and in the book compendiums) get an icon from the module:
+Imported items, skills, specializations, vehicles and metatypes (on runners, in the world and in the book compendiums) get an icon. The icons ship with the module:
 
-- **Defaults** by category and sub-kind: weapons by weapon type, vehicles by the closest sra2 vehicle type, spells by type, skills by group, qualities as positive or negative, bioware, commlinks, SINs, and so on.
-- **Specific art** by item name: a file `icons/items/<name-slug>.webp` in the module (the name in lowercase, everything that isn't a letter or digit turned into `-`, e.g. `ares-predator-vi.webp`) is used for every item of that name; `icons/items/<book>.<name-slug>.webp` (e.g. `crb.ares-predator-vi.webp`) only for that book's version. Only files listed in `icons/index.json` are used, so add the new file's path there too (`npm run icons` rebuilds the list in a checkout of this repo). A module update replaces the module folder, so keep a copy of art you add.
+- **Defaults** by category and sub-kind: weapons by weapon type, vehicles by the closest sra2 vehicle type, spells by type, skills and specializations by skill group, qualities as positive or negative, bioware, commlinks, SINs, and so on.
+- **Specific art** by item name, and optionally for one book's version of an item, wins over the default. More of it is added in module updates.
 
-**Apply icons** (Game Settings → Configure Settings → Chummer Anarchy 2.0 Importer, GM only) re-applies the icons to everything already imported, for example after you add art. It never overwrites an image you chose yourself: it only replaces images that are empty, Foundry's or sra2's stock images, or the module's own icons. Character portraits and tokens are never touched.
+A picture you pick in Foundry is never replaced, not by Apply icons and not by importing the runner or book again: only empty images, Foundry's and sra2's stock images, the module's own icons and portraits imported from Chummer are.
+
+**Apply icons** (Game Settings → Configure Settings → Chummer Anarchy 2.0 Importer, GM only) re-applies the icons to everything already imported, so it picks up newly shipped art after a module update. Character portraits and tokens are never touched.
+
+Entries imported before 0.4.0 carry no icon information, so they get no icons, from Apply icons either: import the runner or book once more to give them icons.
 
 ## Not imported yet, or imported differently
 
@@ -103,4 +107,4 @@ The batches import `samples/test-export.json` (a made-up file with no book text)
 
 ## License
 
-MIT. Icon art © John Bowens, made for this module.
+Code: MIT. Icon art © John Bowens, made for and distributed with this module.

@@ -2,8 +2,10 @@
 // that are empty, a stock default or the module's own art (replaceable). Foundry globals only inside functions.
 import { MODULE_ID } from '../lib/constants.js'
 import { iconFor, replaceable } from '../lib/icons.js'
+import { tokenUpdate } from '../lib/plan.js'
 
 export const INDEX = `modules/${MODULE_ID}/icons/index.json`
+let busy = false  // one Apply icons run at a time, across every window
 
 // icons/index.json, or null (logged) when it can't be read: the importer then sets no images.
 export async function loadIconIndex() {
@@ -19,13 +21,14 @@ export async function loadIconIndex() {
   }
 }
 
-// The update writes for these items and actors: a vehicle's own img, every actor's embedded items. Character
-// actors' img and tokens are never touched (portraits come later).
+// The update writes for these items and actors: a vehicle's own img (and its prototype token while that showed the old
+// img: lib/plan.js tokenUpdate), every actor's embedded items. Character actors' img and tokens are never touched.
 function writesFor(items, actors, change, op) {
   const writes = []
   const itemUps = items.map(change).filter(Boolean)
   if (itemUps.length) writes.push(() => Item.updateDocuments(itemUps, op))
-  const actorUps = actors.filter(a => a.type === 'vehicle').map(change).filter(Boolean)
+  const actorUps = actors.filter(a => a.type === 'vehicle')
+    .map(a => { const u = change(a); return u && { ...u, ...tokenUpdate(a, u.img) } }).filter(Boolean)
   if (actorUps.length) writes.push(() => Actor.updateDocuments(actorUps, op))
   for (const a of actors) {
     const ups = a.items.map(change).filter(Boolean)
@@ -78,13 +81,13 @@ export function createIconsApp(getIndex) {
       position: { width: 440, height: 'auto' },
       actions: { apply: ApplyIconsApp.#onApply },
     }
-    busy = false; result = ''
+    result = ''
 
     async _renderHTML() {
       const el = (tag, text, cls) => { const e = document.createElement(tag); e.textContent = text; if (cls) e.className = cls; return e }
       const root = el('div', '', 'ca2i')
       const button = el('button', L('CA2I.Icons.Button'))
-      Object.assign(button, { type: 'button', disabled: this.busy })
+      Object.assign(button, { type: 'button', disabled: busy })
       button.dataset.action = 'apply'
       root.append(el('p', L('CA2I.Icons.Explain')), button)
       if (this.result) root.append(el('p', this.result, 'ca2i-report'))
@@ -93,15 +96,15 @@ export function createIconsApp(getIndex) {
     _replaceHTML(result, content) { content.replaceChildren(result) }
 
     static async #onApply() {
-      if (this.busy || !game.user.isGM) return
+      if (busy || !game.user.isGM) return
       const index = getIndex()
       if (!index) { this.result = L('CA2I.Icons.NoIndex'); return this.render() }
-      this.busy = true; this.result = L('CA2I.Icons.Working'); this.render()
+      busy = true; this.result = L('CA2I.Icons.Working'); this.render()
       try { this.result = F('CA2I.Icons.Done', await applyIcons({ index })) } catch (e) {
         console.error(`${MODULE_ID} | Apply icons`, e)
         this.result = F('CA2I.Failed', { reason: e?.message ?? String(e) })
       }
-      this.busy = false
+      busy = false
       this.render()
     }
   }

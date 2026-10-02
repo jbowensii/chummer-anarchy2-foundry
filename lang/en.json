@@ -49,10 +49,10 @@
     "Icons": {
       "Title": "Apply icons",
       "Button": "Apply icons",
-      "Hint": "Point imported items, vehicles and metatypes at the module's icons again, e.g. after adding art to its icons/items folder.",
-      "Explain": "Sets the module's icons on imported items, vehicles and metatypes in the world, on runners and in the Chummer compendiums. An image you chose yourself is never replaced: only empty images, Foundry's and sra2's stock images, and the module's own icons are. Character portraits and tokens are not touched.",
+      "Hint": "Point imported items, skills, vehicles and metatypes at the module's icons again, e.g. after a module update adds art.",
+      "Explain": "Sets the module's icons on imported items, skills, specializations, vehicles and metatypes in the world, on runners and in the Chummer compendiums. An image you chose yourself is never replaced: only empty images, Foundry's and sra2's stock images, and the module's own icons are. Character portraits and tokens are not touched.",
       "Working": "Applying icons…",
-      "Done": "Updated {updated} · kept {kept} you chose · {unchanged} already right",
+      "Done": "Updated {updated} · kept {kept} you chose · {unchanged} already right. Entries imported before 0.4.0 carry no icon information: import the runner or book once more to give them icons.",
       "NoIndex": "The module's icon list couldn't be loaded (see the console), so no icons can be applied."
     },
     "Pack": {

@@ -318,12 +318,12 @@ export function registerQuench(quench) {
     describe('icons on import and Apply icons', function () {
       this.timeout(30000)
       const PISTOL = 'Made-Up Heavy Pistol'
-      let tag, folder, index, mara
+      let tag, folder, index, mara, file
       const flagIcon = i => flagOf(i).icon
       before(async function () {
         index = await loadIconIndex()
         assert.isArray(index, 'icons/index.json')
-        const s = await loadSample(); tag = s.tag
+        const s = await loadSample(); tag = s.tag; file = s.file
         folder = await makeFolder()
         const res = await importRunner(s.file, s.file.runners[0], 'create', folder, index)
         assert.equal(res.action, 'create', res.error?.message)
@@ -350,6 +350,15 @@ export function registerQuench(quench) {
         const sf = flagIcon(stock)
         assert.equal(a.items.get(stock.id).img, iconFor(sf.key, sf.name, sf.book, index))
         assert.equal(a.items.get(pistol.id).img, MODULE_ICON_ROOT + specific)
+      })
+      it('Replace keeps an image the user chose on an imported weapon', async () => {
+        const CUSTOM = 'worlds/test/custom.webp'
+        await mara.updateEmbeddedDocuments('Item', [{ _id: byName(mara, PISTOL).id, img: CUSTOM }])
+        const newer = structuredClone(file.runners[0])
+        newer.exportedAt = '2026-10-05T12:00:00.000Z'
+        const res = await importRunner(file, newer, 'replace', folder, index)
+        assert.equal(res.action, 'replace', res.error?.message)
+        assert.equal(byName(game.actors.get(mara.id), PISTOL)?.img, CUSTOM)
       })
     })
   })

@@ -19,10 +19,12 @@ export function iconFor(key, name, book, index) {
   return hit ? MODULE_ICON_ROOT + hit : null
 }
 
-// Replace only empty images, Foundry's stock svg defaults, sra2's defaults and the module's own art.
+// Replace only empty images, Foundry's stock svg defaults, sra2's defaults, the module's own art and the portraits the
+// importer uploads (worlds/<world>/chummer/portraits, foundry/apply.js uploadPortrait). Anything else the user chose.
 export function replaceable(img) {
   const p = String(img ?? '').trim().replace(/^\/+/, '')
   return !p || p.startsWith('icons/svg/') || p.startsWith('systems/sra2/') || p.startsWith(MODULE_ICON_ROOT)
+    || /^worlds\/[^/]+\/chummer\/portraits\//.test(p)
 }
 
 // Stores flags.icon (always) and sets img when an icon resolves (icons: the index as a Set, or null for none).
