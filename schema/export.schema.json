@@ -876,6 +876,37 @@
               }
             }
           }
+        },
+        "npc": {
+          "type": "object",
+          "required": [
+            "kind",
+            "tier"
+          ],
+          "additionalProperties": false,
+          "properties": {
+            "kind": {
+              "enum": [
+                "npc",
+                "critter",
+                "spirit"
+              ]
+            },
+            "tier": {
+              "enum": [
+                "prime",
+                "regular"
+              ]
+            },
+            "fightingSpirit": {
+              "enum": [
+                "null",
+                "low",
+                "high",
+                "extreme"
+              ]
+            }
+          }
         }
       }
     },
@@ -1256,6 +1287,12 @@
           }
         },
         "characters": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/runner"
+          }
+        },
+        "npcs": {
           "type": "array",
           "items": {
             "$ref": "#/$defs/runner"

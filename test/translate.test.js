@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, test } from 'vitest'
 import { MODULE_ID } from '../scripts/lib/constants.js'
-import { translateRunner, escapeText } from '../scripts/lib/translate.js'
+import { averageHits, translateRunner, escapeText } from '../scripts/lib/translate.js'
 
 const file = JSON.parse(readFileSync('samples/test-export.json', 'utf8'))
 const opts = { exportedAt: file.exportedAt, appVersion: file.app.version }
@@ -198,5 +198,46 @@ describe('translating a runner', () => {
   test('escapeText', () => {
     expect(escapeText(`a & "b" 'c'\n\n<d>`)).toBe('<p>a &amp; &quot;b&quot; &#39;c&#39;</p><p>&lt;d&gt;</p>')
     expect(escapeText('')).toBe('')
+  })
+})
+
+describe('translating an NPC', () => {
+  const npcs = JSON.parse(readFileSync('samples/test-npcs.json', 'utf8'))
+  const icons = JSON.parse(readFileSync('icons/index.json', 'utf8'))
+  const [ganger, hound] = npcs.runners
+  const g = translateRunner(ganger, { ...opts, icons }), h = translateRunner(hound, { ...opts, icons })
+
+  test('average hits: round(DP/3) + RR + 1', () => {
+    expect([[2, 0], [4, 0], [5, 0], [8, 1], [10, 1], [16, 3]].map(([dp, rr]) => averageHits(dp, rr))).toEqual([2, 2, 3, 5, 5, 9])
+  })
+  test('a regular NPC: GM description with kind, tier, fighting spirit and average hits per pool', () => {
+    expect(g.actor.system.bio.gmDescription).toBe('<h3>NPC</h3><p>NPC, regular NPC. No Edge.</p>'
+      + '<p>Fighting spirit: Low. Stops at the first light wound, or when a quarter of the allies are down.</p>'
+      + '<p>Average hits (skill rating + attribute, Risk Reduction):</p><p>Ranged Weapons 5 (5+A, RR 1)</p>'
+      + '<p>Ranged Weapons (Pistols) 5 (5+A, RR 1)</p><p>Athletics 3 (2+S, RR 0)</p>')
+    expect(g.actor.flags[MODULE_ID].npc).toEqual({ kind: 'npc', tier: 'regular', fightingSpirit: 'low' })
+  })
+  test('a regular NPC: hostile, unlinked token; the NPC default icon; a metatype item', () => {
+    expect(g.actor.img).toBe('modules/chummer-anarchy2-importer/icons/defaults/npc.webp')
+    expect(g.actor.prototypeToken).toEqual({ disposition: -1, actorLink: false, texture: { src: g.actor.img } })
+    expect(g.items.filter(i => i.type === 'metatype')).toHaveLength(1)
+  })
+  test('a prime critter without a metatype: linked token, Edge, no average hits, no metatype item, critter icon', () => {
+    expect(h.actor.prototypeToken).toMatchObject({ disposition: -1, actorLink: true })
+    expect(h.actor.img).toBe('modules/chummer-anarchy2-importer/icons/defaults/npc/critter.webp')
+    expect(h.items.map(i => i.type)).toEqual(['skill'])
+    expect(h.textOnly.join()).not.toContain('Metatype')
+    expect(h.actor.system.bio.gmDescription).toContain('<p>Critter, prime NPC. Edge 1.</p>')
+    expect(h.actor.system.bio.gmDescription).not.toContain('Average hits')
+  })
+  test('without the icon index no image is set; a runner gets no NPC fields', () => {
+    expect(translateRunner(ganger, opts).actor).not.toHaveProperty('img')
+    expect(t.actor).not.toHaveProperty('prototypeToken')
+    expect(t.actor.system.bio).not.toHaveProperty('gmDescription')
+    expect(t.actor.flags[MODULE_ID]).not.toHaveProperty('npc')
+  })
+  test('GM text is escaped', () => {
+    const r = structuredClone(ganger); r.pools[0].label = '<script>x</script>'
+    expect(translateRunner(r, opts).actor.system.bio.gmDescription).not.toContain('<script>')
   })
 })

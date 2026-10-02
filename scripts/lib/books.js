@@ -7,7 +7,7 @@ import { ampFeat, escapeText, itemFeat, metatypeMax, rrResolver, translateRunner
 
 // pack key -> [label, document type], in the order they are written
 export const PACKS = { amps: ['Amps', 'Item'], weapons: ['Weapons', 'Item'], armor: ['Armor', 'Item'], gear: ['Gear', 'Item'],
-  spells: ['Spells', 'Item'], vehicles: ['Vehicles', 'Actor'], characters: ['Characters', 'Actor'], metatypes: ['Metatypes', 'Item'],
+  spells: ['Spells', 'Item'], vehicles: ['Vehicles', 'Actor'], characters: ['Characters', 'Actor'], npcs: ['NPCs & Critters', 'Actor'], metatypes: ['Metatypes', 'Item'],
   skills: ['Skills & specializations', 'Item'], rules: ['Rules', 'JournalEntry'] }
 export const PORTRAIT = /^data:image\/(png|jpe?g);base64,/i
 // World pack names may only hold [A-Za-z0-9-_] (BasePackage.validateId).
@@ -68,23 +68,26 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
   for (const v of book.vehicles ?? [])
     add('vehicles', doc(v, vehicleActor({ ...v, chassisId: v.id, flying: v.flyingSpeed > 0 }, ctx, { name: v.name })))
 
-  // the book's pregens: an actor each (translateRunner, embedded items), its vehicles as separate actors, not linked;
-  // a portrait is uploaded by importBook (portraits: actor _id -> data URL)
-  for (const r of book.characters ?? []) {
+  // the book's pregens (pack characters) and NPCs/critters/spirits (pack npcs): an actor each (translateRunner, embedded
+  // items), its vehicles as separate actors, not linked; a portrait is uploaded by importBook (portraits: actor _id -> data URL).
+  // A pregen's token is linked; an NPC's token is as translateRunner sets it (hostile, linked only for a prime NPC).
+  const people = (pack, kind, vehicleKind, list) => { for (const r of list ?? []) {
     try {
       const c = translateRunner(r, { exportedAt: r.exportedAt ?? exportedAt, appVersion, sanitize, icons: iconSet }), fl = { source: src.id, canon: src.canon }
-      const _id = docId(`${src.id}:character:${r.id}`)
-      add('characters', { _id, ...c.actor, flags: { [MODULE_ID]: { ...c.actor.flags[MODULE_ID], ...fl } }, items: c.items,
-        prototypeToken: { actorLink: true } })
+      const _id = docId(`${src.id}:${kind}:${r.id}`)
+      add(pack, { _id, ...c.actor, flags: { [MODULE_ID]: { ...c.actor.flags[MODULE_ID], ...fl } }, items: c.items,
+        prototypeToken: { actorLink: true, ...c.actor.prototypeToken } })
       if (PORTRAIT.test(r.portrait ?? '')) portraits[_id] = r.portrait
       ;(r.vehicles ?? []).forEach((v, i) => {
         const { actor, items } = c.vehicles[i]
-        add('characters', { _id: docId(`${src.id}:vehicle:${r.id}:${v.uid}`), ...actor, name: `${r.streetName} — ${actor.name}`,
+        add(pack, { _id: docId(`${src.id}:${vehicleKind}:${r.id}:${v.uid}`), ...actor, name: `${r.streetName} — ${actor.name}`,
           flags: { [MODULE_ID]: { ...actor.flags[MODULE_ID], ...fl } }, items })
       })
       textOnly.push(...c.textOnly.map(l => `${r.streetName}: ${l}`))
     } catch (e) { textOnly.push(`${r?.streetName ?? r?.id}: not imported (${e?.message ?? e})`) }
-  }
+  } }
+  people('characters', 'character', 'vehicle', book.characters)
+  people('npcs', 'npc', 'npc-vehicle', book.npcs)
 
   for (const m of book.metatypes ?? []) {
     const anarchy = metatypeAnarchy(m.name)

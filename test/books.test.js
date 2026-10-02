@@ -12,7 +12,7 @@ const find = (pack, name) => t.packs[pack].find(d => d.name === name)
 
 describe('translating a book', () => {
   test('packs only for the content a book has', () => {
-    expect(Object.keys(t.packs).sort()).toEqual(['amps', 'armor', 'characters', 'gear', 'metatypes', 'rules', 'skills', 'spells', 'vehicles', 'weapons'])
+    expect(Object.keys(t.packs).sort()).toEqual(['amps', 'armor', 'characters', 'gear', 'metatypes', 'npcs', 'rules', 'skills', 'spells', 'vehicles', 'weapons'])
     expect(Object.keys(translateBook(mux, opts).packs)).toEqual(['amps'])
     expect(t.source).toEqual(muc.source)
   })
@@ -229,19 +229,39 @@ test('older files: no sheetName -> title-cased sheet, then "Rules"; a page witho
   expect(t.packs.rules.flatMap(j => j.pages).map(p => p.name).sort()).toEqual(['A', 'Quick Start', 'Rules', 'nos.b'])
 })
 
+describe('a book’s NPCs, critters and spirits', () => {
+  test('pack npcs: an unlinked hostile actor per regular NPC, GM description, no metatype item for a spirit', () => {
+    const [wisp] = t.packs.npcs
+    expect(t.packs.npcs).toHaveLength(1)
+    expect(wisp).toMatchObject({ _id: docId('MUC:npc:muc-npc-wisp'), name: 'Made-Up Wisp', type: 'character' })
+    expect(wisp.flags[MODULE_ID]).toMatchObject({ id: 'muc-npc-wisp', source: 'MUC', npc: { kind: 'spirit', tier: 'regular' } })
+    expect(wisp.prototypeToken).toEqual({ actorLink: false, disposition: -1 })
+    expect(wisp.items.map(i => i.type)).toEqual(['skill'])
+    expect(wisp.system.bio.gmDescription).toContain('<p>Spirit, regular NPC. No Edge.</p>')
+    expect(wisp.system.bio.gmDescription).toContain('<p>Astral Combat 4 (4+W, RR 0)</p>')
+  })
+  test('with icons, the NPC’s image and token are the spirit default', () => {
+    const icons = JSON.parse(readFileSync('icons/index.json', 'utf8'))
+    const [wisp] = translateBook(muc, { ...opts, icons }).packs.npcs
+    expect(wisp.img).toBe('modules/chummer-anarchy2-importer/icons/defaults/npc/spirit.webp')
+    expect(wisp.prototypeToken).toEqual({ actorLink: false, disposition: -1, texture: { src: wisp.img } })
+  })
+})
+
 describe('planning the packs of a book (never an empty compendium)', () => {
   test('one pack per non-empty list, in PACKS order, with world-safe names', () => {
     const p = planBookPacks(t, 'q-')
-    expect(p.map(x => x.key)).toEqual(['amps', 'weapons', 'armor', 'gear', 'spells', 'vehicles', 'characters', 'metatypes', 'skills', 'rules'])
+    expect(p.map(x => x.key)).toEqual(['amps', 'weapons', 'armor', 'gear', 'spells', 'vehicles', 'characters', 'npcs', 'metatypes', 'skills', 'rules'])
+    expect(p.find(x => x.key === 'npcs')).toMatchObject({ name: 'q-ca2-muc-npcs', label: 'NPCs & Critters — MUC', type: 'Actor' })
     expect(p.find(x => x.key === 'characters')).toMatchObject({ name: 'q-ca2-muc-characters', label: 'Characters — MUC', type: 'Actor' })
     expect(p.find(x => x.key === 'metatypes')).toMatchObject({ name: 'q-ca2-muc-metatypes', label: 'Metatypes — MUC', type: 'Item' })
     expect(p.every(x => x.docs.length > 0)).toBe(true)
   })
   test('a book with nothing to write plans no pack (so importBook makes no folder either)', () => {
     // 0.2.x: a pregens-only book had no pack the module knew, yet its book folder was still created
-    const pregensOnly = { source: { id: 'PRE', name: 'Pregens', publisher: 'x', canon: true }, packs: { characters: [] , rules: [], other: [{ _id: 'x' }] }, textOnly: [] }
+    const pregensOnly = { source: { id: 'PRE', name: 'Pregens', publisher: 'x', canon: true }, packs: { characters: [], npcs: [], rules: [], other: [{ _id: 'x' }] }, textOnly: [] }
     expect(planBookPacks(pregensOnly)).toEqual([])
-    const empty = { source: { id: 'E', name: 'Empty', publisher: 'x', canon: true }, amps: [], items: [], vehicles: [], skills: [], specs: [], rules: [], metatypes: [], characters: [] }
+    const empty = { source: { id: 'E', name: 'Empty', publisher: 'x', canon: true }, amps: [], items: [], vehicles: [], skills: [], specs: [], rules: [], metatypes: [], characters: [], npcs: [] }
     expect(planBookPacks(translateBook(empty, opts))).toEqual([])
   })
 })

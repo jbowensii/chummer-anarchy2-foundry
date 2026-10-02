@@ -14,6 +14,10 @@ describe('reading a Chummer file', () => {
     const check = new Ajv2020({ strict: false, validateFormats: false }).compile(JSON.parse(readFileSync('schema/export.schema.json', 'utf8')))
     expect(check(JSON.parse(books)), JSON.stringify(check.errors)).toBe(true)
   })
+  test('the NPC sample is a valid v1 runners file', () => {
+    const check = new Ajv2020({ strict: false, validateFormats: false }).compile(JSON.parse(readFileSync('schema/export.schema.json', 'utf8')))
+    expect(check(JSON.parse(readFileSync('samples/test-npcs.json', 'utf8'))), JSON.stringify(check.errors)).toBe(true)
+  })
   test('reads the books sample', () => {
     const r = readExport(books)
     expect(r.ok && r.file.books.map(x => x.source.id)).toEqual(['MUC', 'MUX'])
