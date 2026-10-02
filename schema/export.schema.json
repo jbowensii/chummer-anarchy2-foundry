@@ -313,6 +313,13 @@
             "null"
           ]
         },
+        "token": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "optional: the token image as a data URL, like portrait; absent or null: the token shows the portrait"
+        },
         "attributes": {
           "type": "object",
           "required": [
@@ -422,6 +429,10 @@
               },
               "note": {
                 "type": "string"
+              },
+              "category": {
+                "type": "string",
+                "description": "optional: the catalog category, as a book item's category (spells: combat, detection, health, illusion, manipulation)"
               }
             }
           }

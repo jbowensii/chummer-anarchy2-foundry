@@ -53,20 +53,25 @@ async function dropEmptyFolders(made) {
   }
 }
 
-// Book pregens' and NPCs' portraits (img and token), uploaded only once their pack is written: Foundry has no call to delete
-// an uploaded file, so a failed write must never have uploaded one. A failed upload keeps the default artwork.
-// The file name is fixed per pregen and export, so a re-import overwrites it rather than adding another. A pregen
-// showing an image the user chose (kept by writePack) gets no portrait.
-const portraitsAfter = (portraits = {}, say) => async (docs, op) => {
+// Book pregens' and NPCs' portraits (img) and tokens (token image; without one the token shows the portrait), uploaded
+// only once their pack is written: Foundry has no call to delete an uploaded file, so a failed write must never have
+// uploaded one. A failed upload keeps the default artwork. The file name is fixed per pregen and export, so a re-import
+// overwrites it rather than adding another. An image or token image the user chose (kept by writePack) is never replaced.
+export const portraitsAfter = (portraits = {}, tokens = {}, say) => async (docs, op) => {
   for (const d of docs) {
-    const url = portraits[d._id], f = d.flags[MODULE_ID]
-    if (!url || !replaceable(d.img)) continue
+    const url = portraits[d._id], tok = tokens[d._id], f = d.flags[MODULE_ID]
+    if (!url && !tok) continue
     try {
-      const img = await uploadPortrait(url, `${f.source}-${f.id}`, f.exportedAt)
-      await Actor.updateDocuments([{ _id: d._id, img, 'prototypeToken.texture.src': img }], op)
+      const up = { _id: d._id }, id = `${f.source}-${f.id}`
+      if (url && replaceable(d.img)) up.img = await uploadPortrait(url, id, f.exportedAt)
+      if (replaceable(d.prototypeToken?.texture?.src)) {
+        const src = tok ? await uploadPortrait(tok, id, f.exportedAt, 'tokens') : up.img
+        if (src) up['prototypeToken.texture.src'] = src
+      }
+      if (Object.keys(up).length > 1) await Actor.updateDocuments([up], op)
     } catch (e) {
       console.error(`${MODULE_ID} | ${d.name}: portrait`, e)
-      say(`${d.name}: portrait not uploaded (${e?.message ?? e}) → default artwork`)
+      say(`${d.name}: portrait or token not uploaded (${e?.message ?? e}) → default artwork`)
     }
   }
 }
@@ -131,7 +136,7 @@ export async function importBook(t, { onProgress, prefix = '', topFolder = t.sou
   for (const [i, p] of packs.entries()) {
     onProgress?.({ key: p.key, n: i + 1, total: packs.length })
     try {
-      const after = p.key === 'characters' || p.key === 'npcs' ? portraitsAfter(t.portraits, l => notes.push(l)) : undefined
+      const after = p.key === 'characters' || p.key === 'npcs' ? portraitsAfter(t.portraits, t.tokens, l => notes.push(l)) : undefined
       counts[p.name] = await writeNew(p.name, p.label, p.type, await folder(), p.docs, after)
     } catch (error) { failed.push(fail(p.name, p.label, error)) }
   }

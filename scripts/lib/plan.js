@@ -33,10 +33,10 @@ export function replaceUpdate(translated, existingName = '', existingImg = '') {
   return u
 }
 
-// A new image (portrait or icon): the token follows it only while the actor's image may change (replaceable) and the
-// token still shows it (a GM's own token image stays).
-export const tokenUpdate = (existing, img) => img && replaceable(existing?.img)
-  && existing?.prototypeToken?.texture?.src === existing?.img ? { 'prototypeToken.texture.src': img } : {}
+// A new token image (the file's token, else its portrait or icon): set only while the token shows replaceable art
+// (empty, a stock default, the module's or an uploaded portrait/token). A token image the GM chose stays.
+export const tokenUpdate = (existing, img) => img && replaceable(existing?.prototypeToken?.texture?.src)
+  ? { 'prototypeToken.texture.src': img } : {}
 
 const flagId = d => d?.flags?.[MODULE_ID]?.id
 // Recreated flagged items take the old item's image (matched by flag id) when the user chose it (not replaceable).
@@ -45,9 +45,11 @@ export function keepItemArt(oldItems, newItems) {
   return newItems.map(i => chosen.has(flagId(i)) ? { ...i, img: chosen.get(flagId(i)) } : i)
 }
 
-// A replaced pack entry keeps the image the user chose, and a replaced actor's recreated items keep theirs.
+// A replaced pack entry keeps the image (and token image) the user chose, and a replaced actor's recreated items keep theirs.
 export function keepArt(old, doc) {
   const d = replaceable(old?.img) ? { ...doc } : { ...doc, img: old.img }
+  const tok = old?.prototypeToken?.texture?.src
+  if (tok && !replaceable(tok)) d.prototypeToken = { ...doc.prototypeToken, texture: { ...doc.prototypeToken?.texture, src: tok } }
   if (Array.isArray(doc.items)) d.items = keepItemArt(old?.items, doc.items)
   return d
 }

@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest'
 import { MODULE_ID } from '../scripts/lib/constants.js'
 import { planBookPacks, translateBook, translateTableRules } from '../scripts/lib/books.js'
 import { docId } from '../scripts/lib/ids.js'
+import { portraitsAfter } from '../scripts/foundry/books.js'
 
 const file = JSON.parse(readFileSync('samples/test-books.json', 'utf8'))
 const opts = { exportedAt: file.exportedAt, appVersion: file.app.version, descriptions: file.descriptions }
@@ -288,5 +289,31 @@ describe('a compendium book (source.compendium)', () => {
     expect(Object.values(pt.packs).flat().some(d => 'compendium' in d.flags[MODULE_ID])).toBe(false)
     expect(Object.values(t.packs).flat().some(d => 'compendium' in d.flags[MODULE_ID])).toBe(false)
     expect(ct.packs.weapons[0].system.description).toContain('GM’s own made-up note')
+  })
+})
+
+describe('book pregen and NPC tokens (0.7.0)', () => {
+  const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+  test('translateBook lists a character’s token by actor id, only an image data URL', () => {
+    const b = structuredClone(muc)
+    b.characters[0].token = PNG
+    b.npcs[0].token = 'https://example.com/x.png'
+    const tb = translateBook(b, opts)
+    expect(tb.tokens).toEqual({ [docId('MUC:character:muc-sample-max')]: PNG })
+    expect(t.tokens).toEqual({})
+  })
+  test('portraitsAfter: token image from the token, else the portrait; chosen art is never replaced', async () => {
+    const ups = []
+    globalThis.game = { world: { id: 'w' } }
+    globalThis.foundry = { applications: { apps: { FilePicker: { implementation: {
+      browse: async () => ({}), upload: async (_, dir, file) => ({ path: `${dir}/${file.name}` }) } } } } }
+    globalThis.Actor = { updateDocuments: async u => { ups.push(...u) } }
+    const fl = { [MODULE_ID]: { source: 'MUC', id: 'x', exportedAt: '2026-10-02T09:15:00.000Z' } }
+    const docs = [{ _id: 'a', flags: fl }, { _id: 'b', flags: fl }, { _id: 'c', flags: fl, img: 'worlds/w/mine.webp', prototypeToken: { texture: { src: 'worlds/w/mine-token.webp' } } }]
+    await portraitsAfter({ a: PNG, b: PNG, c: PNG }, { a: PNG, c: PNG }, () => {})(docs, {})
+    expect(ups).toHaveLength(2)
+    expect(ups[0].img).toMatch(/^worlds\/w\/chummer\/portraits\/MUC-x-\d+\.png$/)
+    expect(ups[0]['prototypeToken.texture.src']).toMatch(/^worlds\/w\/chummer\/tokens\/MUC-x-\d+\.png$/)
+    expect(ups[1]['prototypeToken.texture.src']).toBe(ups[1].img)
   })
 })

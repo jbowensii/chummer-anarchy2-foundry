@@ -31,11 +31,12 @@ async function loadSample(url = SAMPLE) {
 }
 
 // As the window does it (app.js #onImport): same sanitizer, same translate and apply calls; no portrait upload.
-function importRunner(file, runner, choice, folder, icons) {
+// images: { portrait, token } data URLs, uploaded as the window does (only the portrait and token batch passes them).
+function importRunner(file, runner, choice, folder, icons, images = {}) {
   const clean = foundry.utils.cleanHTML ?? (h => h)
   const exportedAt = runner.exportedAt ?? file.exportedAt
   const t = translateRunner(runner, { exportedAt, appVersion: file.app?.version ?? '', sanitize: s => clean(escapeText(s)), icons })
-  return applyRunner(t, choice, { exportedAt, folder })
+  return applyRunner(t, choice, { exportedAt, folder, ...images })
 }
 
 // This batch's folder, created fresh: a folder of the same name the GM already has is never used or deleted.
@@ -438,6 +439,41 @@ export function registerQuench(quench) {
     })
   })
 
+  batch('portrait and token', ({ describe, it, assert, before, after }) => {
+    // Imports the sample runner with a made-up portrait and a different made-up token image, as the window does (uploads
+    // included). ponytail: the two files stay in worlds/<world>/chummer/portraits|tokens (Foundry has no call to delete
+    // an uploaded file); the runner id is fixed here, so every run overwrites the same two files.
+    describe('a runner with its own token image', function () {
+      this.timeout(30000)
+      const ID = 'quench-token-test', AT = '2026-10-02T09:15:00.000Z'
+      // made-up 1x1 images: a PNG portrait, a JPEG-typed token (any bytes: only the file name and folder are checked)
+      const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+      const TOKEN = PNG.replace('image/png', 'image/jpeg')
+      let file, runner, folder, a
+      before(async function () {
+        await cleanUp(ID, null)
+        file = (await loadSample()).file
+        runner = { ...file.runners[0], id: ID, exportedAt: AT, vehicles: [], amps: file.runners[0].amps.filter(x => x.type !== 'vehicle') }
+        folder = await makeFolder()
+        const res = await importRunner(file, runner, 'create', folder, null, { portrait: PNG, token: TOKEN })
+        assert.equal(res.action, 'create', res.error?.message)
+        a = res.actor
+      })
+      after(() => cleanUp(ID, folder))
+
+      it('has the portrait as img and the token image on its prototype token', () => {
+        assert.match(a.img, /chummer\/portraits\/quench-token-test-\d+\.png$/)
+        assert.match(a.prototypeToken.texture.src, /chummer\/tokens\/quench-token-test-\d+\.jpg$/)
+      })
+      it('Replace keeps a token image the GM chose', async () => {
+        await a.update({ 'prototypeToken.texture.src': 'icons/environment/people/commoner.webp' })
+        const res = await importRunner(file, { ...runner, exportedAt: '2026-10-05T12:00:00.000Z' }, 'replace', folder, null, { portrait: PNG, token: TOKEN })
+        assert.equal(res.action, 'replace', res.error?.message)
+        assert.equal(game.actors.get(a.id).prototypeToken.texture.src, 'icons/environment/people/commoner.webp')
+      })
+    })
+  })
+
   batch('icons', ({ describe, it, assert, before, after }) => {
     // Imports the sample runner with the shipped icon index into this batch's own Actors folder, then runs Apply icons
     // over that runner only (never the rest of the world); after() deletes it.
@@ -450,6 +486,8 @@ export function registerQuench(quench) {
         index = await loadIconIndex()
         assert.isArray(index, 'icons/index.json')
         const s = await loadSample(); tag = s.tag; file = s.file
+        // a made-up spell with the catalog category (export v1, optional)
+        file.runners[0].items.push({ uid: 'i-bolt', kind: 'spell', name: 'Made-Up Bolt', canon: false, price: 0, category: 'combat' })
         folder = await makeFolder()
         const res = await importRunner(s.file, s.file.runners[0], 'create', folder, index)
         assert.equal(res.action, 'create', res.error?.message)
@@ -462,8 +500,13 @@ export function registerQuench(quench) {
         assert.match(f.key, /^weapon\//)
         assert.equal(pistol.img, `${MODULE_ICON_ROOT}icons/defaults/${f.key}.webp`)
       })
+      it('a runner spell with a category gets that category’s icon, as from a book', () => {
+        const bolt = byName(mara, 'Made-Up Bolt')
+        assert.equal(flagIcon(bolt).key, 'spell/combat')
+        assert.equal(bolt.img, `${MODULE_ICON_ROOT}icons/defaults/spell/combat.webp`)
+      })
       it('Apply icons keeps a chosen image, replaces a stock default, and upgrades to more specific art', async () => {
-        const [custom, stock] = mara.items.filter(i => flagOf(i)?.icon && i.name !== PISTOL)
+        const [custom, stock] = mara.items.filter(i => flagOf(i)?.icon && i.name !== PISTOL && i.name !== 'Made-Up Bolt')
         const pistol = byName(mara, PISTOL)
         await mara.updateEmbeddedDocuments('Item', [{ _id: custom.id, img: 'worlds/x/custom.webp' },
           { _id: stock.id, img: 'icons/svg/item-bag.svg' }])

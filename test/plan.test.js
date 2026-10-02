@@ -132,3 +132,20 @@ describe('planning a pack write', () => {
     })
   })
 })
+
+describe('separate token image (0.7.0)', () => {
+  const doc = (img, src) => ({ img, prototypeToken: { texture: { src } } })
+  test('tokenUpdate: an uploaded token or portrait on the token is replaced; a token the GM chose stays', () => {
+    const up = { 'prototypeToken.texture.src': 'worlds/w/chummer/tokens/new.png' }
+    expect(tokenUpdate(doc('worlds/w/chummer/portraits/p.png', 'worlds/w/chummer/tokens/old.png'), 'worlds/w/chummer/tokens/new.png')).toEqual(up)
+    expect(tokenUpdate(doc('worlds/w/chummer/portraits/p.png', 'worlds/w/chummer/portraits/p.png'), 'worlds/w/chummer/tokens/new.png')).toEqual(up)
+    expect(tokenUpdate(doc('worlds/w/chummer/portraits/p.png', 'worlds/w/gm-token.webp'), 'worlds/w/chummer/tokens/new.png')).toEqual({})
+    expect(tokenUpdate(doc('worlds/w/mine.webp', 'worlds/w/mine.webp'), 'worlds/w/chummer/tokens/new.png')).toEqual({})
+  })
+  test('keepArt keeps a token image the GM chose, and only that', () => {
+    const fresh = { _id: 'p', prototypeToken: { actorLink: true } }
+    expect(keepArt(doc('worlds/w/chummer/portraits/p.png', 'worlds/w/gm-token.webp'), fresh).prototypeToken)
+      .toEqual({ actorLink: true, texture: { src: 'worlds/w/gm-token.webp' } })
+    expect(keepArt(doc('worlds/w/chummer/portraits/p.png', 'worlds/w/chummer/tokens/t.png'), fresh).prototypeToken).toEqual({ actorLink: true })
+  })
+})

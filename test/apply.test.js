@@ -75,3 +75,40 @@ test('create: an NPC goes to the folder Chummer NPCs with its token settings, a 
   expect(r.actor.folder).toBe('f-Chummer Anarchy')
   expect(r.actor.prototypeToken).toEqual({ actorLink: true })
 })
+
+// uploadPortrait against a fake FilePicker: the path is <dir>/<file name>. A made-up 1x1 PNG as the data URL.
+const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
+const fakeUploads = () => {
+  globalThis.game.world = { id: 'w' }
+  globalThis.foundry.applications = { apps: { FilePicker: { implementation: {
+    browse: async () => ({}), createDirectory: async () => ({}), upload: async (_, dir, file) => ({ path: `${dir}/${file.name}` }) } } } }
+}
+
+test('create: img is the portrait, the token its own image; without a token the token shows the portrait', async () => {
+  fakeUploads()
+  const t = id => ({ actor: { name: id, flags: flags({ id }), system: {} }, items: [], vehicles: [] })
+  const a = (await applyRunner(t('r1'), 'create', { portrait: PNG, token: PNG })).actor
+  expect(a.img).toMatch(/^worlds\/w\/chummer\/portraits\/r1-\d+\.png$/)
+  expect(a.prototypeToken.texture.src).toMatch(/^worlds\/w\/chummer\/tokens\/r1-\d+\.png$/)
+  const b = (await applyRunner(t('r2'), 'create', { portrait: PNG })).actor
+  expect(b.prototypeToken.texture.src).toBe(b.img)
+})
+
+test('replace: the token image changes only while it shows module art; a chosen one stays', async () => {
+  fakeUploads()
+  const ups = []
+  const make = src => {
+    const r = new FakeActor({ name: 'R', flags: flags({ id: 'r1' }), img: 'worlds/w/chummer/portraits/old.png', prototypeToken: { texture: { src } } })
+    r.update = async u => { ups.push(u) }
+    return r
+  }
+  const t = { actor: { name: 'R', flags: flags({ id: 'r1' }), system: {} }, items: [], vehicles: [] }
+  make('worlds/w/chummer/portraits/old.png')
+  expect((await applyRunner(t, 'replace', { portrait: PNG, token: PNG })).action).toBe('replace')
+  expect(ups[0]['prototypeToken.texture.src']).toMatch(/chummer\/tokens\/r1-/)
+  expect(ups[0].img).toMatch(/chummer\/portraits\/r1-/)
+  world.length = 0
+  make('worlds/w/my-token.webp')
+  await applyRunner(t, 'replace', { portrait: PNG, token: PNG })
+  expect(ups[1]).not.toHaveProperty('prototypeToken.texture.src')
+})
