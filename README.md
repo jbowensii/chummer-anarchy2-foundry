@@ -31,7 +31,7 @@ Imported runners go in the Actors folder "Chummer Anarchy", each runner's vehicl
 
 ### A runner that's already in the world
 
-- **Replace** (the default when the file is newer or the same): the actor is updated in place. It keeps its id, folder, ownership, token settings (including a token image you set; a token that shows the actor's portrait follows a new one), wounds and other play state, items you added yourself, links to your own vehicles, and a dated name if it was added as a new version. Its sheet data and the items that came from Chummer are rebuilt from the file; its vehicles are updated too, keeping their control mode.
+- **Replace** (the default when the file is newer or the same): the actor is updated in place. It keeps its id, folder, ownership, token settings (including a token image you set; a token that shows an imported portrait, token image or icon follows the new one), wounds and other play state, items you added yourself, links to your own vehicles, and a dated name if it was added as a new version. Its sheet data and the items that came from Chummer are rebuilt from the file; its vehicles are updated too, keeping their control mode.
 - **Add as new version**: a second actor named with the export date, for example "Mara (2 Oct 2026)". The old one is untouched.
 - **Skip**: nothing changes. This is chosen for you when the file is older than the copy in your world.
 
@@ -88,10 +88,10 @@ A compendium a GM made in Chummer (0.8.0: their own amps, weapons, armor, gear, 
 
 Imported items, skills, specializations, vehicles and metatypes (on runners, in the world and in the book compendiums) get an icon. The icons ship with the module:
 
-- **Defaults** by category and sub-kind: weapons by weapon type, vehicles by the closest sra2 vehicle type, spells by type, skills and specializations by skill group, qualities as positive or negative, bioware, commlinks, SINs, and so on.
+- **Defaults** by category and sub-kind: weapons by weapon type, vehicles by the closest sra2 vehicle type, spells by type (a runner's or NPC's too, from the catalog category Chummer exports), skills and specializations by skill group, qualities as positive or negative, bioware, commlinks, SINs, and so on.
 - **Specific art** by item name, and optionally for one book's version of an item, wins over the default. More of it is added in module updates.
 
-A picture you pick in Foundry is never replaced, not by Apply icons and not by importing the runner or book again: only empty images, Foundry's and sra2's stock images, the module's own icons and portraits imported from Chummer are.
+A picture you pick in Foundry is never replaced, not by Apply icons and not by importing the runner or book again: only empty images, Foundry's and sra2's stock images, the module's own icons and portraits and token images imported from Chummer are.
 
 **Apply icons** (Game Settings → Configure Settings → Chummer Anarchy 2.0 Importer, GM only) re-applies the icons to everything already imported, so it picks up newly shipped art after a module update. Character portraits and tokens are never touched.
 
@@ -105,6 +105,7 @@ Entries imported before 0.4.0 carry no icon information, so they get no icons, f
 - Armor bonuses from amps: the runner's armor comes from armor items only. sra2 adds up every active armor item, so only one worn chain is active, as Chummer counts it: an armor item plus what it is worn over. The chain with the highest total stays active (the first on a tie); every other armor item is imported inactive.
 - Extra drones of the same kind: the count is in the vehicle's description; sra2's additional drone count is not set.
 - A runner without a portrait gets Foundry's default artwork.
+- Portrait and token are separate: a runner exported with its own token image gets it on its token; without one the token shows the portrait. A token image you set in Foundry is never replaced.
 
 ## Sharing
 

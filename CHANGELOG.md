@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.7.0
+
+- Separate portrait and token: a runner, NPC, pregen or book NPC with its own token image (optional `token` in the export) gets the portrait as its image and the token image on its prototype token. Without one the token shows the portrait, as before. Token images are uploaded to `worlds/<world>/chummer/tokens`.
+- Replace and book re-import change a token image only while it shows the module's art (an icon, an imported portrait or token); a token image you chose is never overwritten, in the world or in a compendium.
+- Runner and NPC items carry their catalog category (optional `category` in the export): they get the same per-category icon as the same item from a book, e.g. a combat spell's. Name-specific art still wins.
+- Export schema updated (optional `runners[].token`, `runners[].items[].category`).
+- Tests and In-Foundry tests (Quench) for both.
+
 ## 0.6.0
 
 - GM compendiums (Chummer 0.8.0): a book-data file whose book is a GM's compendium (`source.compendium`) imports like a book, into "<name> (<id>)" inside the Compendium folder "Chummer compendiums", with its packs labelled "(House)" and every entry flagged `compendium`. The import window marks it. Re-import replaces by id as for books; no empty compendiums.
