@@ -24,7 +24,7 @@ You get a file ending in `.ca2foundry.json`.
 ## Import into Foundry
 
 1. As the GM, open the Actors sidebar (or the Compendium sidebar) and click **Import from Chummer** at the bottom (players don't see the button).
-2. Choose the file. The module checks it before anything in your world changes; a file it can't use says why.
+2. Choose the file. The module checks it before anything in your world changes; a file it can't use says why. A Chummer Shadowrun 6 file is refused with a pointer to the Chummer SR6 Importer (for shadowrun6-eden worlds).
 3. Untick any runner you don't want, pick what to do with runners already in the world, and click **Import**.
 
 Imported runners go in the Actors folder "Chummer Anarchy", each runner's vehicles in a subfolder. The report at the end lists anything that was turned into text.

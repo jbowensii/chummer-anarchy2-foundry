@@ -36,6 +36,7 @@ describe('reading a Chummer file', () => {
     ['a runner with null attributes', JSON.stringify({ format: 'chummer-anarchy2-export', version: 1, kind: 'runners', runners: [{ id: 'a', streetName: 'A', attributes: null }] }), /damaged/],
     ['a runner with array attributes', JSON.stringify({ format: 'chummer-anarchy2-export', version: 1, kind: 'runners', runners: [{ id: 'a', streetName: 'A', attributes: [] }] }), /damaged/],
     ['no runners', JSON.stringify({ format: 'chummer-anarchy2-export', version: 1, kind: 'runners' }), /no runners/],
+    ['an SR6 file', JSON.stringify({ format: 'chummer-sr6-export', version: 1, kind: 'runners', runners: [{}] }), /Chummer Shadowrun 6 file.*Chummer SR6 Importer/],
   ])('refuses %s', (_, text, reason) => {
     const r = readExport(text)
     expect(r.ok).toBe(false)
