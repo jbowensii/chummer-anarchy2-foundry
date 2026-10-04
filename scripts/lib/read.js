@@ -5,6 +5,8 @@ const NOT_OURS = 'This file isn’t a Chummer Anarchy export.'
 export function readExport(text) {
   let file
   try { file = JSON.parse(text) } catch { return { ok: false, reason: NOT_OURS } }
+  if (file?.format === 'chummer-sr6-export')
+    return { ok: false, reason: 'This is a Chummer Shadowrun 6 file. Import it with the Chummer SR6 Importer in a Shadowrun 6th Edition (shadowrun6-eden) world.' }
   if (!file || typeof file !== 'object' || file.format !== FORMAT) return { ok: false, reason: NOT_OURS }
   if (file.version !== VERSION) return { ok: false, reason: `This file is export format version ${file.version}; this module reads version ${VERSION}. Please update this module.` }
   if (file.kind === 'books') {

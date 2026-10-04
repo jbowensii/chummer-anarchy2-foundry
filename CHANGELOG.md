@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.7.1
+
+- A Chummer Shadowrun 6 export (`chummer-sr6-export`) is refused before anything in the world changes, with a pointer to the Chummer SR6 Importer for shadowrun6-eden worlds.
+
 ## 0.7.0
 
 - Separate portrait and token: a runner, NPC, pregen or book NPC with its own token image (optional `token` in the export) gets the portrait as its image and the token image on its prototype token. Without one the token shows the portrait, as before. Token images are uploaded to `worlds/<world>/chummer/tokens`.
