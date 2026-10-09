@@ -1,7 +1,8 @@
-// Write a translated book (lib/books.js translateBook) into world compendiums. Foundry globals only inside functions
-// (node --check clean). Never throws: a failing pack is reported in `failed` and the other packs carry on.
+// Write translated books (lib/books.js translateBook) into the by-type world compendiums (lib/books.js planTypePacks).
+// Foundry globals only inside functions (node --check clean). Never throws: a failing pack is reported in `failed` and
+// the other packs carry on. The per-book packs of 0.8.x (ca2-…) are never read or written.
 import { MODULE_ID } from '../lib/constants.js'
-import { packName, planBookPacks } from '../lib/books.js'
+import { chunk, countByBook, planTypePacks } from '../lib/books.js'
 import { INDEX_FIELDS, keysOf, mergeByKey, planUpsert } from '../lib/chummer-id.js'
 import { keepArt, keepUserEffects, mergeActorItems } from '../lib/plan.js'
 import { replaceable } from '../lib/icons.js'
@@ -27,9 +28,9 @@ const dropPack = async pack => { try { await pack.deleteCompendium() } catch (e)
 
 // Write docs into the pack, creating it only now that there is something to write. A pack this call created is
 // deleted again when the write fails, so a failure never leaves an empty compendium behind (0.2.x did).
-async function writeNew(name, label, type, folder, docs, after) {
+async function writeNew(name, label, type, folder, docs, after, onChunk) {
   const { pack, made } = await getPack(name, label, type, folder)
-  try { return await writePack(pack, docs, after) } catch (e) {
+  try { return await writePack(pack, docs, after, onChunk) } catch (e) {
     if (made) await dropPack(pack)
     throw e
   }
@@ -82,9 +83,11 @@ export const portraitsAfter = (portraits = {}, tokens = {}, say) => async (docs,
 // folder, sort and ownership, other modules' flags, the image the user chose (lib/plan.js keepArt), a journal's pages
 // by chummerID (and the GM's own) and an actor's GM items; it gets our chummerID flag. Every other entry is created and
 // Foundry picks its id. Entries not in the file are never touched.
-// Updates go first, then creates in chunks; if a create fails, what this run created is deleted again (the updated
-// entries keep their new data). after(docs, op): run once everything is written, while the pack is still unlocked,
-// with the written documents' data (their _id included).
+// Each entry goes in its category's folder inside the pack (flags.<module>.category), made once per pack; an updated
+// entry keeps the folder it is in (the GM may have moved it) and only gets one when it has none.
+// Updates go first, then creates, CHUNK documents per call, onChunk(done, of) after each; if a create fails, what this
+// run created (entries and folders) is deleted again (the updated entries keep their new data). after(docs, op): run
+// once everything is written, while the pack is still unlocked, with the written documents' data (their _id included).
 const OURS = ['name', 'type', 'img', 'system', 'effects', 'prototypeToken', 'items', 'pages']
 function updateData(old, doc) {
   const k = keepArt(old, doc), u = { _id: old._id, flags: { ...old.flags, [MODULE_ID]: doc.flags?.[MODULE_ID] } }
@@ -95,7 +98,16 @@ function updateData(old, doc) {
   u.effects = keepUserEffects(old.effects, k.effects ?? [])
   return u
 }
-async function writePack(pack, incoming, after) {
+const categoryOf = d => d?.flags?.[MODULE_ID]?.category ?? null
+// The pack's top-level folders by name; the missing ones among `names` are created in one call. { ids, made }.
+async function packFolders(pack, names) {
+  const ids = new Map(pack.folders.filter(f => !f.folder).map(f => [f.name, f.id]))
+  const missing = [...new Set(names)].filter(n => n && !ids.has(n))
+  const made = missing.length ? await Folder.createDocuments(missing.map(name => ({ name, type: pack.documentName, sorting: 'a' })), { pack: pack.collection }) : []
+  for (const f of made) ids.set(f.name, f.id)
+  return { ids, made: made.map(f => f.id) }
+}
+async function writePack(pack, incoming, after, onChunk) {
   const Doc = pack.documentClass, op = { pack: pack.collection }
   const index = await pack.getIndex({ fields: INDEX_FIELDS })
   const { updates, creates, duplicates } = planUpsert([...index.values()], incoming)
@@ -104,21 +116,29 @@ async function writePack(pack, incoming, after) {
   const locked = pack.locked
   if (locked) await pack.configure({ locked: false })
   try {
-    const old = updates.length ? (await pack.getDocuments({ _id__in: updates.map(u => u._id) })).map(d => d.toObject()) : []
+    const old = []
+    for (const ids of chunk(updates.map(u => u._id), CHUNK)) old.push(...(await pack.getDocuments({ _id__in: ids })).map(d => d.toObject()))
     const was = new Map(old.map(d => [d._id, d]))
-    const ups = updates.map(u => updateData(was.get(u._id), u.doc))
-    for (let i = 0; i < ups.length; i += CHUNK) await Doc.updateDocuments(ups.slice(i, i + CHUNK), { ...op, recursive: false, diff: false })
+    const homeless = u => { const f = was.get(u._id)?.folder; return !f || !pack.folders.get(f) }
+    const folders = await packFolders(pack, [...creates, ...updates.filter(homeless).map(u => u.doc)].map(categoryOf))
+    const folderOf = d => folders.ids.get(categoryOf(d)) ?? null
+    const ups = updates.map(u => { const d = updateData(was.get(u._id), u.doc); if (homeless(u) && folderOf(u.doc)) d.folder = folderOf(u.doc); return d })
+    const news = creates.map(d => ({ ...d, folder: folderOf(d) }))
     const made = []
+    const steps = [...chunk(ups, CHUNK).map(c => () => Doc.updateDocuments(c, { ...op, recursive: false, diff: false })),
+      ...chunk(news, CHUNK).map(c => async () => made.push(...await Doc.createDocuments(c, op)))]
+    let done = 0
     try {
-      for (let i = 0; i < creates.length; i += CHUNK) made.push(...await Doc.createDocuments(creates.slice(i, i + CHUNK), op))
+      for (const step of steps) { await step(); onChunk?.(++done, steps.length) }
     } catch (e) {
       try { if (made.length) await Doc.deleteDocuments(made.map(d => d.id), op) } catch {}
+      try { if (folders.made.length) await Folder.deleteDocuments(folders.made, op) } catch {}
       throw e
     }
     const written = [...ups.map(u => ({ ...u, img: u.img ?? was.get(u._id)?.img, prototypeToken: u.prototypeToken ?? was.get(u._id)?.prototypeToken })),
-      ...made.map((d, i) => ({ ...creates[i], _id: d.id }))]
+      ...made.map((d, i) => ({ ...news[i], _id: d.id }))]
     await after?.(written, op)
-    return { label: pack.title, created: creates.length, replaced: updates.length,
+    return { label: pack.title, created: creates.length, replaced: updates.length, byBook: countByBook(updates, creates),
       migrated: updates.filter(u => u.how === 'legacy').length, duplicates: duplicates.map(d => d.name ?? keysOf(d).chummerID) }
   } finally {
     if (locked) await pack.configure({ locked: true })
@@ -127,34 +147,36 @@ async function writePack(pack, incoming, after) {
 
 const fail = (pack, name, error) => { console.error(`${MODULE_ID} | ${name}`, error); return { pack, name, error } }
 
+const PEOPLE = new Set(['characters', 'npcs', 'critters'])
+
 /**
- * t: translateBook output. onProgress({ key, n, total }), key = the pack key before each pack is written. Packs go in `<book name> (<source id>)` inside topFolder (by default FOLDER, COMPENDIUM_FOLDER for a GM's compendium); pack names get `prefix` (Quench).
- * Returns { source, counts: { [pack name]: { label, created, replaced, duplicates: [entry name] } }, failed: [{ pack, name, error }], notes: [portrait lines] }.
+ * ts: translateBook outputs (the ticked books); tableRules: translateTableRules output or null. Every book's entries go
+ * into one pack per type (lib/books.js planTypePacks) in the Compendium folder topFolder (by default FOLDER); a GM's
+ * compendium gets its own packs in "<name> (<id>)" inside houseFolder (by default COMPENDIUM_FOLDER). Pack names get
+ * `prefix` (Quench). onProgress({ key, label, n, total, done?, of? }): before each pack, and after each chunk written.
+ * Returns { counts: { [pack name]: { label, created, replaced, migrated, byBook: { [source]: { created, replaced } },
+ * duplicates: [entry name] } }, failed: [{ pack, name, error }], notes: [portrait lines] }.
  */
-export async function importBook(t, { onProgress, prefix = '', topFolder = t.source.compendium ? COMPENDIUM_FOLDER : FOLDER } = {}) {
-  const src = t.source, counts = {}, failed = [], made = [], notes = []
-  // nothing to write: no pack and no folder (0.2.x made the book folder anyway, e.g. for a pregens-only book)
-  const packs = planBookPacks(t, prefix)
-  const folder = lazyFolder(`${src.name} (${src.id})`, lazyFolder(topFolder, null, made), made)
+export async function importTypes(ts, { tableRules = null, onProgress, prefix = '', topFolder = FOLDER, houseFolder = COMPENDIUM_FOLDER } = {}) {
+  const counts = {}, failed = [], made = [], notes = []
+  const packs = planTypePacks(ts, { prefix, tableRules })
+  const portraits = Object.assign({}, ...ts.map(t => t.portraits)), tokens = Object.assign({}, ...ts.map(t => t.tokens))
+  // folders only when a pack goes in them (0.2.x made a book folder for a book with nothing)
+  const top = lazyFolder(topFolder, null, made), houseTop = lazyFolder(houseFolder, null, made), houses = new Map()
+  const folderOf = h => {
+    if (!h) return top
+    if (!houses.has(h.id)) houses.set(h.id, lazyFolder(`${h.name} (${h.id})`, houseTop, made))
+    return houses.get(h.id)
+  }
   for (const [i, p] of packs.entries()) {
-    onProgress?.({ key: p.key, n: i + 1, total: packs.length })
+    const at = { key: p.key, label: p.label, n: i + 1, total: packs.length }
+    onProgress?.(at)
     try {
-      const after = p.key === 'characters' || p.key === 'npcs' ? portraitsAfter(t.portraits, t.tokens, l => notes.push(l)) : undefined
-      counts[p.name] = await writeNew(p.name, p.label, p.type, await folder(), p.docs, after)
+      const after = PEOPLE.has(p.key) ? portraitsAfter(portraits, tokens, l => notes.push(l)) : undefined
+      counts[p.name] = await writeNew(p.name, p.label, p.type, await folderOf(p.house)(), p.docs, after,
+        (done, of) => onProgress?.({ ...at, done, of }))
     } catch (error) { failed.push(fail(p.name, p.label, error)) }
   }
   await dropEmptyFolders(made)
-  return { source: src, counts, failed, notes }
-}
-
-/** journal: translateTableRules output, written by chummerID into the table rules pack in topFolder. Same result shape. */
-export async function importTableRules(journal, { prefix = '', topFolder = FOLDER } = {}) {
-  const name = packName(`${prefix}ca2-table-rules`), label = 'Table rules — Chummer', made = []
-  if (!journal?.pages?.length) return { counts: {}, failed: [] }  // never an empty journal or compendium
-  try {
-    return { counts: { [name]: await writeNew(name, label, 'JournalEntry', await lazyFolder(topFolder, null, made)(), [journal]) }, failed: [] }
-  } catch (error) {
-    await dropEmptyFolders(made)
-    return { counts: {}, failed: [fail(name, label, error)] }
-  }
+  return { counts, failed, notes }
 }

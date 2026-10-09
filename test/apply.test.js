@@ -115,21 +115,28 @@ test('replace: the token image changes only while it shows module art; a chosen 
 
 test('create: a runner’s amp from a book links its compendium entry by chummerID; a tie is reported, a custom item left alone', async () => {
   const M = MODULE_ID
-  const index = new Map([['F1', { _id: 'F1', uuid: 'Compendium.world.ca2-muc-amps.Item.F1', type: 'feat', name: 'Knack', flags: { [M]: { chummerID: 'MUC:amps:muc.knack', kind: 'amps', page: 5 } } }],
-    ['G1', { _id: 'G1', uuid: 'U-G1', type: 'feat', name: 'Rope', flags: { [M]: { kind: 'gear', page: 9 } } }],
-    ['G2', { _id: 'G2', uuid: 'U-G2', type: 'feat', name: 'Rope', flags: { [M]: { kind: 'gear', page: 9 } } }]])
-  game.packs = { filter: f => [{ documentName: 'Item', collection: 'world.ca2-muc-amps', getIndex: async () => index }].filter(f) }
-  const it = (name, f) => ({ name, type: 'feat', flags: flags(f), system: {} })
+  const e = (id, name, f) => [id, { _id: id, uuid: `U-${id}`, type: 'feat', name, flags: { [M]: f } }]
+  const pack = (collection, entries) => ({ documentName: 'Item', collection, getIndex: async () => new Map(entries) })
+  // the 0.8.x per-book pack holds the same chummerID: never read
+  const packs = [pack('world.ca2-muc-amps', [e('OLD', 'Knack', { chummerID: 'MUC:amps:muc.knack' })]),
+    pack('world.ca2t-qualities', [e('F1', 'Knack', { chummerID: 'MUC:amps:muc.knack', source: 'MUC', page: 5 })]),
+    pack('world.ca2t-gear', [e('G1', 'Rope', { source: 'MUC', page: 9 }), e('G2', 'Rope', { source: 'MUC', page: 9 }), e('G3', 'Rope', { source: 'OTH', page: 9 }),
+      e('B1', 'Bolt', { source: 'OTH' }), e('B2', 'Bolt', { source: 'MUC' }), e('S1', 'Strap', { source: 'OTH' })]),
+    pack('world.ca2t-weapons', [e('W1', 'Strap', { source: 'MUC' })])]
+  game.packs = { filter: f => packs.filter(f) }
+  const it = (name, f) => ({ name, type: 'feat', flags: flags(f), system: { featType: f.kind === 'amps' ? 'trait' : 'equipment' } })
+  const gear = (name, id) => it(name, { id, catalogId: `muc.${id}`, source: 'MUC', kind: 'gear', chummerID: `MUC:gear:muc.${id}`, page: 9 })
   const items = [it('Knack', { id: 'a1', catalogId: 'muc.knack', source: 'MUC', kind: 'amps', chummerID: 'MUC:amps:muc.knack' }),
-    it('Rope', { id: 'i1', catalogId: 'muc.rope', source: 'MUC', kind: 'gear', chummerID: 'MUC:gear:muc.rope', page: 9 }),
-    it('Lucky Coin', { id: 'i2' })]
+    gear('Rope', 'rope'), it('Lucky Coin', { id: 'i2' }), gear('Bolt', 'bolt'), gear('Strap', 'strap')]
   const res = await applyRunner({ actor: { name: 'R', flags: flags({ id: 'r9' }), system: {} }, items, vehicles: [] }, 'create')
   expect(res.action).toBe('create')
   const made = res.actor.items
-  expect(made[0]._stats).toEqual({ compendiumSource: 'Compendium.world.ca2-muc-amps.Item.F1' })
-  expect(made[1]).not.toHaveProperty('_stats')
-  expect(made[2]).not.toHaveProperty('_stats')
-  expect(res.notes).toEqual(['Rope: 2 compendium entries match (Rope [gear] p.9, Rope [gear] p.9) → not linked'])
+  expect(made[0]._stats).toEqual({ compendiumSource: 'U-F1' })  // by chummerID, in the by-type pack only
+  expect(made[1]).not.toHaveProperty('_stats')  // two Ropes from its own book: a tie (the other book's is not counted)
+  expect(made[2]).not.toHaveProperty('_stats')  // custom: never linked
+  expect(made[3]._stats).toEqual({ compendiumSource: 'U-B2' })  // same name in two books: its own book wins
+  expect(made[4]._stats).toEqual({ compendiumSource: 'U-S1' })  // only in another book, in its own type pack (Gear, not Weapons)
+  expect(res.notes).toEqual(['Rope: 2 compendium entries match (Rope MUC p.9, Rope MUC p.9) → not linked'])
 })
 
 test('replace: our item updated in place (same id, other flags kept), a user’s effect on it untouched, nothing re-created', async () => {

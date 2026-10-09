@@ -2,6 +2,7 @@
 // that are empty, a stock default or the module's own art (replaceable). Foundry globals only inside functions.
 import { MODULE_ID } from '../lib/constants.js'
 import { iconFor, replaceable } from '../lib/icons.js'
+import { packTypeKey } from '../lib/books.js'
 import { tokenUpdate } from '../lib/plan.js'
 
 export const INDEX = `modules/${MODULE_ID}/icons/index.json`
@@ -39,11 +40,12 @@ function writesFor(items, actors, change, op) {
 
 /**
  * Re-apply icons to every document with flags.icon. Defaults: world items, world actors, and the module's world
- * compendiums (world.ca2-…, unlocked for the write and locked again). The Quench tests pass their own lists.
+ * by-type compendiums (world.ca2t-…, a GM's world.ca2h-…; never the 0.8.x per-book world.ca2-…), unlocked for the
+ * write and locked again. The Quench tests pass their own lists.
  * Returns { updated, kept (an image the user chose), unchanged }.
  */
 export async function applyIcons({ index, items = game.items.contents, actors = game.actors.contents,
-  packs = game.packs.filter(p => p.collection.startsWith('world.ca2-')) } = {}) {
+  packs = game.packs.filter(p => p.collection.startsWith('world.') && packTypeKey(p.collection.slice(6))) } = {}) {
   const has = new Set(index ?? []), counts = { updated: 0, kept: 0, unchanged: 0 }
   const change = d => {
     const f = d.flags?.[MODULE_ID]?.icon

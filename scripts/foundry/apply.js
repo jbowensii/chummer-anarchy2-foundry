@@ -2,8 +2,9 @@
 import { MODULE_ID } from '../lib/constants.js'
 import { INDEX_FIELDS, resolveEntry, tieLine } from '../lib/chummer-id.js'
 import { keepItemArt, newVersionName, planItems, replaceUpdate, tokenUpdate } from '../lib/plan.js'
+import { packTypeKey, typeKey } from '../lib/books.js'
 
-export const FOLDER = 'Chummer Anarchy'
+export const FOLDER = 'Chummer Anarchy'  // runners' Actors folder, and the Compendium folder of the by-type packs
 export const NPC_FOLDER = 'Chummer NPCs'  // NPCs from a runners file (flags npc)
 export const COMPENDIUM_FOLDER = 'Chummer compendiums'  // Compendium folder for GMs' compendiums (source.compendium)
 const flagOf = d => d?.flags?.[MODULE_ID]
@@ -47,16 +48,18 @@ export function addIndexFields() {
   }
 }
 
-// One book's world compendiums (lib/books.js: ca2-<source>-<key>) as index entries for resolveEntry, once per import.
-const slug = s => String(s).toLowerCase().replace(/[^a-z0-9_-]/g, '-')
-async function bookEntries(source, prefix) {
-  const start = `world.${slug(`${prefix}ca2-${source}`)}-`, out = []
-  for (const pack of game.packs.filter(p => p.documentName === 'Item' && p.collection.startsWith(start))) {
+// The by-type world compendiums (lib/books.js: ca2t-<type>, ca2h-<compendium>-<type>) as index entries for
+// resolveEntry, once per import. The per-book packs of 0.8.x (ca2-…) are never read.
+async function typeEntries(prefix) {
+  const out = []
+  for (const pack of game.packs.filter(p => p.documentName === 'Item' && p.collection.startsWith('world.'))) {
+    const key = packTypeKey(pack.collection.slice(6), prefix)
+    if (!key) continue
     const index = await pack.getIndex({ fields: INDEX_FIELDS })
     for (const i of index.values()) {
       const f = i.flags?.[MODULE_ID] ?? {}
       out.push({ uuid: i.uuid ?? pack.getUuid(i._id), type: i.type, name: i.name, chummerID: f.chummerID ?? null,
-        aliases: f.chummerAliases ?? [], kind: f.kind ?? null, page: f.page ?? null })
+        aliases: f.chummerAliases ?? [], kind: f.kind ?? null, page: f.page ?? null, source: f.source ?? null, pack: key })
     }
   }
   return out
@@ -64,17 +67,17 @@ async function bookEntries(source, prefix) {
 
 /**
  * _stats.compendiumSource for a runner's amps and items: the real UUID of the entry each came from in that world's
- * compendiums for its book, by chummerID, then its aliases, then type and name inside that one book's compendiums (ties:
- * the same kind, then the same page). Still tied: no link, and a report line lists the candidates. Never a search by
- * name across every compendium; a custom item (no book) is never linked. Returns { items, notes }.
+ * by-type compendiums, by chummerID, then its aliases, then type and name inside its type's pack (lib/books.js typeKey;
+ * ties: the same book, then the same kind, then the same page). Still tied: no link, and a report line lists the
+ * candidates. Never a search by name across every compendium; a custom item (no book) is never linked. Returns { items, notes }.
  */
 export async function linkCompendium(items, prefix = '') {
-  const books = new Map(), notes = [], out = []
+  const notes = [], out = []
+  let entries = null
   for (const i of items) {
-    const source = flagOf(i)?.source
-    if (!source || !flagOf(i)?.catalogId) { out.push(i); continue }
-    if (!books.has(source)) books.set(source, await bookEntries(source, prefix))
-    const r = resolveEntry(i, books.get(source))
+    if (!flagOf(i)?.source || !flagOf(i)?.catalogId) { out.push(i); continue }
+    entries ??= await typeEntries(prefix)
+    const r = resolveEntry(i, entries, typeKey(flagOf(i).kind, i))
     if (r?.uuid) out.push({ ...i, _stats: { ...i._stats, compendiumSource: r.uuid } })
     else { if (r?.candidates) notes.push(tieLine(i, r.candidates)); out.push(i) }
   }

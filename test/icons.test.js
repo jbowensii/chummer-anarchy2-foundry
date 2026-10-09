@@ -91,7 +91,7 @@ describe('translators with icons', () => {
   test('book entries carry the book id', () => {
     const books = JSON.parse(readFileSync('samples/test-books.json', 'utf8'))
     const t = translateBook(books.books?.[0] ?? books, opts)
-    const all = Object.entries(t.packs).filter(([k]) => k !== 'rules' && k !== 'characters' && k !== 'npcs').flatMap(([, d]) => d)
+    const all = Object.entries(t.packs).filter(([k]) => !['rules', 'characters', 'npcs', 'critters'].includes(k)).flatMap(([, d]) => d)
     expect(all.length).toBeGreaterThan(0)
     for (const d of all) {
       expect(d.flags[MODULE_ID].icon.book, d.name).toBe(t.source.id)
@@ -130,7 +130,7 @@ describe('runner and NPC items carry the catalog category (export v1, optional)'
   test('a book NPC’s item uses its category; a name-specific icon still wins', () => {
     const b = structuredClone(books.books[0])
     b.npcs[0].items = [{ ...spell, category: 'health' }]
-    const npc = translateBook(b, opts).packs.npcs.find(d => d.type === 'character')
+    const npc = translateBook(b, opts).packs.critters.find(d => d.type === 'character')
     expect(npc.items.find(i => i.name === 'Made-Up Bolt').img).toBe(`${M}icons/defaults/spell/health.webp`)
     const named = translateRunner({ ...structuredClone(file.runners[0]), items: [spell] }, { ...opts, icons: [...index, 'icons/items/made-up-bolt.webp'] })
     expect(named.items.find(i => i.name === 'Made-Up Bolt').img).toBe(`${M}icons/items/made-up-bolt.webp`)

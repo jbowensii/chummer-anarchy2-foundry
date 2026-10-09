@@ -54,7 +54,7 @@ export function itemIconKey(it) {
   return 'equipment'
 }
 
-const negative = amp => (amp.rating ?? 0) < 0 || (amp.printedRating ?? 0) < 0
+export const negative = amp => (amp.rating ?? 0) < 0 || (amp.printedRating ?? 0) < 0
   || (amp.effects ?? []).some(e => e.category === 'negative' || e.id === 'negative')
 // an amp, as the feat ampFeat makes (a book equipment amp over a weapon/armor is that item)
 export function ampIconKey(amp) {

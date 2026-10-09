@@ -5,10 +5,10 @@ import { MODULE_ID } from '../lib/constants.js'
 import { readExport } from '../lib/read.js'
 import { escapeText, translateRunner } from '../lib/translate.js'
 import { defaultChoice, newVersionName } from '../lib/plan.js'
-import { applyRunner, COMPENDIUM_FOLDER, findExisting, NPC_FOLDER } from './apply.js'
-import { translateBook } from '../lib/books.js'
+import { applyRunner, COMPENDIUM_FOLDER, findExisting, linkCompendium, NPC_FOLDER } from './apply.js'
+import { translateBook, TYPES } from '../lib/books.js'
 import { INDEX_FIELDS } from '../lib/chummer-id.js'
-import { importBook } from './books.js'
+import { importTypes } from './books.js'
 import { applyIcons, loadIconIndex } from './icons.js'
 import { iconFor, MODULE_ICON_ROOT, slugName } from '../lib/icons.js'
 
@@ -193,73 +193,85 @@ export function registerQuench(quench) {
   })
 
   batch('book data', ({ describe, it, assert, before, after }) => {
-    // Imports the made-up book file as the window does, into packs named ca2test-… in the Compendium folder
-    // "Chummer Importer tests". before() and after() both clean up (cleanBooks), so a crashed run leaves nothing behind.
+    // Imports the made-up book file as the window does (every book at once, foundry/books.js importTypes) into the
+    // by-type packs ca2test-ca2t-… in the Compendium folder "Chummer Importer tests". An old-style per-book pack
+    // (ca2test-ca2-muc-amps, as 0.8.x named them) holding the same chummerID is made first: the import must never touch
+    // it. before() and after() both clean up (cleanBooks), so a crashed run leaves nothing behind.
     // ponytail: the pregen's portrait file stays in worlds/<world>/chummer/portraits (Foundry has no call to delete an
     // uploaded file); its name is fixed (MUC-muc-sample-max-<export time>.png), so every run overwrites the same file.
-    describe('importing the book-data sample', function () {
+    describe('importing the book-data sample into one compendium per type', function () {
       this.timeout(60000)
       const clean = foundry.utils.cleanHTML ?? (h => h)
       const EMPTY = { source: { id: 'EMP', name: 'Made-Up Empty', publisher: 'Made-Up Press', canon: true } }
-      let file, muc, mux, res, muxRes, emptyRes
-      const pack = (k, book = 'muc') => game.packs.get(`world.${PREFIX}ca2-${book}-${k}`)
+      const KEYS = ['qualities', 'augmentations', 'weapons', 'armor', 'gear', 'spells', 'vehicles', 'characters', 'critters', 'metatypes',
+        'skills', 'specializations', 'rules']
+      let file, muc, mux, res, old, oldBefore
+      const pack = k => game.packs.get(`world.${PREFIX}ca2t-${k}`)
       const sorted = j => j.pages.contents.sort((a, b) => a.sort - b.sort).map(p => [p.title.level, p.name])
-      // Every world pack named ca2test-… (only these tests make them), then the sample books' Compendium folders inside
-      // the top-level Compendium folder "Chummer Importer tests", then that folder.
+      // Every world pack named ca2test-… (only these tests make them), then the top-level Compendium folder "Chummer Importer tests".
       const cleanBooks = async () => {
         for (const p of game.packs.filter(p => p.collection.startsWith(`world.${PREFIX}`))) await p.deleteCompendium()
-        const top = game.folders.find(f => f.type === 'Compendium' && f.name === TEST_FOLDER && !f.folder)
-        if (!top) return
-        const names = new Set([...file.books, EMPTY].map(b => `${b.source.name} (${b.source.id})`))
-        for (const f of game.folders.filter(f => f.type === 'Compendium' && f.folder?.id === top.id && names.has(f.name))) await f.delete()
-        await top.delete()
+        await game.folders.find(f => f.type === 'Compendium' && f.name === TEST_FOLDER && !f.folder)?.delete()
       }
       const translate = book => translateBook(book, { exportedAt: book.exportedAt ?? file.exportedAt,
         appVersion: file.app?.version ?? '', descriptions: file.descriptions === true, sanitize: s => clean(escapeText(s)) })
-      const run = book => importBook(translate(book), { prefix: PREFIX, topFolder: TEST_FOLDER })
+      const run = books => importTypes(books.map(translate), { prefix: PREFIX, topFolder: TEST_FOLDER })
       before(async function () {
         const r = readExport(await (await fetch(BOOKS)).text())
         if (!r.ok) throw new Error(r.reason)
         file = r.file; [muc, mux] = file.books
         await cleanBooks()
-        res = await run(muc)
-        muxRes = await run(mux)
-        emptyRes = await run(EMPTY)
+        old = await foundry.documents.collections.CompendiumCollection.createCompendium({ name: `${PREFIX}ca2-muc-amps`, label: 'Amps — MUC (0.8.x)', type: 'Item' })
+        await Item.create({ name: 'Old knack', type: 'feat', system: { featType: 'trait', rating: 9 },
+          flags: { [MODULE_ID]: { chummerID: 'MUC:amps:muc.made-up-knack', source: 'MUC' } } }, { pack: old.collection })
+        oldBefore = (await old.getDocuments()).map(d => d.toObject())
+        res = await run([muc, mux, EMPTY])
       })
       after(async function () { if (file) await cleanBooks() })
 
-      it('imports every pack without a failure', () => {
-        for (const r of [res, muxRes, emptyRes]) assert.isEmpty(r.failed, r.failed.map(f => f.error?.message).join('; '))
-      })
-      it('puts the packs in the book folder inside the test folder', () => {
-        for (const k of ['amps', 'weapons', 'armor', 'gear', 'spells', 'vehicles', 'characters', 'npcs', 'metatypes', 'skills', 'rules']) {
-          const p = pack(k)
-          assert.ok(p, `pack ${k}`)
-          assert.equal(p.folder?.name, 'Made-Up Core (MUC)', k)
-          assert.equal(p.folder?.folder?.name, TEST_FOLDER, k)
+      it('imports every pack without a failure', () => assert.isEmpty(res.failed, res.failed.map(f => f.error?.message).join('; ')))
+      it('one pack per type, every book merged, all in the test folder', () => {
+        assert.sameMembers(game.packs.filter(p => p.collection.startsWith(`world.${PREFIX}ca2t-`)).map(p => p.collection),
+          KEYS.map(k => `world.${PREFIX}ca2t-${k}`))
+        for (const k of KEYS) {
+          assert.equal(pack(k).title, TYPES[k][0], k)
+          assert.equal(pack(k).folder?.name, TEST_FOLDER, k)
+          assert.notOk(pack(k).folder?.folder, k)
         }
+        assert.notOk(game.folders.find(f => f.type === 'Compendium' && /\((MUC|MUX|EMP)\)$/.test(f.name)), 'no book folder')
       })
-      it('has the expected entry counts', () => {
+      it('has the expected entry counts, with both books in Qualities and the counts per book', () => {
         const n = k => pack(k)?.index.size
-        assert.deepEqual({ amps: n('amps'), weapons: n('weapons'), armor: n('armor'), gear: n('gear'), spells: n('spells'),
-          vehicles: n('vehicles'), characters: n('characters'), npcs: n('npcs'), metatypes: n('metatypes'), skills: n('skills'), rules: n('rules') },
-        { amps: 2, weapons: 1, armor: 1, gear: 1, spells: 1, vehicles: 1, characters: 2, npcs: 1, metatypes: 1, skills: 3, rules: 2 })
+        assert.deepEqual(Object.fromEntries(KEYS.map(k => [k, n(k)])), { qualities: 2, augmentations: 1, weapons: 1, armor: 1, gear: 1,
+          spells: 1, vehicles: 1, characters: 2, critters: 1, metatypes: 1, skills: 1, specializations: 2, rules: 2 })
+        assert.deepEqual(res.counts[`${PREFIX}ca2t-qualities`].byBook, { MUC: { created: 1, replaced: 0 }, MUX: { created: 1, replaced: 0 } })
+      })
+      it('puts every entry in its category’s folder inside the pack, never Other or General', async () => {
+        for (const k of KEYS) {
+          for (const d of await pack(k).getDocuments()) {
+            assert.equal(d.folder?.name, flagOf(d).category, `${k}: ${d.name}`)
+            assert.notMatch(d.folder.name, /^(other|general)$/i)
+          }
+        }
+        const folderOf = async (k, key) => (await byKey(pack(k), key))?.folder?.name
+        assert.equal(await folderOf('weapons', 'MUC:weapons:muc.made-up-blade'), 'Melee weapons')
+        assert.equal(await folderOf('spells', 'MUC:spells:muc.made-up-charm'), 'Combat')
+        assert.equal(await folderOf('qualities', 'MUC:amps:muc.made-up-knack'), 'Positive qualities')
+        assert.equal(await folderOf('specializations', 'MUC:specs:close-combat.made-up-style'), 'Close Combat')
       })
       it('has the book’s spirit as an unlinked hostile character with its GM description and no metatype', async () => {
-        const wisp = await byKey(pack('npcs'), 'MUC:npc:muc-npc-wisp')
+        const wisp = await byKey(pack('critters'), 'MUC:npc:muc-npc-wisp')
         assert.ok(wisp, 'NPC')
-        assert.equal(pack('npcs').title, 'NPCs & Critters — MUC')
+        assert.equal(pack('critters').title, 'Critters & Spirits')
+        assert.equal(wisp.folder?.name, 'Spirits')
         assert.equal(wisp.type, 'character')
         assert.include(wisp.prototypeToken, { actorLink: false, disposition: CONST.TOKEN_DISPOSITIONS.HOSTILE })
         assert.include(wisp.system.bio.gmDescription, 'Spirit, regular NPC')
         assert.isEmpty(itemsOf(wisp, 'metatype'))
       })
-      it('makes no pack for a type the book lacks, and no folder for a book with nothing', () => {
-        assert.sameMembers(game.packs.filter(p => p.collection.startsWith(`world.${PREFIX}ca2-mux-`)).map(p => p.collection),
-          [`world.${PREFIX}ca2-mux-amps`])
-        assert.isEmpty(Object.keys(emptyRes.counts))
-        assert.isEmpty(game.packs.filter(p => p.collection.startsWith(`world.${PREFIX}ca2-emp-`)))
-        assert.notOk(game.folders.find(f => f.type === 'Compendium' && f.name === 'Made-Up Empty (EMP)'), 'empty book folder')
+      it('makes no pack for a type no book has, and nothing for a book with nothing', () => {
+        for (const k of ['npcs', 'contacts', 'magic', 'cyberdecks', 'reference']) assert.notOk(pack(k), k)
+        assert.isFalse(Object.values(res.counts).some(c => 'EMP' in c.byBook))
       })
       it('has the weapon’s damage, flags and reference', async () => {
         const blade = await byKey(pack('weapons'), 'MUC:weapons:muc.made-up-blade')
@@ -268,21 +280,21 @@ export function registerQuench(quench) {
         assert.include(flagOf(blade), { id: 'muc.made-up-blade', source: 'MUC', page: 20, canon: true, exportedAt: file.exportedAt })
       })
       it('links the amp’s Risk Reduction to the sra2 spec', async () => {
-        const knack = await byKey(pack('amps'), 'MUC:amps:muc.made-up-knack')
+        const knack = await byKey(pack('qualities'), 'MUC:amps:muc.made-up-knack')
         // sra2 adds its own fields to each line (rrLabel), so match the three that matter
         assert.ok(knack.system.rrList.some(r => r.rrType === 'specialization' && r.rrValue === 1 && r.rrTarget === 'spec_pistols'),
           JSON.stringify(knack.system.rrList))
       })
-      it('has a rules journal per sheet: level-1 section pages, then their level-2 rule pages, in order', async () => {
+      it('has a rules journal per book and sheet in the sheet’s folder: level-1 section pages, then their level-2 rule pages', async () => {
         const journals = await pack('rules').getDocuments()
-        assert.sameMembers(journals.map(j => j.name), ['Core', 'Optional rules'])
-        assert.deepEqual(sorted(journals.find(j => j.name === 'Core')),
+        assert.sameMembers(journals.map(j => [j.name, j.folder?.name].join(' / ')), ['Core (MUC) / Core', 'Optional rules (MUC) / Optional rules'])
+        assert.deepEqual(sorted(journals.find(j => j.name === 'Core (MUC)')),
           [[1, 'Made-Up Basics'], [2, 'Rule One'], [2, 'Rule Two'], [1, 'Made-Up Extras'], [2, 'Rule Three']])
-        assert.deepEqual(sorted(journals.find(j => j.name === 'Optional rules')), [[1, 'Optional rules'], [2, 'Rule Four']])
-        const one = journals.find(j => j.name === 'Core').pages.find(p => flagOf(p)?.chummerID === 'MUC:rules:muc.rule-one')
+        assert.deepEqual(sorted(journals.find(j => j.name === 'Optional rules (MUC)')), [[1, 'Optional rules'], [2, 'Rule Four']])
+        const one = journals.find(j => j.name === 'Core (MUC)').pages.find(p => flagOf(p)?.chummerID === 'MUC:rules:muc.rule-one')
         assert.include(flagOf(one), { id: 'muc.rule-one', source: 'MUC', page: 50 })
       })
-      it('has the pregen with its skills, its portrait on img and token, and its vehicle', async () => {
+      it('has the pregen with its skills, its portrait on img and token, and its vehicle in its folder', async () => {
         const max = await byKey(pack('characters'), 'MUC:character:muc-sample-max')
         assert.ok(max, 'pregen')
         assert.sameMembers(itemsOf(max, 'skill').map(i => i.system.slug), ['athletics'])
@@ -292,61 +304,81 @@ export function registerQuench(quench) {
         const drone = await byKey(pack('characters'), 'MUC:vehicle:muc-sample-max:v-drone')
         assert.equal(drone?.name, 'Made-Up Max — Made-Up Scout Drone')
         assert.equal(drone?.type, 'vehicle')
+        assert.equal(drone?.folder?.name, max.folder?.name)
       })
       it('a pregen taken into the world is never offered for Replace by a runner file', async () => {
         const data = (await byKey(pack('characters'), 'MUC:character:muc-sample-max')).toObject()
         delete data._id
+        delete data.folder
         const copy = await Actor.create(data)
         try { assert.isNull(findExisting('muc-sample-max')) } finally { await copy.delete() }
       })
       it('has the metatype with its caps', async () => {
         const gnome = await byKey(pack('metatypes'), 'MUC:metatypes:muc.made-up-gnome')
         assert.include(gnome.system, { maxStrength: 4, maxAgility: 6, maxWillpower: 7, maxLogic: 7, maxCharisma: 6, anarchyBonus: 0 })
+        assert.equal(gnome.folder?.name, 'Metavariants')
       })
-      it('re-import updates its own entries in place by chummerID (same _id) and leaves what the GM added', async () => {
-        const amps = pack('amps'), id = (await byKey(pack('amps'), 'MUC:amps:muc.made-up-knack')).id, maxId = (await byKey(pack('characters'), 'MUC:character:muc-sample-max')).id
-        const gm = await Item.create({ name: 'GM-made amp', type: 'feat', system: { featType: 'equipment' } }, { pack: amps.collection })
-        const coreId = (await pack('rules').getDocuments()).find(j => j.name === 'Core').id
+      it('a runner’s amp links to the by-type pack entry, never to the old per-book pack', async () => {
+        const amp = { name: 'Made-up Knack', type: 'feat', system: { featType: 'trait' },
+          flags: { [MODULE_ID]: { id: 'x', catalogId: 'muc.made-up-knack', source: 'MUC', kind: 'amps', chummerID: 'MUC:amps:muc.made-up-knack' } } }
+        const { items } = await linkCompendium([amp], PREFIX)
+        assert.equal(items[0]._stats?.compendiumSource, (await byKey(pack('qualities'), 'MUC:amps:muc.made-up-knack')).uuid)
+      })
+      it('re-import of one book updates its entries in place (same _id, folder kept), leaves the other book’s and the GM’s own', async () => {
+        const q = pack('qualities'), knack = await byKey(q, 'MUC:amps:muc.made-up-knack'), extra = await byKey(q, 'MUX:amps:mux.made-up-extra')
+        const extraBefore = extra.toObject(), maxId = (await byKey(pack('characters'), 'MUC:character:muc-sample-max')).id
+        const gm = await Item.create({ name: 'GM-made quality', type: 'feat', system: { featType: 'trait' } }, { pack: q.collection })
+        const mine = await Folder.create({ name: 'GM folder', type: 'Item' }, { pack: q.collection })
+        await knack.update({ folder: mine.id })
+        const coreId = (await pack('rules').getDocuments()).find(j => j.name === 'Core (MUC)').id
         const gmPage = (await (await pack('rules').getDocument(coreId)).createEmbeddedDocuments('JournalEntryPage',
           [{ name: 'GM page', type: 'text', text: { content: '<p>mine</p>' } }]))[0]
         const gmItem = (await (await pack('characters').getDocument(maxId)).createEmbeddedDocuments('Item',
           [{ name: 'GM note item', type: 'feat', system: { featType: 'equipment' } }]))[0]
+        await q.configure({ locked: true })
         const changed = structuredClone(muc)
         changed.amps[0].rating = 3
-        const again = await run(changed)
+        const again = await run([changed])  // MUX not in this import
         assert.isEmpty(again.failed, again.failed.map(f => f.error?.message).join('; '))
-        assert.equal(again.counts[`${PREFIX}ca2-muc-amps`].replaced, 2)
-        const knack = await amps.getDocument(id)
-        assert.equal(knack?.id, id)
-        assert.equal(knack?.system.rating, 3)
-        assert.ok(await amps.getDocument(gm.id), 'GM entry kept')
-        assert.equal(amps.index.size, 3)
+        assert.deepEqual(again.counts[`${PREFIX}ca2t-qualities`].byBook, { MUC: { created: 0, replaced: 1 } })
+        assert.isTrue(q.locked, 'locked again')
+        const k2 = await q.getDocument(knack.id)
+        assert.equal(k2?.system.rating, 3)
+        assert.equal(k2?.folder?.id, mine.id, 'the GM’s folder kept')
+        const e2 = (await q.getDocument(extra.id)).toObject()
+        assert.deepEqual([e2.name, e2.system, e2._stats.modifiedTime], [extraBefore.name, extraBefore.system, extraBefore._stats.modifiedTime], 'MUX untouched')
+        assert.ok(await q.getDocument(gm.id), 'GM entry kept')
+        assert.equal(q.index.size, 3)
         const core = await pack('rules').getDocument(coreId)
         assert.equal(core.pages.get(gmPage.id)?.text.content, '<p>mine</p>', 'GM page kept')
-        assert.include(core.pages.map(p => p.name), 'GM page')
         const max = await pack('characters').getDocument(maxId)
         assert.ok(max.items.get(gmItem.id), 'GM item on the pregen kept')
         assert.lengthOf(itemsOf(max, 'skill'), 1, 'imported items rebuilt, not doubled')
+        await q.configure({ locked: false })
+      })
+      it('never touched the old per-book pack', async () => {
+        assert.deepEqual((await old.getDocuments()).map(d => d.toObject()), oldBefore)
       })
     })
   })
 
   batch('compendium', ({ describe, it, assert, before, after }) => {
-    // Imports the made-up compendium file as the window does (no topFolder: a compendium book goes to the Compendium
-    // folder "Chummer compendiums"), into packs named ca2test-ca2-myh-…. Cleanup deletes those packs, the book folder,
-    // and "Chummer compendiums" only when this batch made it and it is left empty.
+    // Imports the made-up compendium file as the window does (no folder given: a GM's compendium goes to the Compendium
+    // folder "Chummer compendiums"), into its own by-type packs ca2test-ca2h-myh-…. Cleanup deletes those packs, its
+    // folder, and "Chummer compendiums" only when this batch made it and it is left empty.
     describe('importing the compendium sample', function () {
       this.timeout(60000)
       const clean = foundry.utils.cleanHTML ?? (h => h)
+      const KEYS = ['qualities', 'augmentations', 'weapons', 'armor', 'gear', 'spells', 'vehicles', 'critters']
       let file, house, res, hadTop
-      const pack = k => game.packs.get(`world.${PREFIX}ca2-myh-${k}`)
+      const pack = k => game.packs.get(`world.${PREFIX}ca2h-myh-${k}`)
       const top = () => game.folders.find(f => f.type === 'Compendium' && f.name === COMPENDIUM_FOLDER && !f.folder)
-      const bookFolder = () => game.folders.find(f => f.type === 'Compendium' && f.name === 'Made-Up House Stuff (MYH)' && f.folder?.id === top()?.id)
-      const run = book => importBook(translateBook(book, { exportedAt: file.exportedAt, appVersion: file.app?.version ?? '',
-        descriptions: true, sanitize: s => clean(escapeText(s)) }), { prefix: PREFIX })
+      const houseFolder = () => game.folders.find(f => f.type === 'Compendium' && f.name === 'Made-Up House Stuff (MYH)' && f.folder?.id === top()?.id)
+      const run = book => importTypes([translateBook(book, { exportedAt: file.exportedAt, appVersion: file.app?.version ?? '',
+        descriptions: true, sanitize: s => clean(escapeText(s)) })], { prefix: PREFIX })
       const cleanUpHouse = async () => {
-        for (const p of game.packs.filter(p => p.collection.startsWith(`world.${PREFIX}ca2-myh-`))) await p.deleteCompendium()
-        await bookFolder()?.delete()
+        for (const p of game.packs.filter(p => p.collection.startsWith(`world.${PREFIX}ca2h-myh-`))) await p.deleteCompendium()
+        await houseFolder()?.delete()
         const t = top()
         if (t && !hadTop && !t.getSubfolders().length && !game.packs.some(p => p.folder?.id === t.id)) await t.delete()
       }
@@ -360,18 +392,20 @@ export function registerQuench(quench) {
       })
       after(async function () { if (file) await cleanUpHouse() })
 
-      it('imports every pack into "Chummer compendiums/<name> (<id>)", labelled (House)', () => {
+      it('imports its own pack per type into "Chummer compendiums/<name> (<id>)", labelled (House), folders by category', async () => {
         assert.isEmpty(res.failed, res.failed.map(f => f.error?.message).join('; '))
-        for (const k of ['amps', 'weapons', 'armor', 'gear', 'spells', 'vehicles', 'npcs']) {
+        for (const k of KEYS) {
           const p = pack(k)
           assert.ok(p, `pack ${k}`)
           assert.equal(p.folder?.name, 'Made-Up House Stuff (MYH)', k)
           assert.equal(p.folder?.folder?.name, COMPENDIUM_FOLDER, k)
-          assert.match(p.title, / — MYH \(House\)$/, k)
+          assert.equal(p.title, `${TYPES[k][0]} — MYH (House)`, k)
+          for (const d of await p.getDocuments()) assert.equal(d.folder?.name, flagOf(d).category, `${k}: ${d.name}`)
         }
+        assert.notOk(game.packs.get(`world.${PREFIX}ca2t-weapons`), 'never merged into the books’ packs')
       })
       it('has the NPC actor, flagged compendium', async () => {
-        const wisp = await byKey(pack('npcs'), 'MYH:npc:myh-npc-wisp')
+        const wisp = await byKey(pack('critters'), 'MYH:npc:myh-npc-wisp')
         assert.ok(wisp, 'NPC')
         assert.equal(wisp.name, 'House Wisp')
         assert.include(flagOf(wisp), { source: 'MYH', canon: false, compendium: true })
@@ -383,7 +417,7 @@ export function registerQuench(quench) {
         changed.items[0].name = 'House Short Blade II'
         const again = await run(changed)
         assert.isEmpty(again.failed, again.failed.map(f => f.error?.message).join('; '))
-        assert.equal(again.counts[`${PREFIX}ca2-myh-weapons`].replaced, 1)
+        assert.equal(again.counts[`${PREFIX}ca2h-myh-weapons`].replaced, 1)
         assert.equal((await weapons.getDocument(id))?.name, 'House Short Blade II')
         assert.ok(await weapons.getDocument(gm.id), 'GM entry kept')
         assert.equal(weapons.index.size, 2)

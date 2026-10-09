@@ -4,9 +4,9 @@ import { readExport } from '../lib/read.js'
 import { escapeText, translateRunner } from '../lib/translate.js'
 import { defaultChoice } from '../lib/plan.js'
 import { planUpsert } from '../lib/chummer-id.js'
-import { PORTRAIT, translateBook, translateTableRules } from '../lib/books.js'
+import { planTypePacks, PORTRAIT, translateBook, translateTableRules } from '../lib/books.js'
 import { applyRunner, findExisting } from './apply.js'
-import { importBook, importTableRules } from './books.js'
+import { importTypes } from './books.js'
 
 const flagOf = d => d?.flags?.[MODULE_ID]
 const time = x => Date.parse(x ?? '') || 0
@@ -59,12 +59,12 @@ export function createImportApp(getIcons = () => null) {
         name: book.source.name, id: book.source.id, error: error && F('CA2I.Failed', { reason: error }),
         canon: L(book.source.compendium ? 'CA2I.Compendium' : book.source.canon ? 'CA2I.Canon' : 'CA2I.NonCanon'),
         descriptions: L(this.file.descriptions === true ? 'CA2I.DescriptionsIn' : 'CA2I.DescriptionsOut'),
-        // after de-duplicating ids, as the write does (planUpsert: a chummerID the file has twice keeps its last entry);
-        // rules count their rule pages (level 2), not the journals or the section pages
-        counts: t && Object.entries(t.packs).map(([k, all]) => { const docs = planUpsert([], all).creates
-          const n = k === 'rules' ? docs.reduce((n, j) => n + j.pages.filter(p => p.title?.level === 2).length, 0)
-            : k === 'reference' ? docs.reduce((n, j) => n + j.pages.length, 0) : docs.length
-          return `${L(`CA2I.Pack.${k}`)} ${n}` }).join(' · '),
+        // per type compendium, after de-duplicating ids, as the write does (planUpsert: a chummerID the file has twice
+        // keeps its last entry); rules count their rule pages (level 2), not the journals or the section pages
+        counts: t && planTypePacks([t]).map(({ key, label, docs: all }) => { const docs = planUpsert([], all).creates
+          const n = key === 'rules' ? docs.reduce((n, j) => n + j.pages.filter(p => p.title?.level === 2).length, 0)
+            : key === 'reference' ? docs.reduce((n, j) => n + j.pages.length, 0) : docs.length
+          return `${label.replace(/ — .*$/, '')} ${n}` }).join(' · '),
       }))
       const nNpc = this.rows?.filter(r => r.runner.npc).length ?? 0
       const summary = nNpc ? F('CA2I.RunnersAndNpcs', { runners: this.rows.length - nNpc, npcs: nNpc }) : ''
@@ -146,50 +146,38 @@ export function createImportApp(getIcons = () => null) {
       this.render()
     }
 
+    // Every ticked book (and the table rules) in one go: one compendium per type, all books merged (foundry/books.js
+    // importTypes). Progress per type and per chunk written; the report has a line per type with its counts per book,
+    // then each book's notes.
     async #importBooks() {
       if (this.busy || game.system.id !== 'sra2') return
       const el = this.element
       const jobs = this.books.filter((b, i) => el.querySelector(`[name="book-${i}"]`)?.checked)
       const withRules = this.tableRules && el.querySelector('[name=tableRules]')?.checked
-      const total = jobs.length + (withRules ? 1 : 0)
       const progress = el.querySelector('.ca2i-progress')
-      if (!total) { if (progress) progress.textContent = L('CA2I.NothingSelected'); return }
+      if (!jobs.length && !withRules) { if (progress) progress.textContent = L('CA2I.NothingSelected'); return }
       this.busy = true
       for (const b of el.querySelectorAll('button[data-action=import], input')) b.disabled = true
-      const step = (name, n) => { if (progress) progress.textContent = F('CA2I.BookProgress', { name, n, total }) }
-      // One line per pack written or failed; an id the file has twice is noted with the textOnly lines.
-      const lines = ({ counts, failed }) => ({
-        packs: [...Object.values(counts).map(c => ({ text: F('CA2I.PackResult', c) })),
-          ...failed.map(f => ({ failed: true, text: F('CA2I.PackFailed', { label: f.name, reason: f.error?.message ?? String(f.error) }) }))],
-        notes: Object.values(counts).flatMap(c => c.duplicates.map(name => F('CA2I.Duplicate', { label: c.label, name }))),
-      })
+      const onProgress = ({ label, n, total, done, of }) => {
+        if (progress) progress.textContent = F(done ? 'CA2I.ChunkProgress' : 'CA2I.TypeProgress', { pack: label, n, total, done, of })
+      }
       // A book that couldn't be translated has no tick; the report lists it as failed.
       const report = this.books.filter(b => b.error).map(({ book, error }) =>
         ({ name: book.source.name, failed: true, outcome: F('CA2I.Failed', { reason: error }), packs: [], textOnly: [] }))
-      let n = 0
-      for (const { book, t } of jobs) {  // a book that failed to translate has no tick
-        const name = book.source.name
-        step(name, ++n)
-        let res
-        const onProgress = ({ key, n: i, total: of }) => {
-          const pack = L(`CA2I.Pack.${key}`)
-          if (progress) progress.textContent = F('CA2I.BookPackProgress', { name, pack, n: i, total: of })
-        }
-        try { res = await importBook(t, { onProgress }) } catch (error) { res = { counts: {}, failed: [{ name, error }] } }  // importBook shouldn't throw; the window mustn't stick busy
-        const { packs, notes } = lines(res)
-        report.push({ name, packs, outcome: packs.length ? '' : L('CA2I.NothingInBook'), textOnly: [...t.textOnly, ...(res.notes ?? []), ...notes] })
-      }
-      if (withRules) {
-        const name = L('CA2I.TableRulesName')
-        step(name, ++n)
-        let res
-        try {
-          res = await importTableRules(translateTableRules(this.tableRules,
-            { exportedAt: this.file.exportedAt, appVersion: this.file.app?.version ?? '', sanitize }))
-        } catch (error) { res = { counts: {}, failed: [{ name, error }] } }  // translate threw: nothing changed
-        const { packs, notes } = lines(res)
-        report.push({ name, packs, outcome: packs.length ? '' : L('CA2I.NothingToImport'), textOnly: notes })
-      }
+      let res
+      try {
+        const tableRules = withRules ? translateTableRules(this.tableRules,
+          { exportedAt: this.file.exportedAt, appVersion: this.file.app?.version ?? '', sanitize }) : null
+        res = await importTypes(jobs.map(j => j.t), { tableRules, onProgress })
+      } catch (error) { res = { counts: {}, failed: [{ name: L('CA2I.Import'), error }], notes: [] } }  // importTypes shouldn't throw; the window mustn't stick busy
+      for (const c of Object.values(res.counts)) report.push({ name: c.label, outcome: F('CA2I.PackResult', c),
+        packs: Object.entries(c.byBook).map(([book, n]) => ({ text: F('CA2I.BookCounts', { book, ...n }) })),
+        textOnly: c.duplicates.map(name => F('CA2I.Duplicate', { label: c.label, name })) })
+      for (const f of res.failed) report.push({ name: f.name, failed: true, packs: [],
+        outcome: F('CA2I.Failed', { reason: f.error?.message ?? String(f.error) }), textOnly: [] })
+      for (const { book, t } of jobs) if (t.textOnly.length) report.push({ name: book.source.name, outcome: '', packs: [], textOnly: t.textOnly })
+      if (res.notes?.length) report.push({ name: L('CA2I.Portraits'), outcome: '', packs: [], textOnly: res.notes })
+      if (!report.length) report.push({ name: L('CA2I.NothingToImport'), outcome: '', packs: [], textOnly: [] })
       Object.assign(this, { busy: false, report, bookReport: true })
       this.render()
     }

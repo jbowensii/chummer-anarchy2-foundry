@@ -47,7 +47,7 @@ Chummer 0.7.0 lets GMs make NPCs, critters and spirits and export them for Found
 - A critter or spirit without a metatype gets no metatype item.
 - An NPC without a portrait gets the module's NPC, critter or spirit icon as its image and token.
 
-A book's NPCs, critters and spirits go in its compendium **NPCs & Critters** (see Book data).
+A book's NPCs go in the compendium **NPCs**, its critters and spirits in **Critters & Spirits** (see Book data).
 
 ## Book data
 
@@ -59,37 +59,46 @@ In Chummer, choose **Game data → Export book data for Foundry** (GMs only). Fo
 
 ### Import into Foundry
 
-In the Compendium sidebar (or the Actors sidebar), click **Import from Chummer**, choose the book-data file, untick any book you don't want, and click **Import**. Each book gets its own folder, "<book name> (<book id>)", inside the Compendium folder "Chummer Anarchy", with a compendium for each kind of entry the book has:
+In the Compendium sidebar (or the Actors sidebar), click **Import from Chummer**, choose the book-data file, untick any book you don't want, and click **Import**. Since 0.9.0 there is **one compendium per type, with every book merged into it**, all in the Compendium folder "Chummer Anarchy". Inside each compendium the entries are in folders by category (Chummer's category: the table or section they come from). Each entry keeps its book and page (sra2's reference field, and the module's flags `source`, `page`, `chummerID`).
 
-- **Amps**: qualities, cyberware and the other amps as sra2 feats, with Risk Reduction, wound boxes and thresholds. An equipment amp that is a weapon or armor becomes that feat type.
-- **Weapons**, **Armor**, **Gear** and **Spells**: feats of that type (weapon damage and ranges, armor value).
-- **Vehicles**: custom vehicle actors.
-- **Characters**: the book's pregenerated characters, each with its linked token, and their vehicles as separate entries named "<runner> — <vehicle>".
-- **NPCs & Critters**: the book's NPCs, critters and spirits, as above (Chummer 0.7.0's export).
-- **Metatypes**: the book's metatypes, with attribute caps, Anarchy bonus, edge and racial quality.
-- **Skills & specializations**: every skill and specialization in the file, using the same slugs as sra2's own, so they are interchangeable with the system's.
-- **Rules**: one journal per topic (rules sheet), with a chapter per section and one page per rule, sorted by page. Without descriptions a page says where to read it ("See MUC p.50").
-- **Reference**: everything sra2 has no document for (levels, packages, lifestyles, amp types, amp effects, attributes): one journal per kind, one page per entry with its printed stats, text, source and page.
+| Compendium | What goes in it (sra2 type) | Folders, for example |
+| --- | --- | --- |
+| **Qualities** | amps of type quality (feat: trait) | Positive qualities, Negative qualities |
+| **Cyberware & Bioware** | cyberware and bioware amps (feat: cyberware) | Cyberware, Bioware |
+| **Magic & Resonance** | adept, awakened and emerged amps (feat: adept power, awakened, emerged) | Adept power, Awakened, Emerged |
+| **Cyberdecks** | cyberdeck amps (feat: cyberdeck) | Cyberdeck, Cyberdeck add-ons |
+| **Contacts** | contact amps (feat: contact) | Contact |
+| **Equipment & vehicle amps** | equipment and vehicle amps; an equipment amp that is a weapon or armor is that feat type | Equipment, Vehicle, Equipment add-ons |
+| **Weapons**, **Armor**, **Gear** | items (feat: weapon, armor, equipment) | Pistols, Melee weapons; Armor 4; Commlinks, Tools |
+| **Spells**, **Complex forms** | spells and complex forms (feat: spell, complex form) | Combat, Detection; Sustained, Instant |
+| **Vehicles & Drones** | vehicles (vehicle actors) | Drones, Cars, Aircraft, Ground vehicles |
+| **Sample characters** | the books' pregens, each with its linked token, and their vehicles ("<runner> — <vehicle>") next to them | the character's level (Runner, …) |
+| **NPCs** | the books' NPCs (character actors) | Prime NPCs, Regular NPCs |
+| **Critters & Spirits** | the books' critters and spirits (character actors) | Critters, Spirits |
+| **Metatypes** | metatypes, with attribute caps, Anarchy bonus, edge and racial quality | Core metatypes, Metavariants |
+| **Skills**, **Specializations** | every skill and specialization in the file, with sra2's own slugs, so they are interchangeable with the system's | a skill by its linked attribute (Agility, Logic, …); a specialization by its skill (Close Combat, …) |
+| **Rules** | one journal per book and rules topic ("Basics (CRB)"), a chapter per section and one page per rule, sorted by page; your table rules from Chummer ("Table rules") | the topic (Basics, Optional rules, …), Table rules |
+| **Reference** | what sra2 has no document for (levels, packages, lifestyles, amp types, amp effects, attributes): one journal per book and kind, one page per entry with its printed stats, text, source and page | the kind (Levels, Lifestyles, …) |
 
-A compendium is never created empty: a book only gets the compendiums (and its folder) it has entries for.
+Where Chummer gives no category (or only "Other" or "General"), the folder comes from the entry itself: a weapon is a melee or ranged weapon by its ranges, armor goes by its armor value ("Armor 4"), and other items go by the first letter of their name ("A–F", "G–L", "M–R", "S–Z"). Without descriptions a rules page says where to read it ("See MUC p.50").
+
+A compendium is never created empty: only the types the imported books have get one. The import writes 100 entries at a time and shows its progress per compendium; the report gives a line per compendium with its counts per book, then each book's notes.
 
 Chummer 0.6.2's export is needed for the rules topics, metatypes and pregens; older files still import, with the rules sections they had.
 
-Items and vehicles carry their book and page in their reference field (pregens' reference names Chummer); rules carry theirs in their flags. Your table rules from Chummer, if the file has any, go in the compendium "Table rules — Chummer" in the "Chummer Anarchy" folder.
+**Coming from 0.8.x.** 0.8.x made a folder per book with its own compendiums (named `ca2-<book>-<kind>`, and `ca2-table-rules`). 0.9.0 never reads, changes or deletes those: import your books again to fill the new compendiums (named `ca2t-<type>`), then delete the old ones yourself (a script or by hand). Runners' and NPCs' links point at the new compendiums once you Replace them.
 
 ### Importing a book again
 
 Foundry gives every document its own id; the module never sets one. Each entry it imports carries Chummer's key for it in the module's flags: `chummerID` (`<book>:<kind>:<id>` for a book entry, for example `MUC:weapons:muc.made-up-blade`; a pregen's `MUC:character:<id>`) and `chummerAliases` (its keys from earlier Chummer imports, when the file has them). Both are in every compendium's index.
 
-A re-import finds each entry by its `chummerID` (then an alias) and updates it in place, so it keeps its id and links to it keep working; anything new is added. In a rules or table-rules journal, the imported pages are updated in place by their `chummerID` (keeping their ids), and pages the file no longer has and the pages you added are kept.
+A re-import finds each entry in its type's compendium by its `chummerID` (then an alias) and updates it in place, so it keeps its id, its folder (if you moved it), your effects and the art you chose, and links to it keep working; anything new is added into its category's folder. A book not in the file (or unticked) is left exactly as it is: nothing is ever deleted. A compendium you locked is unlocked for the import and locked again. In a rules or table-rules journal, the imported pages are updated in place by their `chummerID` (keeping their ids), and pages the file no longer has and the pages you added are kept. In Sample characters, items you added to a pregen are kept.
 
-**Worlds that imported books with 0.7.x or earlier.** Those versions gave each entry an id computed from Chummer's id. A re-import with this version finds such an entry by that id, updates it in place and writes `chummerID` onto it, so nothing is duplicated and links keep working; the import report counts them as migrated.
-
-A runner's or NPC's amps and items from a book are linked to their entries in that book's compendiums in this world (Foundry's compendium source): by `chummerID`, then alias, then the same item type and name inside that one book's compendiums (the same kind, then the same page, breaks a tie). Still more than one: no link, and the import report lists them. Never by name across all compendiums. Entries missing from the file are never deleted: entries you made yourself, and older entries the new file no longer has, stay as they are. A topic renamed in Chummer arrives as a new journal; the journal with the old name stays until you delete it. In Characters, items you added to a pregen are kept. The one-journal-per-section journals from 0.2.x are left alone; you can delete them by hand.
+A runner's or NPC's amps and items from a book are linked to their entries in the type compendiums in this world (Foundry's compendium source): by `chummerID`, then alias, then the same item type and name in the same type's compendium, the same book preferred (then the same kind, then the same page). Still more than one: no link, and the import report lists them with their books. Never by name across all compendiums, and never to the old per-book compendiums. A topic renamed in Chummer arrives as a new journal; the journal with the old name stays until you delete it.
 
 ## GM compendiums
 
-A compendium a GM made in Chummer (0.8.0: their own amps, weapons, armor, gear, spells, complex forms, vehicles and NPCs) exports from its Compendiums page as a book-data file with one book, and imports the same way as a book (**Import from Chummer**). The window marks it as a GM's compendium. It goes in its own folder, "<compendium name> (<id>)", inside the Compendium folder **"Chummer compendiums"** (books stay in "Chummer Anarchy"), with the same compendiums a book would get, labelled "(House)", e.g. "Weapons — MYH (House)". Its entries are non-canon, carry the compendium's id as their source, are flagged `compendium`, and have the GM's own descriptions. Importing it again works as for a book: entries from the file are replaced by id, the rest are left alone, and no compendium is made empty.
+A compendium a GM made in Chummer (0.8.0: their own amps, weapons, armor, gear, spells, complex forms, vehicles and NPCs) exports from its Compendiums page as a book-data file with one book, and imports the same way as a book (**Import from Chummer**). The window marks it as a GM's compendium. It is never merged with the books: it gets its own compendiums, one per type as above (named `ca2h-<id>-<type>`), labelled "(House)", e.g. "Weapons — MYH (House)", in its own folder, "<compendium name> (<id>)", inside the Compendium folder **"Chummer compendiums"** (books stay in "Chummer Anarchy"), with the same folders by category inside. Its entries are non-canon, carry the compendium's id as their source, are flagged `compendium`, and have the GM's own descriptions. Importing it again works as for a book: entries from the file are replaced by id, the rest are left alone, and no compendium is made empty.
 
 ## Icons
 
@@ -128,7 +137,7 @@ For your own Foundry only. Don’t share the export file. A file exported with d
 2. Open the Quench test runner.
 3. Tick the "Chummer Importer" batches and run them.
 
-The batches import `samples/test-export.json` (a made-up file with no book text) into a throwaway Actors folder, "Chummer Importer tests", `samples/test-npcs.json` (made-up NPCs) into "Chummer NPCs" (that folder is deleted again if the batch made it and it is left empty), `samples/test-books.json` (a made-up book file) into compendiums named `ca2test-…` in a Compendium folder of the same name, and `samples/test-compendium.json` (a made-up GM compendium) into compendiums named `ca2test-ca2-myh-…` in "Chummer compendiums" (that folder is deleted again if the batch made it and it is left empty). They delete what they made when they finish and don't touch anything else in the world.
+The batches import `samples/test-export.json` (a made-up file with no book text) into a throwaway Actors folder, "Chummer Importer tests", `samples/test-npcs.json` (made-up NPCs) into "Chummer NPCs" (that folder is deleted again if the batch made it and it is left empty), `samples/test-books.json` (a made-up book file) into compendiums named `ca2test-ca2t-…` in a Compendium folder of the same name (next to a made-up old-style `ca2test-ca2-muc-amps` it must not touch), and `samples/test-compendium.json` (a made-up GM compendium) into compendiums named `ca2test-ca2h-myh-…` in "Chummer compendiums" (that folder is deleted again if the batch made it and it is left empty). They delete what they made when they finish and don't touch anything else in the world.
 
 ## License
 

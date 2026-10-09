@@ -86,7 +86,7 @@ describe('a journal’s pages on re-import', () => {
   })
 })
 
-describe('a runner’s item -> its compendium entry, inside one book', () => {
+describe('a runner’s item -> its compendium entry', () => {
   const e = (name, extra = {}) => ({ uuid: `Compendium.world.ca2-muc-gear.Item.${name}`, type: 'gear', name, chummerID: null, aliases: [], kind: 'gear', page: 10, ...extra })
   const item = (name, f = {}) => ({ name, type: 'gear', flags: { [MODULE_ID]: { chummerID: 'MUC:gear:mus.rope', chummerAliases: [], kind: 'gear', page: 10, ...f } } })
   test('by chummerID first, whatever the name', () => {
@@ -113,4 +113,11 @@ describe('a runner’s item -> its compendium entry, inside one book', () => {
     expect(tieLine(item('Rope'), r.candidates)).toBe('Rope: 2 compendium entries match (Rope [gear] p.10, Rope [gear] p.10) → not linked')
   })
   test('nothing in the book: null', () => expect(resolveEntry(item('Rope'), [e('Other')])).toBe(null))
+  test('by type pack: only its own pack by name; the same book preferred; still tied across books: the report names each book', () => {
+    const own = item('Rope', { source: 'MUC' })
+    expect(resolveEntry(own, [e('Rope', { pack: 'weapons', uuid: 'W' }), e('Rope', { pack: 'gear', source: 'OTH', uuid: 'O' })], 'gear')).toEqual({ uuid: 'O', how: 'name' })
+    expect(resolveEntry(own, [e('Rope', { pack: 'gear', source: 'OTH', uuid: 'O' }), e('Rope', { pack: 'gear', source: 'MUC', uuid: 'M' })], 'gear')).toEqual({ uuid: 'M', how: 'name' })
+    const r = resolveEntry(own, [e('Rope', { pack: 'gear', source: 'OTH' }), e('Rope', { pack: 'gear', source: 'OTX' })], 'gear')
+    expect(tieLine(own, r.candidates)).toBe('Rope: 2 compendium entries match (Rope [gear] OTH p.10, Rope [gear] OTX p.10) → not linked')
+  })
 })
