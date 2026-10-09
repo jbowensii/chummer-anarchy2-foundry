@@ -128,7 +128,8 @@ export function translateRunner(runner, { exportedAt, appVersion, sanitize = esc
   const n = runner.narrative ?? {}
   // no img: Foundry's default artwork applies (apply.js sets img only from a portrait)
   const actor = { name: runner.streetName, type: 'character',
-    flags: { [MODULE_ID]: { id: runner.id, exportedAt, appVersion } },
+    // the full career ledger in our flags (sra2 ignores them; it has no karma fields), for a ledger tab later
+    flags: { [MODULE_ID]: { id: runner.id, exportedAt, appVersion, ledger: structuredClone(runner.ledger ?? []) } },
     system: {
       attributes: Object.fromEntries(Object.entries(ATTR).map(([k, v]) => [v, Math.max(1, runner.attributes?.[k] ?? 1)])),
       resources: { yens: Math.max(0, Math.trunc(runner.nuyen?.balance ?? 0)) },

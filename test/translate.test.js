@@ -257,3 +257,12 @@ describe('a runner’s things from a book carry their entry’s chummerID (for t
     expect(f('Lucky Coin')).not.toHaveProperty('chummerID')
   })
 })
+
+test('the full career ledger goes in our flags (sra2 has no karma fields)', async () => {
+  const { translateRunner } = await import('../scripts/lib/translate.js')
+  const { MODULE_ID } = await import('../scripts/lib/constants.js')
+  const ledger = [{ at: '2026-10-02T10:00:00.000Z', summary: 'Made-up run', amount: 500 }]
+  const t = translateRunner({ id: 'r', streetName: 'R', attributes: {}, skills: [], vehicles: [], metatype: { id: '' }, npc: { kind: 'npc' }, ledger },
+    { exportedAt: 'x', appVersion: 'y' })
+  expect(t.actor.flags[MODULE_ID].ledger).toEqual(ledger)
+})

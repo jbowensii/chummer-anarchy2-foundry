@@ -7,7 +7,21 @@
         "chummer-anarchy2-importer": {
           "id": "r-mara",
           "exportedAt": "2026-10-02T09:15:00.000Z",
-          "appVersion": "0.6.0"
+          "appVersion": "0.6.0",
+          "ledger": [
+            {
+              "at": "2026-10-01T17:00:00.000Z",
+              "type": "finalize",
+              "summary": "Creation finished",
+              "amount": 1200
+            },
+            {
+              "at": "2026-10-01T18:00:00.000Z",
+              "type": "earn",
+              "summary": "Made-up run payout",
+              "amount": 3000
+            }
+          ]
         }
       },
       "system": {
@@ -445,7 +459,8 @@
         "chummer-anarchy2-importer": {
           "id": "r-two",
           "exportedAt": "2026-10-02T09:15:00.000Z",
-          "appVersion": "0.6.0"
+          "appVersion": "0.6.0",
+          "ledger": []
         }
       },
       "system": {
