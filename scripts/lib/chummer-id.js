@@ -93,12 +93,13 @@ export function mergeByKey(existing = [], incoming = []) {
 
 const norm = s => String(s ?? '').toLowerCase().normalize('NFKD').replace(/[^a-z0-9]+/g, ' ').trim()
 /**
- * Which compendium entry a runner's item came from. entries: the index entries of that one book's compendiums
- * ({ uuid, type, name, chummerID, aliases, kind, page }). In order: the item's chummerID; its aliases (or an entry
- * listing the item's key as an alias); then the same Foundry type and name (case and punctuation aside), ties broken by
- * the same kind, then the same page. Returns { uuid, how }, { candidates } when still tied, or null.
+ * Which compendium entry a runner's item came from. entries: the index entries of the by-type compendiums
+ * ({ uuid, type, name, chummerID, aliases, kind, page, source, pack }). In order: the item's chummerID; its aliases (or
+ * an entry listing the item's key as an alias); then the same Foundry type and name (case and punctuation aside) in its
+ * type pack (pack: lib/books.js typeKey; any pack when not given), ties broken by the same book, then the same kind, then
+ * the same page. Returns { uuid, how }, { candidates } when still tied, or null.
  */
-export function resolveEntry(item, entries) {
+export function resolveEntry(item, entries, pack = null) {
   const f = flagsOf(item), k = f.chummerID, aliases = f.chummerAliases ?? []
   const one = (list, how) => (list.length === 1 ? { uuid: list[0].uuid, how } : list.length > 1 ? { candidates: list } : null)
   if (k) {
@@ -106,11 +107,12 @@ export function resolveEntry(item, entries) {
       ?? one(entries.filter(e => aliases.includes(e.chummerID) || (e.aliases ?? []).includes(k)), 'alias')
     if (r) return r
   }
-  let list = entries.filter(e => e.type === item.type && norm(e.name) === norm(item.name))
-  if (list.length > 1 && f.kind) { const same = list.filter(e => e.kind === f.kind); if (same.length) list = same }
-  if (list.length > 1 && f.page != null) { const same = list.filter(e => e.page === f.page); if (same.length) list = same }
+  let list = entries.filter(e => e.type === item.type && norm(e.name) === norm(item.name) && (!pack || e.pack === pack))
+  for (const [field, want] of [['source', f.source], ['kind', f.kind], ['page', f.page]]) {
+    if (list.length > 1 && want != null) { const same = list.filter(e => e[field] === want); if (same.length) list = same }
+  }
   return one(list, 'name')
 }
 /** The report line for an item left unlinked because several entries tie. */
 export const tieLine = (item, candidates) => `${item.name}: ${candidates.length} compendium entries match (${
-  candidates.map(c => `${c.name}${c.kind ? ` [${c.kind}]` : ''}${c.page != null ? ` p.${c.page}` : ''}`).join(', ')}) → not linked`
+  candidates.map(c => `${c.name}${c.kind ? ` [${c.kind}]` : ''}${c.source ? ` ${c.source}` : ''}${c.page != null ? ` p.${c.page}` : ''}`).join(', ')}) → not linked`

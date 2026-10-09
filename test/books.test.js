@@ -1,7 +1,8 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, test } from 'vitest'
 import { MODULE_ID } from '../scripts/lib/constants.js'
-import { planBookPacks, translateBook, translateTableRules } from '../scripts/lib/books.js'
+import { alphaFolder, ampFolder, category, chunk, countByBook, itemFolder, npcFolder, packTypeKey, planMoves, planTypePacks, translateBook, translateTableRules,
+  TYPES, typeKey, typePackName, vehicleFolder } from '../scripts/lib/books.js'
 import { docId } from '../scripts/lib/ids.js'
 import { legacyOf } from '../scripts/lib/chummer-id.js'
 import { portraitsAfter } from '../scripts/foundry/books.js'
@@ -17,7 +18,7 @@ const ids = (d, key, legacy) => { expect(d).not.toHaveProperty('_id'); expect(ci
 
 describe('translating a book', () => {
   test('packs only for the content a book has', () => {
-    expect(Object.keys(t.packs).sort()).toEqual(['amps', 'armor', 'characters', 'gear', 'metatypes', 'npcs', 'rules', 'skills', 'spells', 'vehicles', 'weapons'])
+    expect(Object.keys(t.packs).sort()).toEqual(['amps', 'armor', 'characters', 'critters', 'gear', 'metatypes', 'rules', 'skills', 'spells', 'vehicles', 'weapons'])
     expect(Object.keys(translateBook(mux, opts).packs)).toEqual(['amps'])
     expect(t.source).toEqual(muc.source)
   })
@@ -28,7 +29,7 @@ describe('translating a book', () => {
     expect(cid(translateBook(muc, opts).packs.weapons[0])).toBe(cid(blade))
     expect(blade.flags[MODULE_ID]).toEqual({ id: 'muc.made-up-blade', chummerID: 'MUC:weapons:muc.made-up-blade', chummerAliases: [],
       exportedAt: opts.exportedAt, appVersion: '0.6.0', source: 'MUC', page: 20, canon: true,
-      icon: { key: 'weapon/short-weapons', name: blade.name, book: 'MUC' } })
+      icon: { key: 'weapon/short-weapons', name: blade.name, book: 'MUC' }, category: 'Melee weapons' })
     const all = Object.values(t.packs).flat()
     expect(new Set(all.map(cid)).size).toBe(all.length)
     expect(blade.system.reference).toBe('MUC p.20')
@@ -139,7 +140,7 @@ describe('translating a book', () => {
   test('rules: one journal per sheet, a level-1 page per section then its rules as level-2 pages', () => {
     const r = t.packs.rules
     // named from sheetName, else the title-cased sheet
-    expect(r.map(j => j.name)).toEqual(['Core', 'Optional rules'])
+    expect(r.map(j => j.name)).toEqual(['Core (MUC)', 'Optional rules (MUC)'])
     ids(r[0], 'MUC:rules-sheet:core', 'MUC:rules-sheet:core')
     ids(r[1], 'MUC:rules-sheet:optional', 'MUC:rules-sheet:optional')
     expect(r[0].pages.map(p => [p.name, p.title.level])).toEqual([
@@ -241,15 +242,16 @@ test('older files: no sheetName -> title-cased sheet, then "Rules"; a page witho
     rules: [{ id: 'nos.a', source: 'NOS', page: 1, sheet: 'quick-start', section: '', title: 'A' }, { id: 'nos.b', source: 'NOS', page: 2, sheet: '', section: '', title: '' }] }
   const t = translateBook(book, { exportedAt: '2026-10-01T00:00:00Z', appVersion: '0.6.1', descriptions: false })
   const names = t.packs.rules.map(j => j.name).sort()
-  expect(names).toEqual(['Quick Start', 'Rules'])
+  expect(names).toEqual(['Quick Start (NOS)', 'Rules (NOS)'])
   expect(t.packs.rules.every(j => typeof j.name === 'string' && j.name.length > 0)).toBe(true)
   expect(t.packs.rules.flatMap(j => j.pages).map(p => p.name).sort()).toEqual(['A', 'Quick Start', 'Rules', 'nos.b'])
 })
 
 describe('a book’s NPCs, critters and spirits', () => {
-  test('pack npcs: an unlinked hostile actor per regular NPC, GM description, no metatype item for a spirit', () => {
-    const [wisp] = t.packs.npcs
-    expect(t.packs.npcs).toHaveLength(1)
+  test('pack critters (a spirit): an unlinked hostile actor per regular NPC, GM description, no metatype item for a spirit', () => {
+    const [wisp] = t.packs.critters
+    expect(t.packs.critters).toHaveLength(1)
+    expect(t.packs.npcs).toBeUndefined()
     expect(wisp).toMatchObject({ name: 'Made-Up Wisp', type: 'character' })
     ids(wisp, 'MUC:npc:muc-npc-wisp', 'MUC:npc:muc-npc-wisp')
     expect(wisp.flags[MODULE_ID]).toMatchObject({ id: 'muc-npc-wisp', source: 'MUC', npc: { kind: 'spirit', tier: 'regular' } })
@@ -260,27 +262,141 @@ describe('a book’s NPCs, critters and spirits', () => {
   })
   test('with icons, the NPC’s image and token are the spirit default', () => {
     const icons = JSON.parse(readFileSync('icons/index.json', 'utf8'))
-    const [wisp] = translateBook(muc, { ...opts, icons }).packs.npcs
+    const [wisp] = translateBook(muc, { ...opts, icons }).packs.critters
     expect(wisp.img).toBe('modules/chummer-anarchy2-importer/icons/defaults/npc/spirit.webp')
     expect(wisp.prototypeToken).toEqual({ actorLink: false, disposition: -1, texture: { src: wisp.img } })
   })
 })
 
-describe('planning the packs of a book (never an empty compendium)', () => {
-  test('one pack per non-empty list, in PACKS order, with world-safe names', () => {
-    const p = planBookPacks(t, 'q-')
-    expect(p.map(x => x.key)).toEqual(['amps', 'weapons', 'armor', 'gear', 'spells', 'vehicles', 'characters', 'npcs', 'metatypes', 'skills', 'rules'])
-    expect(p.find(x => x.key === 'npcs')).toMatchObject({ name: 'q-ca2-muc-npcs', label: 'NPCs & Critters — MUC', type: 'Actor' })
-    expect(p.find(x => x.key === 'characters')).toMatchObject({ name: 'q-ca2-muc-characters', label: 'Characters — MUC', type: 'Actor' })
-    expect(p.find(x => x.key === 'metatypes')).toMatchObject({ name: 'q-ca2-muc-metatypes', label: 'Metatypes — MUC', type: 'Item' })
-    expect(p.every(x => x.docs.length > 0)).toBe(true)
+describe('by-type packs: every book merged into one compendium per type', () => {
+  const tx = translateBook(mux, opts)
+  test('one pack per type with entries, in TYPES order, all books merged, world-safe names distinct from the 0.8.x per-book ca2-…', () => {
+    const p = planTypePacks([t, tx], { prefix: 'q-' })
+    expect(p.map(x => x.key)).toEqual(['qualities', 'augmentations', 'weapons', 'armor', 'gear', 'spells', 'vehicles', 'characters', 'critters',
+      'metatypes', 'skills', 'specializations', 'rules'])
+    expect(p.every(x => x.docs.length > 0 && x.house === null && /^q-ca2t-[a-z-]+$/.test(x.name) && x.label === TYPES[x.key][0])).toBe(true)
+    expect(p.find(x => x.key === 'critters')).toMatchObject({ name: 'q-ca2t-critters', label: 'Critters & Spirits', type: 'Actor' })
+    // MUX's amp is a quality: it sits in the same Qualities pack as MUC's
+    expect(p.find(x => x.key === 'qualities').docs.map(d => d.flags[MODULE_ID].source)).toEqual(['MUC', 'MUX'])
+    expect(planTypePacks([t]).find(x => x.key === 'weapons').name).toBe('ca2t-weapons')
   })
-  test('a book with nothing to write plans no pack (so importBook makes no folder either)', () => {
-    // 0.2.x: a pregens-only book had no pack the module knew, yet its book folder was still created
+  test('sra2 types: amps by feat type, spells and complex forms apart, skills and specializations apart', () => {
+    const feat = featType => ({ type: 'feat', system: { featType } })
+    expect(['trait', 'cyberware', 'adept-power', 'awakened', 'emerged', 'cyberdeck', 'contact', 'equipment', 'weapon', 'armor'].map(f => typeKey('amps', feat(f))))
+      .toEqual(['qualities', 'augmentations', 'magic', 'magic', 'magic', 'cyberdecks', 'contacts', 'amped-gear', 'amped-gear', 'amped-gear'])
+    expect([typeKey('spells', feat('spell')), typeKey('spells', feat('complex-form')), typeKey('skills', { type: 'skill' }),
+      typeKey('skills', { type: 'specialization' }), typeKey('weapons', feat('weapon')), typeKey('nonsense', {})])
+      .toEqual(['spells', 'complex-forms', 'skills', 'specializations', 'weapons', null])
+  })
+  test('pack names and back: ca2t-<type>, a GM compendium ca2h-<id>-<type>; an old ca2-<book>-<kind> pack is not ours', () => {
+    expect(typePackName('amped-gear')).toBe('ca2t-amped-gear')
+    expect(typePackName('gear', 'q-', { id: 'My.H' })).toBe('q-ca2h-my-h-gear')
+    expect(['ca2t-amped-gear', 'ca2t-gear', 'ca2h-my-h-amped-gear', 'ca2h-my-h-gear', 'ca2-muc-gear', 'ca2-type-weapons', 'ca2t-nonsense', 'q-ca2t-gear']
+      .map(n => packTypeKey(n))).toEqual(['amped-gear', 'gear', 'amped-gear', 'gear', null, null, null, null])
+    expect(packTypeKey('q-ca2t-gear', 'q-')).toBe('gear')
+  })
+  test('the table rules journal goes into Rules, folder Table rules', () => {
+    const j = translateTableRules(file.tableRules, opts)
+    const rules = planTypePacks([t], { tableRules: j }).find(p => p.key === 'rules')
+    expect(rules.docs.at(-1)).toBe(j)
+    expect(j.flags[MODULE_ID].category).toBe('Table rules')
+    expect(planTypePacks([], { tableRules: j }).map(p => p.key)).toEqual(['rules'])
+  })
+  test('nothing to write plans no pack (so no folder either)', () => {
     const pregensOnly = { source: { id: 'PRE', name: 'Pregens', publisher: 'x', canon: true }, packs: { characters: [], npcs: [], rules: [], other: [{ _id: 'x' }] }, textOnly: [] }
-    expect(planBookPacks(pregensOnly)).toEqual([])
+    expect(planTypePacks([pregensOnly])).toEqual([])
     const empty = { source: { id: 'E', name: 'Empty', publisher: 'x', canon: true }, amps: [], items: [], vehicles: [], skills: [], specs: [], rules: [], metatypes: [], characters: [], npcs: [] }
-    expect(planBookPacks(translateBook(empty, opts))).toEqual([])
+    expect(planTypePacks([translateBook(empty, opts)])).toEqual([])
+    expect(planTypePacks([], { tableRules: { pages: [] } })).toEqual([])
+  })
+})
+
+describe('folders by category, never Other or General', () => {
+  const folder = d => d.flags[MODULE_ID].category
+  const all = [...Object.values(t.packs).flat(), ...Object.values(translateBook(mux, opts).packs).flat()]
+  test('every entry has a folder, none vague', () => {
+    for (const d of all) expect(folder(d), d.name).toMatch(/\S/)
+    expect(all.some(d => /^(other|general)$/i.test(folder(d)))).toBe(false)
+  })
+  test('the sample book: Chummer’s category where it has one, else from the entry’s data', () => {
+    const f = (pack, name) => folder(t.packs[pack].find(d => d.name === name))
+    expect([f('amps', 'Made-up Knack'), f('amps', 'Made-up Implant'), f('weapons', 'Made-up Short Blade'), f('armor', 'Made-up Vest'),
+      f('gear', 'Made-up Widget'), f('spells', 'Made-up Charm'), f('vehicles', 'Made-up Cart'), f('metatypes', 'Made-Up Gnome'),
+      f('skills', 'Made-Up Lore'), f('skills', 'Spec: Old Texts'), f('skills', 'Spec: Made-Up Style'), f('rules', 'Core (MUC)'),
+      f('characters', 'Made-Up Max'), f('characters', 'Made-Up Max — Made-Up Scout Drone'), f('critters', 'Made-Up Wisp')])
+      .toEqual(['Positive qualities', 'Cyberware', 'Melee weapons', 'Armor 2', 'M–R', 'Combat', 'Ground vehicles', 'Metavariants',
+        'Logic', 'Made-Up Lore', 'Close Combat', 'Core', 'Runner', 'Runner', 'Spirits'])
+  })
+  test('category: Chummer’s, capitalised; Other, General, Misc and blanks are no category', () => {
+    expect(['Handguns', 'combat', 'basic bioware', 'Other', 'general', ' misc. ', '', null, 'Miscellaneous', '–'].map(category))
+      .toEqual(['Handguns', 'Combat', 'Basic bioware', null, null, null, null, null, null, null])
+  })
+  test('items: category, else weapons melee or ranged, armor by value, the rest by initial', () => {
+    expect(itemFolder({ kind: 'weapon', category: 'Pistols' })).toBe('Pistols')
+    expect(itemFolder({ kind: 'weapon', category: 'Other', ranges: { melee: 'ok', short: 'none', medium: 'none', long: 'none' } })).toBe('Melee weapons')
+    expect(itemFolder({ kind: 'weapon', ranges: { melee: 'disadvantage', short: 'ok', medium: 'ok', long: 'none' } })).toBe('Ranged weapons')
+    expect(itemFolder({ kind: 'armor', armor: 4 })).toBe('Armor 4')
+    expect(itemFolder({ kind: 'complex-form', category: 'sustained' })).toBe('Sustained')
+    expect(['Ammo', 'grapple', 'Óptica', 'Zoom', '3D printer', ''].map(alphaFolder)).toEqual(['A–F', 'G–L', 'M–R', 'S–Z', 'A–F', 'A–F'])
+  })
+  test('amps: qualities positive or negative, the others by Chummer’s amp type, add-ons apart', () => {
+    expect(ampFolder({ type: 'quality', effects: [{ id: 'negative' }] })).toBe('Negative qualities')
+    expect(ampFolder({ type: 'quality', typeName: 'Trait' })).toBe('Positive qualities')
+    expect(ampFolder({ type: 'bioware', typeName: 'Bioware' })).toBe('Bioware')
+    expect(ampFolder({ type: 'cyberdeck', typeName: 'Cyberdeck', mod: true })).toBe('Cyberdeck add-ons')
+    expect(ampFolder({ type: 'adept', typeName: '' })).toBe('Adept')
+  })
+  test('vehicles: by sra2 vehicle type, else drone by name, aircraft when it flies, else ground', () => {
+    expect([vehicleFolder({ id: 'medium-drone', name: 'X' }), vehicleFolder({ id: 'x', name: 'Made-up Sedan' }),
+      vehicleFolder({ id: 'x', name: 'Spy Drone' }), vehicleFolder({ id: 'x', name: 'Kite', flyingSpeed: 3 }), vehicleFolder({ id: 'x', name: 'Cart' })])
+      .toEqual(['Drones', 'Cars', 'Drones', 'Aircraft', 'Ground vehicles'])
+  })
+  test('critters Awakened or Mundane, spirits by their type; a category in the npc block wins', () => {
+    const spirit = streetName => npcFolder({ streetName, npc: { kind: 'spirit', tier: 'regular' } })
+    expect([spirit('Fire Elemental'), spirit('Spirit of Man'), spirit('Beasts'), spirit('Made-Up Wisp'), spirit('Mannequin')])
+      .toEqual(['Fire spirits', 'Spirits of man', 'Beast spirits', 'Spirits', 'Spirits'])
+    expect(npcFolder({ streetName: 'X', metatype: { name: 'Water Spirit' }, npc: { kind: 'spirit' } })).toBe('Water spirits')
+    const critter = r => npcFolder({ streetName: 'Hound', npc: { kind: 'critter', tier: 'regular' }, ...r })
+    expect([critter({}), critter({ skills: [{ id: 'astral-combat' }] }), critter({ amps: [{ type: 'adept' }] }), critter({ items: [{ kind: 'spell' }] })])
+      .toEqual(['Mundane critters', 'Awakened critters', 'Awakened critters', 'Awakened critters'])
+    expect(npcFolder({ npc: { kind: 'critter', category: 'paranormal animals' } })).toBe('Paranormal animals')
+    expect(npcFolder({ npc: { kind: 'npc', tier: 'prime' } })).toBe('Prime NPCs')
+  })
+  test('people: NPCs by tier, critters and spirits by kind; a sra2 metatype is core', () => {
+    const b = structuredClone(muc)
+    b.npcs.push({ ...structuredClone(muc.npcs[0]), id: 'muc-npc-boss', streetName: 'Boss', npc: { kind: 'npc', tier: 'prime' } })
+    b.metatypes[0].name = 'Ork'
+    const r = translateBook(b, opts)
+    expect(r.packs.npcs.map(d => [d.name, folder(d)])).toEqual([['Boss', 'Prime NPCs']])
+    expect(folder(r.packs.metatypes[0])).toBe('Core metatypes')
+  })
+})
+
+describe('import helpers', () => {
+  test('counts per book: replaced from updates, created from creates; the table rules count apart', () => {
+    const d = source => ({ flags: { [MODULE_ID]: { source } } })
+    expect(countByBook([{ doc: d('MUC') }, { doc: d('MUX') }], [d('MUC'), d('MUC'), { flags: {} }]))
+      .toEqual({ MUC: { created: 2, replaced: 1 }, MUX: { created: 0, replaced: 1 }, 'table rules': { created: 1, replaced: 0 } })
+  })
+  test('moves: an entry of ours that changed type is found in its old pack, by chummerID or alias; never a GM entry or one written there now', () => {
+    const e = (_id, chummerID, aliases = []) => ({ _id, name: _id, flags: { [MODULE_ID]: { chummerID, chummerAliases: aliases } } })
+    const d = (chummerID, aliases = []) => ({ name: chummerID, flags: { [MODULE_ID]: { chummerID, chummerAliases: aliases } } })
+    const existing = { qualities: [e('Q1', 'M:amps:a'), e('Q2', 'M:amps:old-b'), e('GM', null), e('Q3', 'M:amps:c')],
+      augmentations: [e('A1', 'M:amps:a'), e('A2', 'M:amps:b', ['M:amps:old-b']), e('A3', 'M:amps:c')], weapons: [e('W1', 'M:amps:d')],
+      npcs: [e('N1', 'M:npc:z')], critters: [e('C1', 'M:npc:z')] }
+    const planned = { augmentations: [d('M:amps:a'), d('M:amps:b', ['M:amps:old-b']), d('M:amps:c')], qualities: [d('M:amps:c')], critters: [d('M:npc:z')] }
+    expect(planMoves(existing, planned)).toEqual([
+      { from: 'qualities', to: 'augmentations', oldId: 'Q1', newId: 'A1', name: 'M:amps:a' },
+      { from: 'qualities', to: 'augmentations', oldId: 'Q2', newId: 'A2', name: 'M:amps:b' },
+      { from: 'npcs', to: 'critters', oldId: 'N1', newId: 'C1', name: 'M:npc:z' }])
+    // an Item never moves into an Actor pack, and nothing moves where the new copy wasn't written
+    expect(planMoves({ weapons: [e('W', 'k')], vehicles: [e('V', 'k')] }, { vehicles: [d('k')] })).toEqual([])
+    expect(planMoves({ qualities: [e('Q', 'k')] }, { augmentations: [d('k')] })).toEqual([])
+  })
+  test('chunk: slices of n, the last one shorter; nothing for nothing', () => {
+    expect(chunk([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]])
+    expect(chunk(Array.from({ length: 250 }, (_, i) => i), 100).map(c => c.length)).toEqual([100, 100, 50])
+    expect(chunk([], 100)).toEqual([])
   })
 })
 
@@ -292,12 +408,14 @@ describe('a compendium book (source.compendium)', () => {
   delete plain.source.compendium
   const pt = translateBook(plain, { exportedAt: cf.exportedAt, appVersion: cf.app.version, descriptions: true })
 
-  test('plans the same packs as a plain book of the same content, labelled (House)', () => {
-    const p = planBookPacks(ct)
-    expect(p.map(x => x.key)).toEqual(['amps', 'weapons', 'armor', 'gear', 'spells', 'vehicles', 'npcs'])
-    expect(p.map(x => [x.key, x.name, x.type, x.docs.length])).toEqual(planBookPacks(pt).map(x => [x.key, x.name, x.type, x.docs.length]))
-    expect(p.find(x => x.key === 'npcs').label).toBe('NPCs & Critters — MYH (House)')
-    expect(planBookPacks(pt).find(x => x.key === 'npcs').label).toBe('NPCs & Critters — MYH')
+  test('its own packs by type (ca2h-<id>-<type>, labelled (House)), the same types a plain book of the same content gets', () => {
+    const p = planTypePacks([ct, t])
+    const own = p.filter(x => x.house)
+    expect(own.map(x => x.key)).toEqual(['qualities', 'augmentations', 'weapons', 'armor', 'gear', 'spells', 'vehicles', 'critters'])
+    expect(own.every(x => x.house.id === 'MYH' && x.name === `ca2h-myh-${x.key}` && x.label === `${TYPES[x.key][0]} — MYH (House)`)).toBe(true)
+    expect(own.map(x => [x.key, x.type, x.docs.length])).toEqual(planTypePacks([pt]).map(x => [x.key, x.type, x.docs.length]))
+    // never merged with the books
+    expect(p.filter(x => !x.house).flatMap(x => x.docs).some(d => d.flags[MODULE_ID].source === 'MYH')).toBe(false)
   })
 
   test('every entry is flagged compendium; a plain book has no such flag', () => {
@@ -342,8 +460,9 @@ describe('the kinds sra2 has no document for', () => {
       { kind: 'lifestyles', id: 'muc.made-up-squat', source: 'MUC', page: 8, name: 'Made-up Squat', stats: { perRun: 50 }, description: 'An invented lifestyle.' },
       { kind: 'gizmos', id: 'muc.g', source: 'MUC', page: 9, name: 'G', stats: {} }] }
     const r = translateBook(b, opts)
-    expect(planBookPacks(r).find(p => p.key === 'reference')).toMatchObject({ type: 'JournalEntry', label: 'Reference — MUC' })
-    expect(r.packs.reference.map(j => [j.name, cid(j)])).toEqual([['Levels', 'MUC:reference:levels'], ['Lifestyles', 'MUC:reference:lifestyles'], ['Gizmos', 'MUC:reference:gizmos']])
+    expect(planTypePacks([r]).find(p => p.key === 'reference')).toMatchObject({ type: 'JournalEntry', label: 'Reference', name: 'ca2t-reference' })
+    expect(r.packs.reference.map(j => [j.name, cid(j), j.flags[MODULE_ID].category])).toEqual([['Levels (MUC)', 'MUC:reference:levels', 'Levels'],
+      ['Lifestyles (MUC)', 'MUC:reference:lifestyles', 'Lifestyles'], ['Gizmos (MUC)', 'MUC:reference:gizmos', 'Gizmos']])
     const [lvl] = r.packs.reference[0].pages
     expect(lvl).toMatchObject({ name: 'Made-up Level', type: 'text', flags: { [MODULE_ID]: { id: 'muc.made-up-level', chummerID: 'MUC:levels:muc.made-up-level', source: 'MUC', page: 7 } } })
     expect(lvl.text.content).toBe('<p>nuyen: 1000</p><p>skillCap: 5</p><p>See MUC p.7</p>')
