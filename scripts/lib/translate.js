@@ -37,6 +37,15 @@ export const metatypeMax = (ranges = {}) => {
  * (e.g. t => clean(escapeText(t))), never replace escapeText with the cleaner: a cleaner neither escapes text nor makes paragraphs.
  * icons: icons/index.json (array or Set); without it no img is set (flags.icon is stored either way).
  */
+/** A Chummer item kind -> its book compendium's key (lib/books.js), the kind in its chummerID. */
+export const PACK_OF = { weapon: 'weapons', armor: 'armor', gear: 'gear', spell: 'spells', 'complex-form': 'spells' }
+// A runner's amp or item from a book: its catalog id and its book entry's chummerID (lib/chummer-id.js), for its
+// compendium link (foundry/apply.js); a custom one: none.
+const catalogFlags = x => {
+  if (!x?.catalogId || !x.source || x.chassisId) return {}
+  const kind = x.kind ? PACK_OF[x.kind] ?? 'gear' : 'amps'
+  return { catalogId: x.catalogId, source: x.source, page: x.page ?? null, kind, chummerID: `${x.source}:${kind}:${x.catalogId}`, chummerAliases: [] }
+}
 export function translateRunner(runner, { exportedAt, appVersion, sanitize = escapeText, icons }) {
   const textOnly = [], items = [], iconSet = icons ? new Set(icons) : null
   const flag = id => ({ [MODULE_ID]: { id, exportedAt, appVersion } })
@@ -72,7 +81,7 @@ export function translateRunner(runner, { exportedAt, appVersion, sanitize = esc
 
   const rrTarget = rrResolver(skills)
   // the shared mapping (ampFeat/itemFeat/vehicleActor) with the runner's rr resolution and flags
-  const ctx = { flag: x => flag(x.uid), icon, sanitize, rrTarget, say: t => textOnly.push(t) }
+  const ctx = { flag: x => { const f = flag(x.uid); Object.assign(f[MODULE_ID], catalogFlags(x)); return f }, icon, sanitize, rrTarget, say: t => textOnly.push(t) }
   for (const amp of runner.amps ?? []) if (!vehicleUids.has(amp.uid)) items.push(ampFeat(amp, ctx))
 
   const armors = []  // [Chummer item, feat system]
@@ -109,7 +118,7 @@ export function translateRunner(runner, { exportedAt, appVersion, sanitize = esc
 
   const init = runner.initiative
   const facts = [
-    `Real name: ${runner.realName ?? ''}`, `Metatype: ${runner.metatype?.name ?? ''}`, `Level: ${runner.level?.name ?? ''}`,
+    `Real name: ${runner.realName ?? ''}`, ...runner.gender ? [`Gender: ${runner.gender}`] : [], `Metatype: ${runner.metatype?.name ?? ''}`, `Level: ${runner.level?.name ?? ''}`,
     `Edge: ${runner.edge ?? ''}`, `Essence: ${runner.essence ?? ''}`, `Lifestyle: ${runner.lifestyle?.name ?? ''}`,
     `Initiative: ${init ? `${init.level}${init.source ? ` (${init.source})` : ''}` : 'none'}`,
     `Armor: ${runner.armor?.main ?? 0} (alternative ${runner.armor?.alt ?? 0})`,
@@ -119,7 +128,8 @@ export function translateRunner(runner, { exportedAt, appVersion, sanitize = esc
   const n = runner.narrative ?? {}
   // no img: Foundry's default artwork applies (apply.js sets img only from a portrait)
   const actor = { name: runner.streetName, type: 'character',
-    flags: { [MODULE_ID]: { id: runner.id, exportedAt, appVersion } },
+    // the full career ledger in our flags (sra2 ignores them; it has no karma fields), for a ledger tab later
+    flags: { [MODULE_ID]: { id: runner.id, exportedAt, appVersion, ledger: structuredClone(runner.ledger ?? []) } },
     system: {
       attributes: Object.fromEntries(Object.entries(ATTR).map(([k, v]) => [v, Math.max(1, runner.attributes?.[k] ?? 1)])),
       resources: { yens: Math.max(0, Math.trunc(runner.nuyen?.balance ?? 0)) },

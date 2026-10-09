@@ -28,6 +28,10 @@ describe('translating a runner', () => {
     expect(s.bio.notes).toContain('Mara Madeup')
     expect(t.actor.flags[MODULE_ID]).toMatchObject({ id: 'r-mara', exportedAt: opts.exportedAt, appVersion: '0.6.0' })
   })
+  test('gender (sra2 has no field for it) goes in the notes, only when set', () => {
+    expect(t.actor.system.bio.notes).not.toContain('Gender:')
+    expect(translateRunner({ ...mara, gender: 'Made-up gender' }, opts).actor.system.bio.notes).toContain('Gender: Made-up gender')
+  })
 
   test('one metatype item with the ranges', () => {
     const m = t.items.filter(i => i.type === 'metatype')
@@ -240,4 +244,29 @@ describe('translating an NPC', () => {
     const r = structuredClone(ganger); r.pools[0].label = '<script>x</script>'
     expect(translateRunner(r, opts).actor.system.bio.gmDescription).not.toContain('<script>')
   })
+})
+
+describe('a runner’s things from a book carry their entry’s chummerID (for the compendium link)', () => {
+  test('an amp and an item with a catalog id and source; a custom one nothing', async () => {
+    const { translateRunner } = await import('../scripts/lib/translate.js')
+    const { MODULE_ID } = await import('../scripts/lib/constants.js')
+    const r = { id: 'r', streetName: 'R', attributes: {}, skills: [], vehicles: [], metatype: { id: '' }, npc: { kind: 'npc' },
+      amps: [{ uid: 'a1', catalogId: 'muc.knack', source: 'MUC', page: 5, type: 'quality', name: 'Knack', canon: true, effects: [], rr: [], bonuses: {} }],
+      items: [{ uid: 'i1', catalogId: 'muc.blade', source: 'MUC', page: 20, kind: 'weapon', name: 'Blade', weapon: { dv: 'STR+1', ranges: {} } },
+        { uid: 'i2', kind: 'gear', name: 'Lucky Coin' }] }
+    const t = translateRunner(r, { exportedAt: 'x', appVersion: 'y' })
+    const f = n => t.items.find(i => i.name === n).flags[MODULE_ID]
+    expect(f('Knack')).toMatchObject({ id: 'a1', catalogId: 'muc.knack', source: 'MUC', kind: 'amps', chummerID: 'MUC:amps:muc.knack' })
+    expect(f('Blade')).toMatchObject({ id: 'i1', catalogId: 'muc.blade', kind: 'weapons', chummerID: 'MUC:weapons:muc.blade', page: 20 })
+    expect(f('Lucky Coin')).not.toHaveProperty('chummerID')
+  })
+})
+
+test('the full career ledger goes in our flags (sra2 has no karma fields)', async () => {
+  const { translateRunner } = await import('../scripts/lib/translate.js')
+  const { MODULE_ID } = await import('../scripts/lib/constants.js')
+  const ledger = [{ at: '2026-10-02T10:00:00.000Z', summary: 'Made-up run', amount: 500 }]
+  const t = translateRunner({ id: 'r', streetName: 'R', attributes: {}, skills: [], vehicles: [], metatype: { id: '' }, npc: { kind: 'npc' }, ledger },
+    { exportedAt: 'x', appVersion: 'y' })
+  expect(t.actor.flags[MODULE_ID].ledger).toEqual(ledger)
 })

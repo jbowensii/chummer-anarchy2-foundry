@@ -1,5 +1,6 @@
 // Entry point: the import window is built at init; GMs get an "Import from Chummer" button in the Actors sidebar.
 import { createImportApp } from './foundry/app.js'
+import { addIndexFields } from './foundry/apply.js'
 import { registerQuench } from './foundry/quench.js'
 import { createIconsApp, loadIconIndex } from './foundry/icons.js'
 import { MODULE_ID } from './lib/constants.js'
@@ -34,6 +35,7 @@ function addButton(root, tab) {
 }
 
 Hooks.once('init', () => {
+  addIndexFields()  // chummerID and its aliases in every compendium's index (lib/chummer-id.js)
   iconsLoaded = loadIconIndex().then(i => { icons = i })
   ImportApp = createImportApp(() => icons)
   game.settings.registerMenu(MODULE_ID, 'applyIcons', { name: 'CA2I.Icons.Title', label: 'CA2I.Icons.Button',

@@ -317,8 +317,7 @@
           "type": [
             "string",
             "null"
-          ],
-          "description": "optional: the token image as a data URL, like portrait; absent or null: the token shows the portrait"
+          ]
         },
         "attributes": {
           "type": "object",
@@ -398,6 +397,9 @@
               "price": {
                 "type": "number"
               },
+              "category": {
+                "type": "string"
+              },
               "description": {
                 "type": "string"
               },
@@ -429,10 +431,6 @@
               },
               "note": {
                 "type": "string"
-              },
-              "category": {
-                "type": "string",
-                "description": "optional: the catalog category, as a book item's category (spells: combat, detection, health, illusion, manipulation)"
               }
             }
           }
@@ -489,6 +487,10 @@
           "type": "string"
         },
         "realName": {
+          "type": "string"
+        },
+        "gender": {
+          "description": "Optional, as the player wrote it.",
           "type": "string"
         },
         "finalized": {
@@ -1310,6 +1312,58 @@
           "type": "array",
           "items": {
             "$ref": "#/$defs/runner"
+          }
+        },
+        "reference": {
+          "description": "The kinds the Foundry system has no document for (levels, packages, lifestyles, amp types, amp effects, attributes): each entry's printed stats, for a reference journal per kind.",
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "kind",
+              "id",
+              "source",
+              "page",
+              "name",
+              "stats"
+            ],
+            "properties": {
+              "kind": {
+                "enum": [
+                  "levels",
+                  "packages",
+                  "lifestyles",
+                  "ampTypes",
+                  "ampEffects",
+                  "attributes"
+                ]
+              },
+              "id": {
+                "type": "string"
+              },
+              "source": {
+                "type": "string"
+              },
+              "page": {
+                "type": "integer"
+              },
+              "name": {
+                "type": "string"
+              },
+              "stats": {
+                "type": "object",
+                "additionalProperties": {
+                  "type": [
+                    "string",
+                    "number"
+                  ]
+                }
+              },
+              "description": {
+                "type": "string"
+              }
+            }
           }
         }
       }

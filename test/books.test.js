@@ -3,6 +3,7 @@ import { describe, expect, test } from 'vitest'
 import { MODULE_ID } from '../scripts/lib/constants.js'
 import { planBookPacks, translateBook, translateTableRules } from '../scripts/lib/books.js'
 import { docId } from '../scripts/lib/ids.js'
+import { legacyOf } from '../scripts/lib/chummer-id.js'
 import { portraitsAfter } from '../scripts/foundry/books.js'
 
 const file = JSON.parse(readFileSync('samples/test-books.json', 'utf8'))
@@ -10,6 +11,9 @@ const opts = { exportedAt: file.exportedAt, appVersion: file.app.version, descri
 const [muc, mux] = file.books
 const t = translateBook(muc, opts)
 const find = (pack, name) => t.packs[pack].find(d => d.name === name)
+// our identity (lib/chummer-id.js); legacyOf: the id 0.7.x computed for the document, which a re-import still finds
+const cid = d => d.flags[MODULE_ID].chummerID
+const ids = (d, key, legacy) => { expect(d).not.toHaveProperty('_id'); expect(cid(d)).toBe(key); expect(legacyOf(d)).toBe(docId(legacy)) }
 
 describe('translating a book', () => {
   test('packs only for the content a book has', () => {
@@ -18,12 +22,15 @@ describe('translating a book', () => {
     expect(t.source).toEqual(muc.source)
   })
 
-  test('deterministic ids, flags with source/page/canon, reference', () => {
+  test('no _id (Foundry picks it); chummerID <source>:<pack>:<id>, the 0.7.x id still found; flags with source/page/canon, reference', () => {
     const blade = find('weapons', 'Made-up Short Blade')
-    expect(blade._id).toBe(docId('muc.made-up-blade'))
-    expect(translateBook(muc, opts).packs.weapons[0]._id).toBe(blade._id)
-    expect(blade.flags[MODULE_ID]).toEqual({ id: 'muc.made-up-blade', exportedAt: opts.exportedAt, appVersion: '0.6.0', source: 'MUC', page: 20, canon: true,
+    ids(blade, 'MUC:weapons:muc.made-up-blade', 'muc.made-up-blade')
+    expect(cid(translateBook(muc, opts).packs.weapons[0])).toBe(cid(blade))
+    expect(blade.flags[MODULE_ID]).toEqual({ id: 'muc.made-up-blade', chummerID: 'MUC:weapons:muc.made-up-blade', chummerAliases: [],
+      exportedAt: opts.exportedAt, appVersion: '0.6.0', source: 'MUC', page: 20, canon: true,
       icon: { key: 'weapon/short-weapons', name: blade.name, book: 'MUC' } })
+    const all = Object.values(t.packs).flat()
+    expect(new Set(all.map(cid)).size).toBe(all.length)
     expect(blade.system.reference).toBe('MUC p.20')
     const extra = translateBook(mux, opts).packs.amps[0]
     expect(extra.flags[MODULE_ID]).toMatchObject({ source: 'MUX', page: 5, canon: false })
@@ -50,7 +57,8 @@ describe('translating a book', () => {
   })
 
   test('the vehicle is a custom vehicle actor', () => {
-    expect(find('vehicles', 'Made-up Cart')).toMatchObject({ _id: docId('muc.made-up-cart'), type: 'vehicle',
+    ids(find('vehicles', 'Made-up Cart'), 'MUC:vehicles:muc.made-up-cart', 'muc.made-up-cart')
+    expect(find('vehicles', 'Made-up Cart')).toMatchObject({ type: 'vehicle',
       system: { vehicleType: 'custom-vehicle', customAutopilot: 1, customStructure: 2, customSpeed: 2, customArmor: 1, isFlying: false, reference: 'MUC p.30' } })
   })
 
@@ -61,7 +69,8 @@ describe('translating a book', () => {
     expect(s[0].system).toMatchObject({ linkedAttribute: 'logic', rating: 0 })
     expect(s[1].system).toMatchObject({ linkedSkill: lore, linkedAttribute: 'logic' })
     expect(s[2].system).toMatchObject({ linkedSkill: 'close-combat', linkedAttribute: 'agility', reference: 'MUC p.41' })
-    expect(s[2]._id).toBe(docId('close-combat.made-up-style'))
+    ids(s[2], 'MUC:specs:close-combat.made-up-style', 'close-combat.made-up-style')
+    ids(s[0], `MUC:skills:${muc.skills[0].id}`, muc.skills[0].id)
   })
 
   test('a book skill or spec sra2 already has is included, with the sra2 name and slug', () => {
@@ -69,21 +78,21 @@ describe('translating a book', () => {
     b.skills = [{ id: 'athletics', source: 'MUC', page: 1, name: 'Athletics', attr: 'str', specs: [{ id: 'athletics.climbing', name: 'Climbing', attr: 'str' }] }]
     b.specs = [{ skill: 'close-combat', id: 'close-combat.blades', name: 'Blades', attr: 'agi' }]
     const s = translateBook(b, opts).packs.skills
-    expect(s.map(d => [d._id, d.name, d.type, d.system.slug])).toEqual([
-      [docId('athletics'), 'Athletics', 'skill', 'athletics'],
-      [docId('athletics.climbing'), 'Spec: Climbing', 'specialization', 'spec_climbing'],
-      [docId('close-combat.blades'), 'Spec: Blades', 'specialization', 'spec_blades']])
+    expect(s.map(d => [cid(d), legacyOf(d), d.name, d.type, d.system.slug])).toEqual([
+      ['MUC:skills:athletics', docId('athletics'), 'Athletics', 'skill', 'athletics'],
+      ['MUC:specs:athletics.climbing', docId('athletics.climbing'), 'Spec: Climbing', 'specialization', 'spec_climbing'],
+      ['MUC:specs:close-combat.blades', docId('close-combat.blades'), 'Spec: Blades', 'specialization', 'spec_blades']])
     expect(s[0].system).toMatchObject({ linkedAttribute: 'strength', rating: 0, reference: 'MUC p.1' })
     expect(s[1].system).toMatchObject({ linkedSkill: 'athletics', linkedAttribute: 'strength' })
   })
 
   test('characters: an actor per pregen with its items; its vehicles as separate, unlinked actors', () => {
     const [max] = muc.characters, c = t.packs.characters
-    expect(c.map(d => [d._id, d.name, d.type])).toEqual([
-      [docId('MUC:character:muc-sample-max'), 'Made-Up Max', 'character'],
-      [docId('MUC:vehicle:muc-sample-max:v-drone'), 'Made-Up Max — Made-Up Scout Drone', 'vehicle']])
-    expect(c.every(d => /^[A-Za-z0-9]{16}$/.test(d._id))).toBe(true)
-    expect(translateBook(muc, opts).packs.characters.map(d => d._id)).toEqual(c.map(d => d._id))
+    expect(c.map(d => [cid(d), d.name, d.type])).toEqual([
+      ['MUC:character:muc-sample-max', 'Made-Up Max', 'character'],
+      ['MUC:vehicle:muc-sample-max:v-drone', 'Made-Up Max — Made-Up Scout Drone', 'vehicle']])
+    ids(c[0], 'MUC:character:muc-sample-max', 'MUC:character:muc-sample-max')
+    ids(c[1], 'MUC:vehicle:muc-sample-max:v-drone', 'MUC:vehicle:muc-sample-max:v-drone')
     const [actor, drone] = c
     expect(actor.items.map(i => i.type)).toEqual(['metatype', 'skill'])
     expect(actor.items.every(i => i._id === undefined)).toBe(true)
@@ -94,7 +103,7 @@ describe('translating a book', () => {
     expect(actor.prototypeToken).toEqual({ actorLink: true })  // a pregen's token is its actor, as for runners
     expect(drone).toMatchObject({ items: [], system: { vehicleType: 'custom-vehicle', isFlying: true } })
     expect(drone.flags[MODULE_ID]).toMatchObject({ runner: 'muc-sample-max', source: 'MUC' })
-    expect(t.portraits).toEqual({ [actor._id]: max.portrait })
+    expect(t.portraits).toEqual({ [cid(actor)]: max.portrait })  // by chummerID: the actor has no _id until Foundry gives it one
     // no portrait, or not an image data URL: default artwork
     const b = structuredClone(muc)
     b.characters[0].portrait = null
@@ -113,7 +122,8 @@ describe('translating a book', () => {
 
   test('metatypes: sra2 metatype items with the maximums, Anarchy bonus, Edge and racial quality', () => {
     const [m] = t.packs.metatypes
-    expect(m).toMatchObject({ _id: docId('muc.made-up-gnome'), name: 'Made-Up Gnome', type: 'metatype',
+    ids(m, 'MUC:metatypes:muc.made-up-gnome', 'muc.made-up-gnome')
+    expect(m).toMatchObject({ name: 'Made-Up Gnome', type: 'metatype',
       system: { maxStrength: 4, maxAgility: 6, maxWillpower: 7, maxLogic: 7, maxCharisma: 6, anarchyBonus: 0, reference: 'MUC p.12' },
       flags: { [MODULE_ID]: { id: 'muc.made-up-gnome', source: 'MUC', page: 12, canon: true } } })
     expect(m.system.description).toContain('Edge: 3')
@@ -130,19 +140,21 @@ describe('translating a book', () => {
     const r = t.packs.rules
     // named from sheetName, else the title-cased sheet
     expect(r.map(j => j.name)).toEqual(['Core', 'Optional rules'])
-    expect(r[0]._id).toBe(docId('MUC:rules-sheet:core'))
-    expect(r[1]._id).toBe(docId('MUC:rules-sheet:optional'))
+    ids(r[0], 'MUC:rules-sheet:core', 'MUC:rules-sheet:core')
+    ids(r[1], 'MUC:rules-sheet:optional', 'MUC:rules-sheet:optional')
     expect(r[0].pages.map(p => [p.name, p.title.level])).toEqual([
       ['Made-Up Basics', 1], ['Rule One', 2], ['Rule Two', 2], ['Made-Up Extras', 1], ['Rule Three', 2]])
     expect(r[0].pages.every(p => p.title.show === true && p.type === 'text')).toBe(true)
-    expect(r[0].pages[0]).toMatchObject({ _id: docId('MUC:section:core:Made-Up Basics'), text: { content: '<p>2 rules</p>', format: 1 } })
-    expect(r[0].pages[3]).toMatchObject({ _id: docId('MUC:section:core:Made-Up Extras'), text: { content: '<p>1 rule</p>', format: 1 } })
+    expect(r[0].pages[0]).toMatchObject({ text: { content: '<p>2 rules</p>', format: 1 } })
+    ids(r[0].pages[0], 'MUC:section:core:Made-Up Basics', 'MUC:section:core:Made-Up Basics')
+    ids(r[0].pages[3], 'MUC:section:core:Made-Up Extras', 'MUC:section:core:Made-Up Extras')
     expect(r[0].pages.map(p => p.sort)).toEqual(r[0].pages.map((_, i) => (i + 1) * 100000))
     // an empty section falls back to the journal's name
     expect(r[1].pages.map(p => [p.name, p.title.level])).toEqual([['Optional rules', 1], ['Rule Four', 2]])
-    expect(r[1].pages[0]._id).toBe(docId('MUC:section:optional:'))
+    ids(r[1].pages[0], 'MUC:section:optional:', 'MUC:section:optional:')
     // rule pages keep their id, flags and reference
-    expect(r[0].pages[1]).toMatchObject({ _id: docId('muc.rule-one'), flags: { [MODULE_ID]: { id: 'muc.rule-one', page: 50, source: 'MUC' } } })
+    expect(r[0].pages[1]).toMatchObject({ flags: { [MODULE_ID]: { id: 'muc.rule-one', page: 50, source: 'MUC' } } })
+    ids(r[0].pages[1], 'MUC:rules:muc.rule-one', 'muc.rule-one')
     expect(r[0].pages[1].text.content).toBe('<p>Made-up rule text with &lt;i&gt;markup&lt;/i&gt;.</p>')
     // sorted by page then title within a section
     const b = structuredClone(muc)
@@ -150,7 +162,8 @@ describe('translating a book', () => {
     b.rules.push({ id: 'muc.rule-a', source: 'MUC', page: 51, sheet: 'core', section: 'Made-Up Basics', title: 'A Rule' })
     const pages = translateBook(b, opts).packs.rules[0].pages
     expect(pages.map(p => p.name)).toEqual(['Made-Up Basics', 'A Rule', 'Rule Two', 'Rule One', 'Made-Up Extras', 'Rule Three'])
-    expect(pages[1]).toMatchObject({ _id: docId('muc.rule-a'), type: 'text', text: { content: '<p>See MUC p.51</p>', format: 1 } })
+    expect(pages[1]).toMatchObject({ type: 'text', text: { content: '<p>See MUC p.51</p>', format: 1 } })
+    ids(pages[1], 'MUC:rules:muc.rule-a', 'muc.rule-a')
   })
 
   test('descriptions escaped, and absent when descriptions are off', () => {
@@ -212,12 +225,15 @@ describe('translating a book', () => {
 
 test('table rules: one journal, a page per rule', () => {
   const j = translateTableRules(file.tableRules, opts)
-  expect(j).toMatchObject({ _id: docId('table-rules'), name: 'Table rules' })
+  expect(j).toMatchObject({ name: 'Table rules' })
+  ids(j, 'table-rules', 'table-rules')
+  ids(j.pages[0], 'table-rules:Made-Up Table Rule', 'table-rules:Made-Up Table Rule')
   expect(j.pages).toEqual([expect.objectContaining({ name: 'Made-Up Table Rule', type: 'text', text: { content: '<p>A made-up table rule.</p>', format: 1 } })])
   // repeated names get distinct page ids; a rule Chummer blanked (descriptions off) says the file has no text
   const two = translateTableRules([...file.tableRules, { ...file.tableRules[0], text: '' }], opts)
   expect(two.pages.map(p => p.text.content)).toEqual(['<p>A made-up table rule.</p>', '<p>(No text in this file.)</p>'])
-  expect(new Set(two.pages.map(p => p._id)).size).toBe(2)
+  expect(new Set(two.pages.map(cid)).size).toBe(2)
+  expect(legacyOf(two.pages[1])).toBe(docId('table-rules:Made-Up Table Rule:1'))  // 0.7.x's index-based id
 })
 
 test('older files: no sheetName -> title-cased sheet, then "Rules"; a page without a title uses its id', () => {
@@ -234,7 +250,8 @@ describe('a book’s NPCs, critters and spirits', () => {
   test('pack npcs: an unlinked hostile actor per regular NPC, GM description, no metatype item for a spirit', () => {
     const [wisp] = t.packs.npcs
     expect(t.packs.npcs).toHaveLength(1)
-    expect(wisp).toMatchObject({ _id: docId('MUC:npc:muc-npc-wisp'), name: 'Made-Up Wisp', type: 'character' })
+    expect(wisp).toMatchObject({ name: 'Made-Up Wisp', type: 'character' })
+    ids(wisp, 'MUC:npc:muc-npc-wisp', 'MUC:npc:muc-npc-wisp')
     expect(wisp.flags[MODULE_ID]).toMatchObject({ id: 'muc-npc-wisp', source: 'MUC', npc: { kind: 'spirit', tier: 'regular' } })
     expect(wisp.prototypeToken).toEqual({ actorLink: false, disposition: -1 })
     expect(wisp.items.map(i => i.type)).toEqual(['skill'])
@@ -294,12 +311,12 @@ describe('a compendium book (source.compendium)', () => {
 
 describe('book pregen and NPC tokens (0.7.0)', () => {
   const PNG = 'data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg=='
-  test('translateBook lists a character’s token by actor id, only an image data URL', () => {
+  test('translateBook lists a character’s token by its chummerID, only an image data URL', () => {
     const b = structuredClone(muc)
     b.characters[0].token = PNG
     b.npcs[0].token = 'https://example.com/x.png'
     const tb = translateBook(b, opts)
-    expect(tb.tokens).toEqual({ [docId('MUC:character:muc-sample-max')]: PNG })
+    expect(tb.tokens).toEqual({ 'MUC:character:muc-sample-max': PNG })
     expect(t.tokens).toEqual({})
   })
   test('portraitsAfter: token image from the token, else the portrait; chosen art is never replaced', async () => {
@@ -308,12 +325,29 @@ describe('book pregen and NPC tokens (0.7.0)', () => {
     globalThis.foundry = { applications: { apps: { FilePicker: { implementation: {
       browse: async () => ({}), upload: async (_, dir, file) => ({ path: `${dir}/${file.name}` }) } } } } }
     globalThis.Actor = { updateDocuments: async u => { ups.push(...u) } }
-    const fl = { [MODULE_ID]: { source: 'MUC', id: 'x', exportedAt: '2026-10-02T09:15:00.000Z' } }
-    const docs = [{ _id: 'a', flags: fl }, { _id: 'b', flags: fl }, { _id: 'c', flags: fl, img: 'worlds/w/mine.webp', prototypeToken: { texture: { src: 'worlds/w/mine-token.webp' } } }]
-    await portraitsAfter({ a: PNG, b: PNG, c: PNG }, { a: PNG, c: PNG }, () => {})(docs, {})
+    const fl = k => ({ [MODULE_ID]: { source: 'MUC', id: 'x', chummerID: k, exportedAt: '2026-10-02T09:15:00.000Z' } })
+    const docs = [{ _id: 'a', flags: fl('A') }, { _id: 'b', flags: fl('B') }, { _id: 'c', flags: fl('C'), img: 'worlds/w/mine.webp', prototypeToken: { texture: { src: 'worlds/w/mine-token.webp' } } }]
+    await portraitsAfter({ A: PNG, B: PNG, C: PNG }, { A: PNG, C: PNG }, () => {})(docs, {})
     expect(ups).toHaveLength(2)
     expect(ups[0].img).toMatch(/^worlds\/w\/chummer\/portraits\/MUC-x-\d+\.png$/)
     expect(ups[0]['prototypeToken.texture.src']).toMatch(/^worlds\/w\/chummer\/tokens\/MUC-x-\d+\.png$/)
     expect(ups[1]['prototypeToken.texture.src']).toBe(ups[1].img)
+  })
+})
+
+describe('the kinds sra2 has no document for', () => {
+  test('a Reference journal per kind, a page per entry with its stats, text, source, page and chummerID', () => {
+    const b = { ...structuredClone(muc), reference: [
+      { kind: 'levels', id: 'muc.made-up-level', source: 'MUC', page: 7, name: 'Made-up Level', stats: { nuyen: 1000, skillCap: 5 } },
+      { kind: 'lifestyles', id: 'muc.made-up-squat', source: 'MUC', page: 8, name: 'Made-up Squat', stats: { perRun: 50 }, description: 'An invented lifestyle.' },
+      { kind: 'gizmos', id: 'muc.g', source: 'MUC', page: 9, name: 'G', stats: {} }] }
+    const r = translateBook(b, opts)
+    expect(planBookPacks(r).find(p => p.key === 'reference')).toMatchObject({ type: 'JournalEntry', label: 'Reference — MUC' })
+    expect(r.packs.reference.map(j => [j.name, cid(j)])).toEqual([['Levels', 'MUC:reference:levels'], ['Lifestyles', 'MUC:reference:lifestyles'], ['Gizmos', 'MUC:reference:gizmos']])
+    const [lvl] = r.packs.reference[0].pages
+    expect(lvl).toMatchObject({ name: 'Made-up Level', type: 'text', flags: { [MODULE_ID]: { id: 'muc.made-up-level', chummerID: 'MUC:levels:muc.made-up-level', source: 'MUC', page: 7 } } })
+    expect(lvl.text.content).toBe('<p>nuyen: 1000</p><p>skillCap: 5</p><p>See MUC p.7</p>')
+    expect(r.packs.reference[1].pages[0].text.content).toContain('<p>An invented lifestyle.</p>')
+    expect(r.textOnly).toContain(`1 gizmos: a kind this module doesn't know → Reference journal "Gizmos"`)
   })
 })
