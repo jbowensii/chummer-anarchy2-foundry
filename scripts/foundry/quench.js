@@ -7,7 +7,7 @@ import { escapeText, translateRunner } from '../lib/translate.js'
 import { defaultChoice, newVersionName } from '../lib/plan.js'
 import { applyRunner, COMPENDIUM_FOLDER, findExisting, NPC_FOLDER } from './apply.js'
 import { translateBook } from '../lib/books.js'
-import { docId } from '../lib/ids.js'
+import { INDEX_FIELDS } from '../lib/chummer-id.js'
 import { importBook } from './books.js'
 import { applyIcons, loadIconIndex } from './icons.js'
 import { iconFor, MODULE_ICON_ROOT, slugName } from '../lib/icons.js'
@@ -51,6 +51,13 @@ async function cleanUp(tag, folder) {
 
 const itemsOf = (actor, type) => actor.items.filter(i => i.type === type)
 const byName = (actor, name) => actor.items.find(i => i.name === name)
+
+// an entry of a pack by our chummerID (lib/chummer-id.js): Foundry picked its _id
+async function byKey(pack, key) {
+  const index = await pack.getIndex({ fields: INDEX_FIELDS })
+  const hit = [...index.values()].find(i => i.flags?.[MODULE_ID]?.chummerID === key)
+  return hit ? pack.getDocument(hit._id) : null
+}
 
 export function registerQuench(quench) {
   const batch = (name, fn) => quench.registerBatch(`${MODULE_ID}.${name.replace(/\W+/g, '-')}`, fn,
@@ -239,7 +246,7 @@ export function registerQuench(quench) {
         { amps: 2, weapons: 1, armor: 1, gear: 1, spells: 1, vehicles: 1, characters: 2, npcs: 1, metatypes: 1, skills: 3, rules: 2 })
       })
       it('has the book’s spirit as an unlinked hostile character with its GM description and no metatype', async () => {
-        const wisp = await pack('npcs').getDocument(docId('MUC:npc:muc-npc-wisp'))
+        const wisp = await byKey(pack('npcs'), 'MUC:npc:muc-npc-wisp')
         assert.ok(wisp, 'NPC')
         assert.equal(pack('npcs').title, 'NPCs & Critters — MUC')
         assert.equal(wisp.type, 'character')
@@ -255,13 +262,13 @@ export function registerQuench(quench) {
         assert.notOk(game.folders.find(f => f.type === 'Compendium' && f.name === 'Made-Up Empty (EMP)'), 'empty book folder')
       })
       it('has the weapon’s damage, flags and reference', async () => {
-        const blade = await pack('weapons').getDocument(docId('muc.made-up-blade'))
+        const blade = await byKey(pack('weapons'), 'MUC:weapons:muc.made-up-blade')
         assert.include(blade.system, { featType: 'weapon', weaponType: 'short-weapons', vdMode: 'attribute', vdBonus: 1,
           meleeRange: 'ok', reference: 'MUC p.20' })
         assert.include(flagOf(blade), { id: 'muc.made-up-blade', source: 'MUC', page: 20, canon: true, exportedAt: file.exportedAt })
       })
       it('links the amp’s Risk Reduction to the sra2 spec', async () => {
-        const knack = await pack('amps').getDocument(docId('muc.made-up-knack'))
+        const knack = await byKey(pack('amps'), 'MUC:amps:muc.made-up-knack')
         // sra2 adds its own fields to each line (rrLabel), so match the three that matter
         assert.ok(knack.system.rrList.some(r => r.rrType === 'specialization' && r.rrValue === 1 && r.rrTarget === 'spec_pistols'),
           JSON.stringify(knack.system.rrList))
@@ -272,32 +279,32 @@ export function registerQuench(quench) {
         assert.deepEqual(sorted(journals.find(j => j.name === 'Core')),
           [[1, 'Made-Up Basics'], [2, 'Rule One'], [2, 'Rule Two'], [1, 'Made-Up Extras'], [2, 'Rule Three']])
         assert.deepEqual(sorted(journals.find(j => j.name === 'Optional rules')), [[1, 'Optional rules'], [2, 'Rule Four']])
-        const one = journals.find(j => j.name === 'Core').pages.get(docId('muc.rule-one'))
+        const one = journals.find(j => j.name === 'Core').pages.find(p => flagOf(p)?.chummerID === 'MUC:rules:muc.rule-one')
         assert.include(flagOf(one), { id: 'muc.rule-one', source: 'MUC', page: 50 })
       })
       it('has the pregen with its skills, its portrait on img and token, and its vehicle', async () => {
-        const max = await pack('characters').getDocument(docId('MUC:character:muc-sample-max'))
+        const max = await byKey(pack('characters'), 'MUC:character:muc-sample-max')
         assert.ok(max, 'pregen')
         assert.sameMembers(itemsOf(max, 'skill').map(i => i.system.slug), ['athletics'])
         assert.match(max.img, /chummer\/portraits\/MUC-muc-sample-max-\d+\.png$/)
         assert.equal(max.prototypeToken.texture.src, max.img)
         assert.isTrue(max.prototypeToken.actorLink)
-        const drone = await pack('characters').getDocument(docId('MUC:vehicle:muc-sample-max:v-drone'))
+        const drone = await byKey(pack('characters'), 'MUC:vehicle:muc-sample-max:v-drone')
         assert.equal(drone?.name, 'Made-Up Max — Made-Up Scout Drone')
         assert.equal(drone?.type, 'vehicle')
       })
       it('a pregen taken into the world is never offered for Replace by a runner file', async () => {
-        const data = (await pack('characters').getDocument(docId('MUC:character:muc-sample-max'))).toObject()
+        const data = (await byKey(pack('characters'), 'MUC:character:muc-sample-max')).toObject()
         delete data._id
         const copy = await Actor.create(data)
         try { assert.isNull(findExisting('muc-sample-max')) } finally { await copy.delete() }
       })
       it('has the metatype with its caps', async () => {
-        const gnome = await pack('metatypes').getDocument(docId('muc.made-up-gnome'))
+        const gnome = await byKey(pack('metatypes'), 'MUC:metatypes:muc.made-up-gnome')
         assert.include(gnome.system, { maxStrength: 4, maxAgility: 6, maxWillpower: 7, maxLogic: 7, maxCharisma: 6, anarchyBonus: 0 })
       })
-      it('re-import replaces its own entries by id and leaves what the GM added', async () => {
-        const amps = pack('amps'), id = docId('muc.made-up-knack'), maxId = docId('MUC:character:muc-sample-max')
+      it('re-import updates its own entries in place by chummerID (same _id) and leaves what the GM added', async () => {
+        const amps = pack('amps'), id = (await byKey(pack('amps'), 'MUC:amps:muc.made-up-knack')).id, maxId = (await byKey(pack('characters'), 'MUC:character:muc-sample-max')).id
         const gm = await Item.create({ name: 'GM-made amp', type: 'feat', system: { featType: 'equipment' } }, { pack: amps.collection })
         const coreId = (await pack('rules').getDocuments()).find(j => j.name === 'Core').id
         const gmPage = (await (await pack('rules').getDocument(coreId)).createEmbeddedDocuments('JournalEntryPage',
@@ -364,13 +371,13 @@ export function registerQuench(quench) {
         }
       })
       it('has the NPC actor, flagged compendium', async () => {
-        const wisp = await pack('npcs').getDocument(docId('MYH:npc:myh-npc-wisp'))
+        const wisp = await byKey(pack('npcs'), 'MYH:npc:myh-npc-wisp')
         assert.ok(wisp, 'NPC')
         assert.equal(wisp.name, 'House Wisp')
         assert.include(flagOf(wisp), { source: 'MYH', canon: false, compendium: true })
       })
-      it('re-import replaces its entries by id and leaves what the GM added', async () => {
-        const weapons = pack('weapons'), id = docId('myh.made-up-blade')
+      it('re-import updates its entries in place by chummerID (same _id) and leaves what the GM added', async () => {
+        const weapons = pack('weapons'), id = (await byKey(pack('weapons'), 'MYH:weapons:myh.made-up-blade')).id
         const gm = await Item.create({ name: 'GM-made weapon', type: 'feat', system: { featType: 'weapon' } }, { pack: weapons.collection })
         const changed = structuredClone(house)
         changed.items[0].name = 'House Short Blade II'

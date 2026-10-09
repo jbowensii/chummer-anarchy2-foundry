@@ -241,3 +241,19 @@ describe('translating an NPC', () => {
     expect(translateRunner(r, opts).actor.system.bio.gmDescription).not.toContain('<script>')
   })
 })
+
+describe('a runner’s things from a book carry their entry’s chummerID (for the compendium link)', () => {
+  test('an amp and an item with a catalog id and source; a custom one nothing', async () => {
+    const { translateRunner } = await import('../scripts/lib/translate.js')
+    const { MODULE_ID } = await import('../scripts/lib/constants.js')
+    const r = { id: 'r', streetName: 'R', attributes: {}, skills: [], vehicles: [], metatype: { id: '' }, npc: { kind: 'npc' },
+      amps: [{ uid: 'a1', catalogId: 'muc.knack', source: 'MUC', page: 5, type: 'quality', name: 'Knack', canon: true, effects: [], rr: [], bonuses: {} }],
+      items: [{ uid: 'i1', catalogId: 'muc.blade', source: 'MUC', page: 20, kind: 'weapon', name: 'Blade', weapon: { dv: 'STR+1', ranges: {} } },
+        { uid: 'i2', kind: 'gear', name: 'Lucky Coin' }] }
+    const t = translateRunner(r, { exportedAt: 'x', appVersion: 'y' })
+    const f = n => t.items.find(i => i.name === n).flags[MODULE_ID]
+    expect(f('Knack')).toMatchObject({ id: 'a1', catalogId: 'muc.knack', source: 'MUC', kind: 'amps', chummerID: 'MUC:amps:muc.knack' })
+    expect(f('Blade')).toMatchObject({ id: 'i1', catalogId: 'muc.blade', kind: 'weapons', chummerID: 'MUC:weapons:muc.blade', page: 20 })
+    expect(f('Lucky Coin')).not.toHaveProperty('chummerID')
+  })
+})

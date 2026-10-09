@@ -54,25 +54,6 @@ export function keepArt(old, doc) {
   return d
 }
 
-// Re-import by id: incoming entries already in the pack are replaced (deleted, then created with the same id), the
-// rest are created. Pack entries not in the file are never touched. An id the file has twice keeps its last entry
-// (`docs` is what to write); the dropped earlier ones are listed in `duplicates` for the report.
-export function planPack(existingIds, incoming) {
-  const byId = new Map(), duplicates = []
-  for (const d of incoming) {
-    if (byId.has(d._id)) duplicates.push(byId.get(d._id))
-    byId.set(d._id, d)
-  }
-  const docs = [...byId.values()], replace = [], create = []
-  for (const { _id } of docs) (existingIds.has(_id) ? replace : create).push(_id)
-  return { replace, create, docs, duplicates }
-}
-
-// Replacing a journal: its pages are rebuilt from the file; only the old pages without this module's flag (the GM's
-// own) are kept, after the imported ones. A stale or renamed imported page does not linger.
-export const mergeJournalPages = (existingPages, incomingPages) =>
-  [...incomingPages, ...(existingPages ?? []).filter(p => !p.flags?.[MODULE_ID])]
-
 // Replacing a pack actor (a book pregen): its Chummer items are rebuilt from the file; the items the GM added
 // (no module flags) are kept, after the imported ones.
 export const mergeActorItems = (existingItems, incomingItems) =>

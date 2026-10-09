@@ -2,7 +2,8 @@
 // (node --check clean). Never throws: a failing pack is reported in `failed` and the other packs carry on.
 import { MODULE_ID } from '../lib/constants.js'
 import { packName, planBookPacks } from '../lib/books.js'
-import { keepArt, mergeActorItems, mergeJournalPages, planPack } from '../lib/plan.js'
+import { INDEX_FIELDS, keysOf, mergeByKey, planUpsert } from '../lib/chummer-id.js'
+import { keepArt, mergeActorItems } from '../lib/plan.js'
 import { replaceable } from '../lib/icons.js'
 import { COMPENDIUM_FOLDER, ensureFolder, FOLDER, uploadPortrait } from './apply.js'
 
@@ -59,7 +60,7 @@ async function dropEmptyFolders(made) {
 // overwrites it rather than adding another. An image or token image the user chose (kept by writePack) is never replaced.
 export const portraitsAfter = (portraits = {}, tokens = {}, say) => async (docs, op) => {
   for (const d of docs) {
-    const url = portraits[d._id], tok = tokens[d._id], f = d.flags[MODULE_ID]
+    const key = keysOf(d).chummerID, url = portraits[key], tok = tokens[key], f = d.flags[MODULE_ID]
     if (!url && !tok) continue
     try {
       const up = { _id: d._id }, id = `${f.source}-${f.id}`
@@ -76,47 +77,47 @@ export const portraitsAfter = (portraits = {}, tokens = {}, say) => async (docs,
   }
 }
 
-// Replace by id: delete the entries the file has, then create all of them with their ids, in chunks. If a create
-// fails, what this run made is deleted and the replaced entries are put back, so a failure never loses them.
-// A replaced journal keeps the pages the GM added to it, a replaced actor the GM's own items, and a replaced entry
-// (and a replaced actor's rebuilt items) the image the user chose (lib/plan.js keepArt).
-// after(docs, op): run once everything is written, while the pack is still unlocked.
+// A re-import updates in place, never deletes (lib/chummer-id.js planUpsert): an incoming entry found in the pack by its
+// chummerID, an alias, or (migration from 0.7.x) the id 0.7.x computed for it, is updated in place, keeping its _id, its
+// folder, sort and ownership, other modules' flags, the image the user chose (lib/plan.js keepArt), a journal's pages
+// by chummerID (and the GM's own) and an actor's GM items; it gets our chummerID flag. Every other entry is created and
+// Foundry picks its id. Entries not in the file are never touched.
+// Updates go first, then creates in chunks; if a create fails, what this run created is deleted again (the updated
+// entries keep their new data). after(docs, op): run once everything is written, while the pack is still unlocked,
+// with the written documents' data (their _id included).
+const OURS = ['name', 'type', 'img', 'system', 'effects', 'prototypeToken', 'items', 'pages']
+function updateData(old, doc) {
+  const k = keepArt(old, doc), u = { _id: old._id, flags: { ...old.flags, [MODULE_ID]: doc.flags?.[MODULE_ID] } }
+  for (const f of OURS) if (f in k) u[f] = k[f]
+  if (Array.isArray(doc.pages)) u.pages = mergeByKey(old.pages, k.pages)
+  if (Array.isArray(doc.items)) u.items = mergeActorItems(old.items, k.items)
+  return u
+}
 async function writePack(pack, incoming, after) {
   const Doc = pack.documentClass, op = { pack: pack.collection }
-  const { replace, create, duplicates, ...plan } = planPack(new Set(pack.index.keys()), incoming)
-  let docs = plan.docs
+  const index = await pack.getIndex({ fields: INDEX_FIELDS })
+  const { updates, creates, duplicates } = planUpsert([...index.values()], incoming)
   // V14 refuses writes to a locked pack (common/abstract/backend.mjs #assertCompendiumUnlocked, ~l.229), even a
   // world pack the GM locked: unlock for this write and lock it again after.
   const locked = pack.locked
   if (locked) await pack.configure({ locked: false })
   try {
-    const old = replace.length ? (await pack.getDocuments({ _id__in: replace })).map(d => d.toObject()) : []
-    const [kept, merge] = { JournalEntry: ['pages', mergeJournalPages], Actor: ['items', mergeActorItems] }[pack.documentName] ?? []
-    if (old.length) {
-      const was = new Map(old.map(d => [d._id, d]))
-      docs = docs.map(d => {
-        const o = was.get(d._id)
-        if (!o) return d
-        const k = keepArt(o, d)
-        return merge ? { ...k, [kept]: merge(o[kept], k[kept] ?? []) } : k
-      })
-    }
-    if (replace.length) await Doc.deleteDocuments(replace, op)
+    const old = updates.length ? (await pack.getDocuments({ _id__in: updates.map(u => u._id) })).map(d => d.toObject()) : []
+    const was = new Map(old.map(d => [d._id, d]))
+    const ups = updates.map(u => updateData(was.get(u._id), u.doc))
+    for (let i = 0; i < ups.length; i += CHUNK) await Doc.updateDocuments(ups.slice(i, i + CHUNK), { ...op, recursive: false, diff: false })
     const made = []
     try {
-      for (let i = 0; i < docs.length; i += CHUNK) {
-        made.push(...await Doc.createDocuments(docs.slice(i, i + CHUNK), { ...op, keepId: true }))
-      }
+      for (let i = 0; i < creates.length; i += CHUNK) made.push(...await Doc.createDocuments(creates.slice(i, i + CHUNK), op))
     } catch (e) {
       try { if (made.length) await Doc.deleteDocuments(made.map(d => d.id), op) } catch {}
-      try { if (old.length) await Doc.createDocuments(old, { ...op, keepId: true }) } catch (restore) {
-        console.error(`${MODULE_ID} | ${pack.title}: restoring the replaced entries failed`, restore)
-        throw new Error(`${e?.message ?? e} (restoring the replaced entries failed)`, { cause: e })
-      }
       throw e
     }
-    await after?.(docs, op)
-    return { label: pack.title, created: create.length, replaced: replace.length, duplicates: duplicates.map(d => d.name ?? d._id) }
+    const written = [...ups.map(u => ({ ...u, img: u.img ?? was.get(u._id)?.img, prototypeToken: u.prototypeToken ?? was.get(u._id)?.prototypeToken })),
+      ...made.map((d, i) => ({ ...creates[i], _id: d.id }))]
+    await after?.(written, op)
+    return { label: pack.title, created: creates.length, replaced: updates.length,
+      migrated: updates.filter(u => u.how === 'legacy').length, duplicates: duplicates.map(d => d.name ?? keysOf(d).chummerID) }
   } finally {
     if (locked) await pack.configure({ locked: true })
   }
@@ -144,7 +145,7 @@ export async function importBook(t, { onProgress, prefix = '', topFolder = t.sou
   return { source: src, counts, failed, notes }
 }
 
-/** journal: translateTableRules output, written by id into the table rules pack in topFolder. Same result shape. */
+/** journal: translateTableRules output, written by chummerID into the table rules pack in topFolder. Same result shape. */
 export async function importTableRules(journal, { prefix = '', topFolder = FOLDER } = {}) {
   const name = packName(`${prefix}ca2-table-rules`), label = 'Table rules — Chummer', made = []
   if (!journal?.pages?.length) return { counts: {}, failed: [] }  // never an empty journal or compendium

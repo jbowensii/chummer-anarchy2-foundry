@@ -112,3 +112,22 @@ test('replace: the token image changes only while it shows module art; a chosen 
   await applyRunner(t, 'replace', { portrait: PNG, token: PNG })
   expect(ups[1]).not.toHaveProperty('prototypeToken.texture.src')
 })
+
+test('create: a runner’s amp from a book links its compendium entry by chummerID; a tie is reported, a custom item left alone', async () => {
+  const M = MODULE_ID
+  const index = new Map([['F1', { _id: 'F1', uuid: 'Compendium.world.ca2-muc-amps.Item.F1', type: 'feat', name: 'Knack', flags: { [M]: { chummerID: 'MUC:amps:muc.knack', kind: 'amps', page: 5 } } }],
+    ['G1', { _id: 'G1', uuid: 'U-G1', type: 'feat', name: 'Rope', flags: { [M]: { kind: 'gear', page: 9 } } }],
+    ['G2', { _id: 'G2', uuid: 'U-G2', type: 'feat', name: 'Rope', flags: { [M]: { kind: 'gear', page: 9 } } }]])
+  game.packs = { filter: f => [{ documentName: 'Item', collection: 'world.ca2-muc-amps', getIndex: async () => index }].filter(f) }
+  const it = (name, f) => ({ name, type: 'feat', flags: flags(f), system: {} })
+  const items = [it('Knack', { id: 'a1', catalogId: 'muc.knack', source: 'MUC', kind: 'amps', chummerID: 'MUC:amps:muc.knack' }),
+    it('Rope', { id: 'i1', catalogId: 'muc.rope', source: 'MUC', kind: 'gear', chummerID: 'MUC:gear:muc.rope', page: 9 }),
+    it('Lucky Coin', { id: 'i2' })]
+  const res = await applyRunner({ actor: { name: 'R', flags: flags({ id: 'r9' }), system: {} }, items, vehicles: [] }, 'create')
+  expect(res.action).toBe('create')
+  const made = res.actor.items
+  expect(made[0]._stats).toEqual({ compendiumSource: 'Compendium.world.ca2-muc-amps.Item.F1' })
+  expect(made[1]).not.toHaveProperty('_stats')
+  expect(made[2]).not.toHaveProperty('_stats')
+  expect(res.notes).toEqual(['Rope: 2 compendium entries match (Rope [gear] p.9, Rope [gear] p.9) → not linked'])
+})

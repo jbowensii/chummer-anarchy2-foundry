@@ -78,7 +78,13 @@ Items and vehicles carry their book and page in their reference field (pregens' 
 
 ### Importing a book again
 
-A re-import replaces the entries that came from the file, keeping their ids so links to them keep working. In a rules or table-rules journal, the imported pages are rebuilt from the file (a page the file no longer has goes) and the pages you added are kept. Entries missing from the file are never deleted: entries you made yourself, and older entries the new file no longer has, stay as they are. A topic renamed in Chummer arrives as a new journal; the journal with the old name stays until you delete it. In Characters, items you added to a pregen are kept. The one-journal-per-section journals from 0.2.x are left alone; you can delete them by hand.
+Foundry gives every document its own id; the module never sets one. Each entry it imports carries Chummer's key for it in the module's flags: `chummerID` (`<book>:<kind>:<id>` for a book entry, for example `MUC:weapons:muc.made-up-blade`; a pregen's `MUC:character:<id>`) and `chummerAliases` (its keys from earlier Chummer imports, when the file has them). Both are in every compendium's index.
+
+A re-import finds each entry by its `chummerID` (then an alias) and updates it in place, so it keeps its id and links to it keep working; anything new is added. In a rules or table-rules journal, the imported pages are updated in place by their `chummerID` (keeping their ids), and pages the file no longer has and the pages you added are kept.
+
+**Worlds that imported books with 0.7.x or earlier.** Those versions gave each entry an id computed from Chummer's id. A re-import with this version finds such an entry by that id, updates it in place and writes `chummerID` onto it, so nothing is duplicated and links keep working; the import report counts them as migrated.
+
+A runner's or NPC's amps and items from a book are linked to their entries in that book's compendiums in this world (Foundry's compendium source): by `chummerID`, then alias, then the same item type and name inside that one book's compendiums (the same kind, then the same page, breaks a tie). Still more than one: no link, and the import report lists them. Never by name across all compendiums. Entries missing from the file are never deleted: entries you made yourself, and older entries the new file no longer has, stay as they are. A topic renamed in Chummer arrives as a new journal; the journal with the old name stays until you delete it. In Characters, items you added to a pregen are kept. The one-journal-per-section journals from 0.2.x are left alone; you can delete them by hand.
 
 ## GM compendiums
 

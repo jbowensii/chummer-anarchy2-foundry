@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- Identity: Foundry picks every document's id; the module no longer computes ids or keeps them. Each imported entry carries `chummerID` (`<book>:<kind>:<id>`; a pregen `<book>:character:<id>`, a rules journal `<book>:rules-sheet:<sheet>`, table rules `table-rules`) and `chummerAliases` in the module's flags, and both are in every compendium's index.
+- Re-importing a book or the table rules updates each entry in place, found by `chummerID` or an alias; new entries are added; nothing is deleted. A journal's imported pages keep their ids; pages the file dropped stay.
+- Migration: an entry imported with 0.7.x or earlier (an id computed from Chummer's id, no `chummerID`) is found by that id on the next import, updated in place and given `chummerID`. The report counts them.
+- A runner's or NPC's amps and items from a book link to their book compendium entries by `chummerID`, then alias, then type and name inside that one book (same kind, then same page, breaks a tie); a tie is not linked and the report lists the candidates.
+
 ## 0.7.1
 
 - A Chummer Shadowrun 6 export (`chummer-sr6-export`) is refused before anything in the world changes, with a pointer to the Chummer SR6 Importer for shadowrun6-eden worlds.
