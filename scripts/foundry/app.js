@@ -62,7 +62,8 @@ export function createImportApp(getIcons = () => null) {
         // after de-duplicating ids, as the write does (planUpsert: a chummerID the file has twice keeps its last entry);
         // rules count their rule pages (level 2), not the journals or the section pages
         counts: t && Object.entries(t.packs).map(([k, all]) => { const docs = planUpsert([], all).creates
-          const n = k === 'rules' ? docs.reduce((n, j) => n + j.pages.filter(p => p.title?.level === 2).length, 0) : docs.length
+          const n = k === 'rules' ? docs.reduce((n, j) => n + j.pages.filter(p => p.title?.level === 2).length, 0)
+            : k === 'reference' ? docs.reduce((n, j) => n + j.pages.length, 0) : docs.length
           return `${L(`CA2I.Pack.${k}`)} ${n}` }).join(' · '),
       }))
       const nNpc = this.rows?.filter(r => r.runner.npc).length ?? 0

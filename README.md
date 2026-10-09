@@ -69,6 +69,7 @@ In the Compendium sidebar (or the Actors sidebar), click **Import from Chummer**
 - **Metatypes**: the book's metatypes, with attribute caps, Anarchy bonus, edge and racial quality.
 - **Skills & specializations**: every skill and specialization in the file, using the same slugs as sra2's own, so they are interchangeable with the system's.
 - **Rules**: one journal per topic (rules sheet), with a chapter per section and one page per rule, sorted by page. Without descriptions a page says where to read it ("See MUC p.50").
+- **Reference**: everything sra2 has no document for (levels, packages, lifestyles, amp types, amp effects, attributes): one journal per kind, one page per entry with its printed stats, text, source and page.
 
 A compendium is never created empty: a book only gets the compendiums (and its folder) it has entries for.
 

@@ -8,7 +8,10 @@ import { ampFeat, escapeText, itemFeat, metatypeMax, PACK_OF, rrResolver, transl
 // pack key -> [label, document type], in the order they are written
 export const PACKS = { amps: ['Amps', 'Item'], weapons: ['Weapons', 'Item'], armor: ['Armor', 'Item'], gear: ['Gear', 'Item'],
   spells: ['Spells', 'Item'], vehicles: ['Vehicles', 'Actor'], characters: ['Characters', 'Actor'], npcs: ['NPCs & Critters', 'Actor'], metatypes: ['Metatypes', 'Item'],
-  skills: ['Skills & specializations', 'Item'], rules: ['Rules', 'JournalEntry'] }
+  skills: ['Skills & specializations', 'Item'], rules: ['Rules', 'JournalEntry'], reference: ['Reference', 'JournalEntry'] }
+// the reference kinds (Chummer's `reference`: what sra2 has no document for) -> their journal's title
+export const REFERENCE = { levels: 'Levels', packages: 'Packages', lifestyles: 'Lifestyles', ampTypes: 'Amp types', ampEffects: 'Amp effects',
+  attributes: 'Attributes' }
 export const PORTRAIT = /^data:image\/(png|jpe?g);base64,/i
 // World pack names may only hold [A-Za-z0-9-_] (BasePackage.validateId).
 export const packName = s => s.toLowerCase().replace(/[^a-z0-9_-]/g, '-')
@@ -140,6 +143,19 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
     }).map((p, i) => ({ ...p, sort: (i + 1) * SORT }))
     const id = `${src.id}:rules-sheet:${sheet}`
     add('rules', { name, flags: flags(id, undefined, src.canon, id), pages })
+  }
+  // the kinds sra2 has no document for: a Reference journal each, a page per entry (its printed stats, text, source,
+  // page and chummerID)
+  const byKind = new Map()
+  for (const r of book.reference ?? []) byKind.set(r.kind, [...byKind.get(r.kind) ?? [], r])
+  for (const [kind, list] of byKind) {
+    const title = REFERENCE[kind] ?? titleCase(kind)
+    if (!REFERENCE[kind]) textOnly.push(`${list.length} ${kind}: a kind this module doesn't know → Reference journal "${title}"`)
+    add('reference', { name: title, flags: flags(kind, list[0].page, src.canon, `${src.id}:reference:${kind}`),
+      pages: list.map((r, i) => ({ name: r.name || r.id, type: 'text', title: { show: true, level: 1 }, sort: (i + 1) * SORT,
+        flags: flags(r.id, r.page, src.canon, `${src.id}:${kind}:${r.id}`),
+        text: { content: sanitize(Object.entries(r.stats ?? {}).map(([k, v]) => `${k}: ${v}`).join('\n\n'))
+          + (descriptions && r.description ? sanitize(r.description) : '') + sanitize(`See ${ref(r.page)}`), format: 1 } })) })
   }
   return { source: src, packs, portraits, tokens, textOnly }
 }

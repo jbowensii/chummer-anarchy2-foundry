@@ -334,3 +334,20 @@ describe('book pregen and NPC tokens (0.7.0)', () => {
     expect(ups[1]['prototypeToken.texture.src']).toBe(ups[1].img)
   })
 })
+
+describe('the kinds sra2 has no document for', () => {
+  test('a Reference journal per kind, a page per entry with its stats, text, source, page and chummerID', () => {
+    const b = { ...structuredClone(muc), reference: [
+      { kind: 'levels', id: 'muc.made-up-level', source: 'MUC', page: 7, name: 'Made-up Level', stats: { nuyen: 1000, skillCap: 5 } },
+      { kind: 'lifestyles', id: 'muc.made-up-squat', source: 'MUC', page: 8, name: 'Made-up Squat', stats: { perRun: 50 }, description: 'An invented lifestyle.' },
+      { kind: 'gizmos', id: 'muc.g', source: 'MUC', page: 9, name: 'G', stats: {} }] }
+    const r = translateBook(b, opts)
+    expect(planBookPacks(r).find(p => p.key === 'reference')).toMatchObject({ type: 'JournalEntry', label: 'Reference — MUC' })
+    expect(r.packs.reference.map(j => [j.name, cid(j)])).toEqual([['Levels', 'MUC:reference:levels'], ['Lifestyles', 'MUC:reference:lifestyles'], ['Gizmos', 'MUC:reference:gizmos']])
+    const [lvl] = r.packs.reference[0].pages
+    expect(lvl).toMatchObject({ name: 'Made-up Level', type: 'text', flags: { [MODULE_ID]: { id: 'muc.made-up-level', chummerID: 'MUC:levels:muc.made-up-level', source: 'MUC', page: 7 } } })
+    expect(lvl.text.content).toBe('<p>nuyen: 1000</p><p>skillCap: 5</p><p>See MUC p.7</p>')
+    expect(r.packs.reference[1].pages[0].text.content).toContain('<p>An invented lifestyle.</p>')
+    expect(r.textOnly).toContain(`1 gizmos: a kind this module doesn't know → Reference journal "Gizmos"`)
+  })
+})
