@@ -489,6 +489,10 @@
         "realName": {
           "type": "string"
         },
+        "gender": {
+          "description": "Optional, as the player wrote it.",
+          "type": "string"
+        },
         "finalized": {
           "type": "boolean"
         },

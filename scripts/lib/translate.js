@@ -118,7 +118,7 @@ export function translateRunner(runner, { exportedAt, appVersion, sanitize = esc
 
   const init = runner.initiative
   const facts = [
-    `Real name: ${runner.realName ?? ''}`, `Metatype: ${runner.metatype?.name ?? ''}`, `Level: ${runner.level?.name ?? ''}`,
+    `Real name: ${runner.realName ?? ''}`, ...runner.gender ? [`Gender: ${runner.gender}`] : [], `Metatype: ${runner.metatype?.name ?? ''}`, `Level: ${runner.level?.name ?? ''}`,
     `Edge: ${runner.edge ?? ''}`, `Essence: ${runner.essence ?? ''}`, `Lifestyle: ${runner.lifestyle?.name ?? ''}`,
     `Initiative: ${init ? `${init.level}${init.source ? ` (${init.source})` : ''}` : 'none'}`,
     `Armor: ${runner.armor?.main ?? 0} (alternative ${runner.armor?.alt ?? 0})`,

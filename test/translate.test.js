@@ -28,6 +28,10 @@ describe('translating a runner', () => {
     expect(s.bio.notes).toContain('Mara Madeup')
     expect(t.actor.flags[MODULE_ID]).toMatchObject({ id: 'r-mara', exportedAt: opts.exportedAt, appVersion: '0.6.0' })
   })
+  test('gender (sra2 has no field for it) goes in the notes, only when set', () => {
+    expect(t.actor.system.bio.notes).not.toContain('Gender:')
+    expect(translateRunner({ ...mara, gender: 'Made-up gender' }, opts).actor.system.bio.notes).toContain('Gender: Made-up gender')
+  })
 
   test('one metatype item with the ranges', () => {
     const m = t.items.filter(i => i.type === 'metatype')
