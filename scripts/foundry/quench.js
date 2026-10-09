@@ -168,7 +168,7 @@ export function registerQuench(quench) {
         assert.ok(a.items.get(noteId), 'unflagged item kept')
         const flagged = a.items.filter(i => flagOf(i))
         assert.isNotEmpty(flagged)
-        assert.isEmpty(flagged.filter(i => oldFlagged.includes(i.id)), 'flagged items rebuilt')
+        assert.isNotEmpty(flagged.filter(i => oldFlagged.includes(i.id)), 'our items updated in place (same ids), not re-created')
         assert.equal(flagOf(a).exportedAt, newer.exportedAt)
       })
       it('Replace kept the user’s ownership', function () {
