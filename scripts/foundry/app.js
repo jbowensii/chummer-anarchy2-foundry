@@ -28,7 +28,7 @@ export function createImportApp(getIcons = () => null) {
     static DEFAULT_OPTIONS = {
       id: 'chummer-anarchy2-import',
       classes: ['ca2i-app'],
-      window: { title: 'CA2I.Title', icon: 'fas fa-file-import' },
+      window: { title: 'CA2I.Title', icon: 'fas fa-file-import', resizable: true },
       position: { width: 560, height: 'auto' },
       actions: { import: ChummerImportApp.#onImport, openActor: ChummerImportApp.#onOpen, done: ChummerImportApp.#onDone,
         openCompendiums: ChummerImportApp.#onOpenCompendiums },

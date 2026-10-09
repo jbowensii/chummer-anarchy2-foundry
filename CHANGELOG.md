@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.8.1
+
+- The import window's book and runner lists scroll inside the window, so the Import button stays on screen with many books; the window can be resized.
+
 ## 0.8.0
 
 Needs Chummer 0.11.0's export for the Reference compendium and gender (`schema/export.schema.json` is its copy); older files still import. Import your books again, then Replace your runners.
