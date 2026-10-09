@@ -1,7 +1,13 @@
 # Changelog
 
-## Unreleased
+## 0.8.0
 
+Needs Chummer 0.11.0's export for the Reference compendium and gender (`schema/export.schema.json` is its copy); older files still import. Import your books again, then Replace your runners.
+
+- Replace updates our items in place (same ids, so links to them keep working) and keeps effects and items a user added; a re-import keeps a user's effects on compendium entries and pack actors' items.
+- The compendiums hold everything: a Reference compendium per book for the kinds sra2 has no document for (levels, packages, lifestyles, amp types, amp effects, attributes), one journal per kind, one page per entry.
+- The full career ledger is kept in the actor's flags (sra2 has no karma fields), for a ledger tab later.
+- A runner's gender goes in its notes (sra2 has no field for it).
 - Identity: Foundry picks every document's id; the module no longer computes ids or keeps them. Each imported entry carries `chummerID` (`<book>:<kind>:<id>`; a pregen `<book>:character:<id>`, a rules journal `<book>:rules-sheet:<sheet>`, table rules `table-rules`) and `chummerAliases` in the module's flags, and both are in every compendium's index.
 - Re-importing a book or the table rules updates each entry in place, found by `chummerID` or an alias; new entries are added; nothing is deleted. A journal's imported pages keep their ids; pages the file dropped stay.
 - Migration: an entry imported with 0.7.x or earlier (an id computed from Chummer's id, no `chummerID`) is found by that id on the next import, updated in place and given `chummerID`. The report counts them.
