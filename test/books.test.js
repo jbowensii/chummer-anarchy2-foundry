@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, test } from 'vitest'
 import { MODULE_ID } from '../scripts/lib/constants.js'
-import { alphaFolder, ampFolder, category, chunk, countByBook, itemFolder, packTypeKey, planTypePacks, translateBook, translateTableRules,
+import { alphaFolder, ampFolder, category, chunk, countByBook, itemFolder, npcFolder, packTypeKey, planMoves, planTypePacks, translateBook, translateTableRules,
   TYPES, typeKey, typePackName, vehicleFolder } from '../scripts/lib/books.js'
 import { docId } from '../scripts/lib/ids.js'
 import { legacyOf } from '../scripts/lib/chummer-id.js'
@@ -351,6 +351,17 @@ describe('folders by category, never Other or General', () => {
       vehicleFolder({ id: 'x', name: 'Spy Drone' }), vehicleFolder({ id: 'x', name: 'Kite', flyingSpeed: 3 }), vehicleFolder({ id: 'x', name: 'Cart' })])
       .toEqual(['Drones', 'Cars', 'Drones', 'Aircraft', 'Ground vehicles'])
   })
+  test('critters Awakened or Mundane, spirits by their type; a category in the npc block wins', () => {
+    const spirit = streetName => npcFolder({ streetName, npc: { kind: 'spirit', tier: 'regular' } })
+    expect([spirit('Fire Elemental'), spirit('Spirit of Man'), spirit('Beasts'), spirit('Made-Up Wisp'), spirit('Mannequin')])
+      .toEqual(['Fire spirits', 'Spirits of man', 'Beast spirits', 'Spirits', 'Spirits'])
+    expect(npcFolder({ streetName: 'X', metatype: { name: 'Water Spirit' }, npc: { kind: 'spirit' } })).toBe('Water spirits')
+    const critter = r => npcFolder({ streetName: 'Hound', npc: { kind: 'critter', tier: 'regular' }, ...r })
+    expect([critter({}), critter({ skills: [{ id: 'astral-combat' }] }), critter({ amps: [{ type: 'adept' }] }), critter({ items: [{ kind: 'spell' }] })])
+      .toEqual(['Mundane critters', 'Awakened critters', 'Awakened critters', 'Awakened critters'])
+    expect(npcFolder({ npc: { kind: 'critter', category: 'paranormal animals' } })).toBe('Paranormal animals')
+    expect(npcFolder({ npc: { kind: 'npc', tier: 'prime' } })).toBe('Prime NPCs')
+  })
   test('people: NPCs by tier, critters and spirits by kind; a sra2 metatype is core', () => {
     const b = structuredClone(muc)
     b.npcs.push({ ...structuredClone(muc.npcs[0]), id: 'muc-npc-boss', streetName: 'Boss', npc: { kind: 'npc', tier: 'prime' } })
@@ -366,6 +377,21 @@ describe('import helpers', () => {
     const d = source => ({ flags: { [MODULE_ID]: { source } } })
     expect(countByBook([{ doc: d('MUC') }, { doc: d('MUX') }], [d('MUC'), d('MUC'), { flags: {} }]))
       .toEqual({ MUC: { created: 2, replaced: 1 }, MUX: { created: 0, replaced: 1 }, 'table rules': { created: 1, replaced: 0 } })
+  })
+  test('moves: an entry of ours that changed type is found in its old pack, by chummerID or alias; never a GM entry or one written there now', () => {
+    const e = (_id, chummerID, aliases = []) => ({ _id, name: _id, flags: { [MODULE_ID]: { chummerID, chummerAliases: aliases } } })
+    const d = (chummerID, aliases = []) => ({ name: chummerID, flags: { [MODULE_ID]: { chummerID, chummerAliases: aliases } } })
+    const existing = { qualities: [e('Q1', 'M:amps:a'), e('Q2', 'M:amps:old-b'), e('GM', null), e('Q3', 'M:amps:c')],
+      augmentations: [e('A1', 'M:amps:a'), e('A2', 'M:amps:b', ['M:amps:old-b']), e('A3', 'M:amps:c')], weapons: [e('W1', 'M:amps:d')],
+      npcs: [e('N1', 'M:npc:z')], critters: [e('C1', 'M:npc:z')] }
+    const planned = { augmentations: [d('M:amps:a'), d('M:amps:b', ['M:amps:old-b']), d('M:amps:c')], qualities: [d('M:amps:c')], critters: [d('M:npc:z')] }
+    expect(planMoves(existing, planned)).toEqual([
+      { from: 'qualities', to: 'augmentations', oldId: 'Q1', newId: 'A1', name: 'M:amps:a' },
+      { from: 'qualities', to: 'augmentations', oldId: 'Q2', newId: 'A2', name: 'M:amps:b' },
+      { from: 'npcs', to: 'critters', oldId: 'N1', newId: 'C1', name: 'M:npc:z' }])
+    // an Item never moves into an Actor pack, and nothing moves where the new copy wasn't written
+    expect(planMoves({ weapons: [e('W', 'k')], vehicles: [e('V', 'k')] }, { vehicles: [d('k')] })).toEqual([])
+    expect(planMoves({ qualities: [e('Q', 'k')] }, { augmentations: [d('k')] })).toEqual([])
   })
   test('chunk: slices of n, the last one shorter; nothing for nothing', () => {
     expect(chunk([1, 2, 3, 4, 5], 2)).toEqual([[1, 2], [3, 4], [5]])

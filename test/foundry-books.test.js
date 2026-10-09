@@ -23,6 +23,7 @@ class FakePack {
   get index() { return this.docs }
   get folders() { const all = [...this.dirs.values()]; return { filter: f => all.filter(f), get: id => this.dirs.get(id) } }
   async getIndex() { return this.docs }
+  getUuid(id) { return `Compendium.${this.collection}.${this.documentName}.${id}` }
   get documentClass() { return Doc }
   async configure({ locked }) { log.push(['lock', this.collection, locked]); this.locked = locked }
   async setFolder(f) { this.folder = f }
@@ -58,7 +59,7 @@ beforeEach(() => {
   const all = () => [...packs.values()]
   globalThis.game = {
     packs: { get: id => packs.get(id), filter: f => all().filter(f), some: f => all().some(f) },
-    folders, i18n: { format: (k, d) => `${k} ${JSON.stringify(d)}`, localize: k => k }, release: { generation: 14 },
+    actors: [], items: [], folders, i18n: { format: (k, d) => `${k} ${JSON.stringify(d)}`, localize: k => k }, release: { generation: 14 },
   }
   globalThis.Folder = {
     // Compendium (pack) folders in the sidebar
@@ -106,13 +107,13 @@ test('folders by category inside each pack, made once per pack; every entry in o
   expect([...packs.get('world.ca2t-rules').dirs.values()].map(f => f.name)).toEqual(['Core', 'Optional rules'])
 })
 
-test('re-import of one book: its entries updated in place (same _id, folder kept), the other book’s and the GM’s own left alone', async () => {
+test('re-import of one book: its entries updated in place (same _id, moved back into their category folder), the other book’s and the GM’s own left alone', async () => {
   await importTypes([tr(muc), tr(mux)])
   const q = packs.get('world.ca2t-qualities'), rules = packs.get('world.ca2t-rules')
   const knack = byKey(q, 'MUC:amps:muc.made-up-knack'), extra = [...q.docs.values()].find(d => d.flags[M].source === 'MUX')
   const muxBefore = structuredClone(extra)
   q.docs.set('gm', { _id: 'gm', name: 'GM amp', flags: {} })
-  // the GM moved the knack into a folder of their own
+  // the GM moved the knack into a folder of their own: the re-import puts it back
   q.dirs.set('mine', { id: 'mine', name: 'Mine', folder: null })
   knack.folder = 'mine'
   const core = byKey(rules, 'MUC:rules-sheet:core'), pageIds = core.pages.map(p => p._id)
@@ -122,7 +123,8 @@ test('re-import of one book: its entries updated in place (same _id, folder kept
   log = []
   const res = await importTypes([tr(changed)])
   expect(res.counts['ca2t-qualities']).toMatchObject({ created: 0, replaced: 1, byBook: { MUC: { created: 0, replaced: 1 } } })
-  expect(q.docs.get(knack._id)).toMatchObject({ name: 'Renamed Knack', folder: 'mine' })
+  expect(q.docs.get(knack._id).name).toBe('Renamed Knack')
+  expect(dirName(q, q.docs.get(knack._id))).toBe('Positive qualities')  // owner decision: always its category's folder
   expect(q.docs.get(extra._id)).toEqual(muxBefore)  // the book not in the file: untouched
   expect(q.docs.get('gm')).toBeTruthy()
   expect(q.docs.size).toBe(3)
@@ -192,4 +194,32 @@ test('a GM’s compendium: its own packs by type in "Chummer compendiums/<name> 
   expect(w.folder.name).toBe('Made-Up House Stuff (MYH)')
   expect(w.folder.folder.name).toBe('Chummer compendiums')
   expect([...packs.get('world.ca2t-weapons').docs.values()].map(d => d.flags[M].source)).toEqual(['MUC'])
+})
+
+test('an entry that changed type moves: created in its new pack with the old one’s user effects and art, links re-pointed, the old copy deleted', async () => {
+  await importTypes([tr(muc)])
+  const q = packs.get('world.ca2t-qualities'), knack = byKey(q, 'MUC:amps:muc.made-up-knack')
+  knack.effects = [{ _id: 'userfx', name: 'GM house rule', flags: {} }]
+  knack.img = 'worlds/w/my-knack.webp'
+  q.docs.set('gm', { _id: 'gm', name: 'Made-up Knack', flags: {} })  // the GM's own, same name: never ours to delete
+  const oldUuid = q.getUuid(knack._id), ups = []
+  const linked = { items: [{ id: 'i1', _stats: { compendiumSource: oldUuid } }, { id: 'i2', _stats: { compendiumSource: 'elsewhere' } }],
+    updateEmbeddedDocuments: async (_, u) => { ups.push(...u) } }
+  game.actors.push(linked)
+  q.locked = true
+  const changed = structuredClone(muc)
+  Object.assign(changed.amps[0], { type: 'cyberware', typeName: 'Cyberware' })
+  const res = await importTypes([tr(changed)])
+  expect(res.failed).toEqual([])
+  const aug = packs.get('world.ca2t-augmentations'), moved = byKey(aug, 'MUC:amps:muc.made-up-knack')
+  expect(moved).toMatchObject({ img: 'worlds/w/my-knack.webp', system: { featType: 'cyberware' } })
+  expect(moved.effects).toEqual([{ _id: 'userfx', name: 'GM house rule', flags: {} }])
+  expect(dirName(aug, moved)).toBe('Cyberware')
+  expect(q.docs.has(knack._id)).toBe(false)
+  expect(q.docs.has('gm')).toBe(true)
+  expect(q.locked).toBe(true)
+  expect(ups).toEqual([{ _id: 'i1', '_stats.compendiumSource': aug.getUuid(moved._id) }])
+  expect(res.moved).toEqual([{ name: 'Made-up Knack', from: 'Qualities', to: 'Cyberware & Bioware', links: 1 }])
+  // nothing more to move on the next import
+  expect((await importTypes([tr(changed)])).moved).toEqual([])
 })

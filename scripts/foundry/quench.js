@@ -324,7 +324,7 @@ export function registerQuench(quench) {
         const { items } = await linkCompendium([amp], PREFIX)
         assert.equal(items[0]._stats?.compendiumSource, (await byKey(pack('qualities'), 'MUC:amps:muc.made-up-knack')).uuid)
       })
-      it('re-import of one book updates its entries in place (same _id, folder kept), leaves the other book’s and the GM’s own', async () => {
+      it('re-import of one book updates its entries in place (same _id, back in its category folder), leaves the other book’s and the GM’s own', async () => {
         const q = pack('qualities'), knack = await byKey(q, 'MUC:amps:muc.made-up-knack'), extra = await byKey(q, 'MUX:amps:mux.made-up-extra')
         const extraBefore = extra.toObject(), maxId = (await byKey(pack('characters'), 'MUC:character:muc-sample-max')).id
         const gm = await Item.create({ name: 'GM-made quality', type: 'feat', system: { featType: 'trait' } }, { pack: q.collection })
@@ -344,7 +344,7 @@ export function registerQuench(quench) {
         assert.isTrue(q.locked, 'locked again')
         const k2 = await q.getDocument(knack.id)
         assert.equal(k2?.system.rating, 3)
-        assert.equal(k2?.folder?.id, mine.id, 'the GM’s folder kept')
+        assert.equal(k2?.folder?.name, 'Positive qualities', 'moved back into its category’s folder')
         const e2 = (await q.getDocument(extra.id)).toObject()
         assert.deepEqual([e2.name, e2.system, e2._stats.modifiedTime], [extraBefore.name, extraBefore.system, extraBefore._stats.modifiedTime], 'MUX untouched')
         assert.ok(await q.getDocument(gm.id), 'GM entry kept')
@@ -355,6 +355,25 @@ export function registerQuench(quench) {
         assert.ok(max.items.get(gmItem.id), 'GM item on the pregen kept')
         assert.lengthOf(itemsOf(max, 'skill'), 1, 'imported items rebuilt, not doubled')
         await q.configure({ locked: false })
+      })
+      it('an entry that changed type moves: new pack, the user’s effect kept, a world actor’s link re-pointed, the old copy deleted', async () => {
+        const q = pack('qualities'), knack = await byKey(q, 'MUC:amps:muc.made-up-knack')
+        await knack.createEmbeddedDocuments('ActiveEffect', [{ name: 'GM house rule' }])
+        const holder = await Actor.create({ name: `${PREFIX}link holder`, type: 'character',
+          items: [{ name: 'Made-up Knack', type: 'feat', system: { featType: 'trait' }, _stats: { compendiumSource: knack.uuid } }] })
+        try {
+          const changed = structuredClone(muc)
+          Object.assign(changed.amps[0], { type: 'cyberware', typeName: 'Cyberware' })
+          const again = await run([changed])
+          assert.isEmpty(again.failed, again.failed.map(f => f.error?.message).join('; '))
+          const moved = await byKey(pack('augmentations'), 'MUC:amps:muc.made-up-knack')
+          assert.ok(moved, 'in Cyberware & Bioware')
+          assert.equal(moved.folder?.name, 'Cyberware')
+          assert.notOk(await q.getDocument(knack.id), 'old copy deleted')
+          assert.include(moved.effects.map(e => e.name), 'GM house rule')
+          assert.equal(game.actors.get(holder.id).items.contents[0]._stats.compendiumSource, moved.uuid)
+          assert.deepEqual(again.moved, [{ name: 'Made-up Knack', from: 'Qualities', to: 'Cyberware & Bioware', links: 1 }])
+        } finally { await holder.delete() }
       })
       it('never touched the old per-book pack', async () => {
         assert.deepEqual((await old.getDocuments()).map(d => d.toObject()), oldBefore)

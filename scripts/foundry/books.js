@@ -2,7 +2,7 @@
 // Foundry globals only inside functions (node --check clean). Never throws: a failing pack is reported in `failed` and
 // the other packs carry on. The per-book packs of 0.8.x (ca2-…) are never read or written.
 import { MODULE_ID } from '../lib/constants.js'
-import { chunk, countByBook, planTypePacks } from '../lib/books.js'
+import { chunk, countByBook, planMoves, planTypePacks, typePackName, TYPES } from '../lib/books.js'
 import { INDEX_FIELDS, keysOf, mergeByKey, planUpsert } from '../lib/chummer-id.js'
 import { keepArt, keepUserEffects, mergeActorItems } from '../lib/plan.js'
 import { replaceable } from '../lib/icons.js'
@@ -78,13 +78,13 @@ export const portraitsAfter = (portraits = {}, tokens = {}, say) => async (docs,
   }
 }
 
-// A re-import updates in place, never deletes (lib/chummer-id.js planUpsert): an incoming entry found in the pack by its
-// chummerID, an alias, or (migration from 0.7.x) the id 0.7.x computed for it, is updated in place, keeping its _id, its
-// folder, sort and ownership, other modules' flags, the image the user chose (lib/plan.js keepArt), a journal's pages
+// A re-import updates in place, never deletes (lib/chummer-id.js planUpsert; only an entry that changed type is moved,
+// moveEntry): an incoming entry found in the pack by its chummerID, an alias, or (migration from 0.7.x) the id 0.7.x
+// computed for it, is updated in place, keeping its _id, sort and ownership, other modules' flags, the image the user chose (lib/plan.js keepArt), a journal's pages
 // by chummerID (and the GM's own) and an actor's GM items; it gets our chummerID flag. Every other entry is created and
 // Foundry picks its id. Entries not in the file are never touched.
 // Each entry goes in its category's folder inside the pack (flags.<module>.category), made once per pack; an updated
-// entry keeps the folder it is in (the GM may have moved it) and only gets one when it has none.
+// entry is moved into its category's folder too, wherever it was (owner decision, 0.9.0).
 // Updates go first, then creates, CHUNK documents per call, onChunk(done, of) after each; if a create fails, what this
 // run created (entries and folders) is deleted again (the updated entries keep their new data). after(docs, op): run
 // once everything is written, while the pack is still unlocked, with the written documents' data (their _id included).
@@ -111,18 +111,13 @@ async function writePack(pack, incoming, after, onChunk) {
   const Doc = pack.documentClass, op = { pack: pack.collection }
   const index = await pack.getIndex({ fields: INDEX_FIELDS })
   const { updates, creates, duplicates } = planUpsert([...index.values()], incoming)
-  // V14 refuses writes to a locked pack (common/abstract/backend.mjs #assertCompendiumUnlocked, ~l.229), even a
-  // world pack the GM locked: unlock for this write and lock it again after.
-  const locked = pack.locked
-  if (locked) await pack.configure({ locked: false })
-  try {
+  return unlocked(pack, async () => {
     const old = []
     for (const ids of chunk(updates.map(u => u._id), CHUNK)) old.push(...(await pack.getDocuments({ _id__in: ids })).map(d => d.toObject()))
     const was = new Map(old.map(d => [d._id, d]))
-    const homeless = u => { const f = was.get(u._id)?.folder; return !f || !pack.folders.get(f) }
-    const folders = await packFolders(pack, [...creates, ...updates.filter(homeless).map(u => u.doc)].map(categoryOf))
+    const folders = await packFolders(pack, [...creates, ...updates.map(u => u.doc)].map(categoryOf))
     const folderOf = d => folders.ids.get(categoryOf(d)) ?? null
-    const ups = updates.map(u => { const d = updateData(was.get(u._id), u.doc); if (homeless(u) && folderOf(u.doc)) d.folder = folderOf(u.doc); return d })
+    const ups = updates.map(u => { const d = updateData(was.get(u._id), u.doc); if (folderOf(u.doc)) d.folder = folderOf(u.doc); return d })
     const news = creates.map(d => ({ ...d, folder: folderOf(d) }))
     const made = []
     const steps = [...chunk(ups, CHUNK).map(c => () => Doc.updateDocuments(c, { ...op, recursive: false, diff: false })),
@@ -140,9 +135,38 @@ async function writePack(pack, incoming, after, onChunk) {
     await after?.(written, op)
     return { label: pack.title, created: creates.length, replaced: updates.length, byBook: countByBook(updates, creates),
       migrated: updates.filter(u => u.how === 'legacy').length, duplicates: duplicates.map(d => d.name ?? keysOf(d).chummerID) }
-  } finally {
-    if (locked) await pack.configure({ locked: true })
+  })
+}
+// V14 refuses writes to a locked pack (common/abstract/backend.mjs #assertCompendiumUnlocked, ~l.229), even a world
+// pack the GM locked: unlock it for fn and lock it again after.
+async function unlocked(pack, fn) {
+  const locked = pack.locked
+  if (locked) await pack.configure({ locked: false })
+  try { return await fn() } finally { if (locked) await pack.configure({ locked: true }) }
+}
+
+/**
+ * An entry that changed type (lib/books.js planMoves), now written into its new pack: the new copy takes over what the
+ * old one carried that isn't Chummer's (chosen art, a user's effects, items a GM added, other modules' flags), links to
+ * the old one (world actors' items and world items, _stats.compendiumSource) are pointed at the new one, then the old
+ * copy (ours: it has our chummerID) is deleted. Returns { name, from, to, links } for the report.
+ */
+async function moveEntry(from, to, { oldId, newId }) {
+  const [old] = await from.getDocuments({ _id__in: [oldId] }), [now] = await to.getDocuments({ _id__in: [newId] })
+  const o = old.toObject(), n = now.toObject()
+  await unlocked(to, () => to.documentClass.updateDocuments([{ ...updateData(o, n), _id: newId, folder: n.folder ?? null }],
+    { pack: to.collection, recursive: false, diff: false }))
+  const was = from.getUuid(oldId), is = to.getUuid(newId), repoint = list => list.filter(i => i._stats?.compendiumSource === was)
+    .map(i => ({ _id: i.id, '_stats.compendiumSource': is }))
+  let links = 0
+  for (const a of game.actors) {
+    const ups = repoint(a.items)
+    if (ups.length) { await a.updateEmbeddedDocuments('Item', ups); links += ups.length }
   }
+  const items = repoint(game.items)
+  if (items.length) { await Item.updateDocuments(items); links += items.length }
+  await unlocked(from, () => from.documentClass.deleteDocuments([oldId], { pack: from.collection }))
+  return { name: n.name, from: from.title, to: to.title, links }
 }
 
 const fail = (pack, name, error) => { console.error(`${MODULE_ID} | ${name}`, error); return { pack, name, error } }
@@ -155,7 +179,8 @@ const PEOPLE = new Set(['characters', 'npcs', 'critters'])
  * compendium gets its own packs in "<name> (<id>)" inside houseFolder (by default COMPENDIUM_FOLDER). Pack names get
  * `prefix` (Quench). onProgress({ key, label, n, total, done?, of? }): before each pack, and after each chunk written.
  * Returns { counts: { [pack name]: { label, created, replaced, migrated, byBook: { [source]: { created, replaced } },
- * duplicates: [entry name] } }, failed: [{ pack, name, error }], notes: [portrait lines] }.
+ * duplicates: [entry name] } }, failed: [{ pack, name, error }], notes: [portrait lines], moved: [{ name, from, to, links }] }.
+ * Then, per group (the books, each GM compendium), an entry that changed type is moved (moveEntry).
  */
 export async function importTypes(ts, { tableRules = null, onProgress, prefix = '', topFolder = FOLDER, houseFolder = COMPENDIUM_FOLDER } = {}) {
   const counts = {}, failed = [], made = [], notes = []
@@ -178,5 +203,17 @@ export async function importTypes(ts, { tableRules = null, onProgress, prefix = 
     } catch (error) { failed.push(fail(p.name, p.label, error)) }
   }
   await dropEmptyFolders(made)
-  return { counts, failed, notes }
+  const moved = []
+  for (const house of new Set(packs.map(p => p.house))) {
+    const planned = Object.fromEntries(packs.filter(p => p.house === house && counts[p.name]).map(p => [p.key, p.docs]))
+    const live = {}, existing = {}
+    for (const k of Object.keys(TYPES)) {
+      const p = game.packs.get(`world.${typePackName(k, prefix, house)}`)
+      if (p) { live[k] = p; existing[k] = [...(await p.getIndex({ fields: INDEX_FIELDS })).values()] }
+    }
+    for (const m of planMoves(existing, planned)) {
+      try { moved.push(await moveEntry(live[m.from], live[m.to], m)) } catch (error) { failed.push(fail(live[m.from].collection, `${m.name} → ${live[m.to].title}`, error)) }
+    }
+  }
+  return { counts, failed, notes, moved }
 }

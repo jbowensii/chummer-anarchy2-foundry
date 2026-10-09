@@ -177,6 +177,7 @@ export function createImportApp(getIcons = () => null) {
         outcome: F('CA2I.Failed', { reason: f.error?.message ?? String(f.error) }), textOnly: [] })
       for (const { book, t } of jobs) if (t.textOnly.length) report.push({ name: book.source.name, outcome: '', packs: [], textOnly: t.textOnly })
       if (res.notes?.length) report.push({ name: L('CA2I.Portraits'), outcome: '', packs: [], textOnly: res.notes })
+      if (res.moved?.length) report.push({ name: L('CA2I.MovedTitle'), outcome: '', textOnly: [], packs: res.moved.map(m => ({ text: F('CA2I.Moved', m) })) })
       if (!report.length) report.push({ name: L('CA2I.NothingToImport'), outcome: '', packs: [], textOnly: [] })
       Object.assign(this, { busy: false, report, bookReport: true })
       this.render()

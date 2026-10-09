@@ -1,7 +1,7 @@
 // One Chummer book (docs/export-format.md "Book") -> compendium document data per kind, and the by-type packs every
 // imported book is merged into. Pure: no Foundry calls.
 import { MODULE_ID } from './constants.js'
-import { chummerFlags } from './chummer-id.js'
+import { chummerFlags, keysOf, planUpsert } from './chummer-id.js'
 import { ATTR, featType, metatypeAnarchy, skillFor, specFor, vehicleType } from './sra2.js'
 import { negative, skillIconKey, withIcon } from './icons.js'
 import { ampFeat, escapeText, itemFeat, metatypeMax, PACK_OF, rrResolver, translateRunner, vehicleActor } from './translate.js'
@@ -75,6 +75,29 @@ export function countByBook(updates, creates) {
   for (const d of creates) at(d).created++
   return out
 }
+/**
+ * Entries that changed type (owner decision, 0.9.0: move them). After the writes, an entry of ours (it has a chummerID)
+ * in another type pack of the same group and document type, found by the chummerID or an alias of an entry this import
+ * wrote (lib/chummer-id.js planUpsert), is that entry's old copy; one this import wrote into its own pack is not.
+ * existing: { [type key]: index entries ({ _id, name, flags }) } read after the writes; planned: { [type key]: docs }
+ * this import wrote. Returns [{ from, to, oldId, newId, name }]: newId the entry's _id in its new pack.
+ */
+export function planMoves(existing, planned) {
+  const moves = []
+  for (const [to, docs] of Object.entries(planned)) {
+    const newId = new Map((existing[to] ?? []).map(e => [keysOf(e).chummerID, e._id]))
+    for (const [from, entries] of Object.entries(existing)) {
+      if (from === to || TYPES[from]?.[1] !== TYPES[to]?.[1]) continue
+      const own = new Set((planned[from] ?? []).map(d => keysOf(d).chummerID))
+      const ours = entries.filter(e => keysOf(e).chummerID && !own.has(keysOf(e).chummerID))
+      for (const u of planUpsert(ours, docs, () => null).updates) {
+        const id = newId.get(keysOf(u.doc).chummerID)
+        if (id) moves.push({ from, to, oldId: u._id, newId: id, name: u.doc.name })
+      }
+    }
+  }
+  return moves
+}
 /** list in slices of n (the import writes ~100 documents per call). */
 export const chunk = (list, n) => Array.from({ length: Math.ceil(list.length / n) }, (_, i) => list.slice(i * n, (i + 1) * n))
 
@@ -98,6 +121,28 @@ export const vehicleFolder = v => VEHICLE_GROUP[vehicleType(v.id, v.name)]
 /** The folder of a book item (weapon, armor, gear, spell, complex form) in its type pack. */
 export const itemFolder = it => category(it.category) ?? (it.kind === 'weapon' ? (meleeOnly(it.ranges) ? 'Melee weapons' : 'Ranged weapons')
   : it.kind === 'armor' ? `Armor ${it.armor ?? 0}` : alphaFolder(it.name))
+// A spirit's type from its name or metatype (the export has no field for it), as "<type> spirits".
+const SPIRIT = /\b(air|earth|fire|water|man|beasts?|guardian|guidance|plant|task|ally|shadow|insect|toxic|blood)\b/i
+const MAGIC_SKILLS = new Set(['sorcery', 'conjuration', 'astral-combat'])
+// a critter with magic: a magic skill, an awakened or adept amp, or a spell
+const awakened = r => (r.skills ?? []).some(s => MAGIC_SKILLS.has(s.id)) || (r.amps ?? []).some(a => a.type === 'awakened' || a.type === 'adept')
+  || (r.items ?? []).some(i => i.kind === 'spell')
+/**
+ * The folder of a book NPC (pack npcs: its tier), critter or spirit (pack critters). A category in its npc block wins
+ * (the export has none yet); else a spirit by its type ("Fire spirits", else "Spirits") and a critter Awakened or Mundane.
+ */
+export function npcFolder(r) {
+  const n = r.npc ?? { kind: 'npc' }
+  if (n.kind === 'npc') return `${titleCase(n.tier || 'regular')} NPCs`
+  const given = category(n.category)
+  if (given) return given
+  if (n.kind === 'spirit') {
+    const t = SPIRIT.exec(`${r.streetName ?? ''} ${r.metatype?.name ?? ''}`)?.[1].toLowerCase().replace(/s$/, '')
+    return !t ? 'Spirits' : t === 'man' ? 'Spirits of man' : `${titleCase(t)} spirits`
+  }
+  if (n.kind === 'critter') return awakened(r) ? 'Awakened critters' : 'Mundane critters'
+  return `${titleCase(n.kind)}s`
+}
 /** The folder of a book amp: qualities positive or negative, the others by Chummer's amp type name ("… add-ons" for an add-on). */
 export const ampFolder = amp => featType(amp.type) === 'trait' ? (negative(amp) ? 'Negative qualities' : 'Positive qualities')
   : `${category(amp.typeName) ?? titleCase(amp.type ?? '')}${amp.mod ? ' add-ons' : ''}`
@@ -157,16 +202,15 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
   for (const v of book.vehicles ?? [])
     add('vehicles', inFolder(doc(v, vehicleActor({ ...v, chassisId: v.id, flying: v.flyingSpeed > 0 }, ctx, { name: v.name }), 'vehicles'), vehicleFolder(v)))
 
-  // the book's pregens (pack characters, folder: their level, else metatype), NPCs (pack npcs, folder: their tier) and
-  // critters and spirits (pack critters, folder: their kind): an actor each (translateRunner, embedded items), its
+  // the book's pregens (pack characters, folder: their level, else metatype), NPCs (pack npcs) and critters and spirits
+  // (pack critters; folders: npcFolder): an actor each (translateRunner, embedded items), its
   // vehicles as separate actors in its folder, not linked; a portrait and a token image are uploaded by importTypes
   // (portraits, tokens: chummerID -> data URL).
   // A pregen's token is linked; an NPC's token is as translateRunner sets it (hostile, linked only for a prime NPC).
   const people = (kind, vehicleKind, list) => { for (const r of list ?? []) {
     try {
       const n = kind === 'npc' ? r.npc ?? { kind: 'npc' } : null, pack = !n ? 'characters' : n.kind === 'npc' ? 'npcs' : 'critters'
-      const folder = !n ? category(r.level?.name) ?? category(r.metatype?.name) ?? 'Runners'
-        : n.kind === 'npc' ? `${titleCase(n.tier || 'regular')} NPCs` : `${titleCase(n.kind)}s`
+      const folder = !n ? category(r.level?.name) ?? category(r.metatype?.name) ?? 'Runners' : npcFolder(r)
       const add = (p, d) => addTo(p, inFolder(d, folder))
       const c = translateRunner(r, { exportedAt: r.exportedAt ?? exportedAt, appVersion, sanitize, icons: iconSet }), fl = { source: src.id, canon: src.canon, ...comp }
       const key = `${src.id}:${kind}:${r.id}`
