@@ -3,7 +3,7 @@
 import { MODULE_ID } from '../lib/constants.js'
 import { packName, planBookPacks } from '../lib/books.js'
 import { INDEX_FIELDS, keysOf, mergeByKey, planUpsert } from '../lib/chummer-id.js'
-import { keepArt, mergeActorItems } from '../lib/plan.js'
+import { keepArt, keepUserEffects, mergeActorItems } from '../lib/plan.js'
 import { replaceable } from '../lib/icons.js'
 import { COMPENDIUM_FOLDER, ensureFolder, FOLDER, uploadPortrait } from './apply.js'
 
@@ -91,6 +91,8 @@ function updateData(old, doc) {
   for (const f of OURS) if (f in k) u[f] = k[f]
   if (Array.isArray(doc.pages)) u.pages = mergeByKey(old.pages, k.pages)
   if (Array.isArray(doc.items)) u.items = mergeActorItems(old.items, k.items)
+  // our effects are swapped, a user's kept (lib/plan.js keepUserEffects)
+  u.effects = keepUserEffects(old.effects, k.effects ?? [])
   return u
 }
 async function writePack(pack, incoming, after) {

@@ -116,3 +116,11 @@ test('table rules: re-imported in place by chummerID; a 0.7.x journal found by i
   expect(res.counts['ca2-table-rules']).toMatchObject({ replaced: 1, migrated: 1, created: 0 })
   expect(pack.docs.get(docId('table-rules')).flags[M].chummerID).toBe('table-rules')
 })
+
+test('re-import keeps a user’s effect on an entry (this module makes none: sra2’s own fields carry ours)', async () => {
+  await importBook(tr(muc))
+  const amps = packs.get('world.ca2-muc-amps'), [entry] = amps.docs.values()
+  entry.effects = [{ _id: 'userfx', name: 'GM house rule', flags: {} }]
+  await importBook(tr(muc))
+  expect(amps.docs.get(entry._id).effects).toEqual([{ _id: 'userfx', name: 'GM house rule', flags: {} }])
+})

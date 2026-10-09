@@ -54,7 +54,42 @@ export function keepArt(old, doc) {
   return d
 }
 
-// Replacing a pack actor (a book pregen): its Chummer items are rebuilt from the file; the items the GM added
-// (no module flags) are kept, after the imported ones.
-export const mergeActorItems = (existingItems, incomingItems) =>
-  [...incomingItems, ...(existingItems ?? []).filter(i => !i.flags?.[MODULE_ID])]
+/** An Active Effect this module made (flags.<module>.chummer); everything else on our documents is the user's. */
+export const isOurEffect = e => e?.flags?.[MODULE_ID]?.chummer === true
+/** A re-import's effects for a document: our new ones, then the old ones a user added (kept with their _id). */
+export const keepUserEffects = (oldEffects, newEffects) => [...newEffects ?? [], ...(oldEffects ?? []).filter(e => !isOurEffect(e))]
+
+/**
+ * A pack actor's items on re-import: each of our items (flags.<module>.id) matched to the old one with the same id keeps
+ * that item's _id, its other modules' flags and the effects a user added to it; the items the GM added (no module flags)
+ * are kept after ours. An old item of ours the file no longer has is dropped (Chummer is its source).
+ */
+export function mergeActorItems(existingItems, incomingItems) {
+  const old = new Map((existingItems ?? []).filter(i => i.flags?.[MODULE_ID]?.id != null).map(i => [i.flags[MODULE_ID].id, i])), used = new Set()
+  const ours = (incomingItems ?? []).map(i => {
+    const o = old.get(i.flags?.[MODULE_ID]?.id)
+    if (!o || used.has(o._id)) return i
+    used.add(o._id)
+    return { ...i, _id: o._id, flags: { ...o.flags, ...i.flags }, effects: keepUserEffects(o.effects, i.effects) }
+  })
+  return [...ours, ...(existingItems ?? []).filter(i => !i.flags?.[MODULE_ID])]
+}
+
+/**
+ * Replace on a world actor: its items of ours matched by flags.<module>.id (the item's uid in Chummer). A match is
+ * updated in place (same _id; Chummer's fields refreshed, the item's other flags kept) and only its effects of ours are
+ * swapped, so effects a user added stay; a new one is created; an old one of ours the file no longer has is deleted;
+ * the user's own items are never touched. existing: the actor's items ({ id|_id, type, flags, effects }).
+ * Returns { update: [{ old, item }], create: [item], remove: [id] }.
+ */
+export function planItems(existing, incoming) {
+  const id = i => i.id ?? i._id
+  const old = new Map((existing ?? []).filter(i => i.flags?.[MODULE_ID]?.id != null).map(i => [i.flags[MODULE_ID].id, i])), used = new Set()
+  const update = [], create = []
+  for (const it of incoming ?? []) {
+    const o = old.get(it.flags?.[MODULE_ID]?.id)
+    if (o && o.type === it.type && !used.has(id(o))) { used.add(id(o)); update.push({ old: o, item: it }) } else create.push(it)
+  }
+  const remove = [...old.values()].filter(o => !used.has(id(o))).map(id)
+  return { update, create, remove }
+}

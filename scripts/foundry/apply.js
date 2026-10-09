@@ -1,7 +1,7 @@
 // Apply one translated runner to the world. Foundry globals are only touched inside functions (node --check clean).
 import { MODULE_ID } from '../lib/constants.js'
 import { INDEX_FIELDS, resolveEntry, tieLine } from '../lib/chummer-id.js'
-import { keepItemArt, newVersionName, replaceUpdate, tokenUpdate } from '../lib/plan.js'
+import { keepItemArt, newVersionName, planItems, replaceUpdate, tokenUpdate } from '../lib/plan.js'
 
 export const FOLDER = 'Chummer Anarchy'
 export const NPC_FOLDER = 'Chummer NPCs'  // NPCs from a runners file (flags npc)
@@ -87,12 +87,18 @@ export async function linkCompendium(items, prefix = '') {
 // removed again, so a failure never leaves it without its Chummer items or with them twice. Throws on failure.
 // token: the uploaded token image, else the token follows the new img.
 async function replaceDoc(doc, t, token) {
-  const old = doc.items.filter(i => flagOf(i)).map(i => i.id)
+  // our items matched by uid (lib/plan.js planItems): updated in place (same _id, other modules' flags kept), so a
+  // user's effects on them stay (this module makes none: sra2's own fields carry ours); new ones created; ours the file
+  // no longer has deleted; the user's own items never touched
   const items = keepItemArt(doc.items, t.items)
+  const { update, create, remove } = planItems([...doc.items], items)
   await doc.update({ ...replaceUpdate(t.actor, doc.name, doc.img), ...tokenUpdate(doc, token ?? t.actor.img) })
-  const made = items.length ? await doc.createEmbeddedDocuments('Item', items) : []
-  try { if (old.length) await doc.deleteEmbeddedDocuments('Item', old) } catch (e) {
-    try { await doc.deleteEmbeddedDocuments('Item', made.map(i => i.id)) } catch {}
+  if (update.length) await doc.updateEmbeddedDocuments('Item', update.map(({ old, item }) => ({ _id: old.id, name: item.name,
+    ...item.img ? { img: item.img } : {}, system: item.system, flags: { ...old.flags, [MODULE_ID]: item.flags[MODULE_ID] },
+    ...item._stats?.compendiumSource ? { '_stats.compendiumSource': item._stats.compendiumSource } : {} })))
+  const made = create.length ? await doc.createEmbeddedDocuments('Item', create) : []
+  try { if (remove.length) await doc.deleteEmbeddedDocuments('Item', remove) } catch (e) {
+    try { if (made.length) await doc.deleteEmbeddedDocuments('Item', made.map(i => i.id)) } catch {}
     throw e
   }
 }

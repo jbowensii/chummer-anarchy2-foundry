@@ -131,3 +131,15 @@ test('create: a runner’s amp from a book links its compendium entry by chummer
   expect(made[2]).not.toHaveProperty('_stats')
   expect(res.notes).toEqual(['Rope: 2 compendium entries match (Rope [gear] p.9, Rope [gear] p.9) → not linked'])
 })
+
+test('replace: our item updated in place (same id, other flags kept), a user’s effect on it untouched, nothing re-created', async () => {
+  const user = { id: 'fx1', name: 'GM buff', flags: {} }
+  const runner = new FakeActor({ name: 'R', flags: flags({ id: 'r1' }), items: [{ name: 'Old', type: 'feat', flags: { ...flags({ id: 'k' }), other: { kept: 1 } }, effects: [user] }] })
+  const id = runner.items[0].id
+  runner.updateEmbeddedDocuments = async (_, ups) => { for (const u of ups) Object.assign(runner.items.find(i => i.id === u._id), u) }
+  const t = { actor: { name: 'R', flags: flags({ id: 'r1' }), system: {} }, items: [{ name: 'New', type: 'feat', flags: flags({ id: 'k' }), system: { rating: 2 } }], vehicles: [] }
+  const res = await applyRunner(t, 'replace')
+  expect(res.action).toBe('replace')
+  expect(runner.items).toHaveLength(1)
+  expect(runner.items[0]).toMatchObject({ id, name: 'New', flags: { other: { kept: 1 } }, effects: [user] })
+})
