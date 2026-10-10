@@ -1,5 +1,25 @@
 # Changelog
 
+## Unreleased
+
+Reads Chummer Anarchy's effect fields (its next release, branch feat/ca2-effects); files from earlier versions translate as before.
+
+- An effect's narrative text is its sheet line (`Advantage on Perception Tests`, `Ignores wound modifiers`), with how it is
+  turned on and whether it counts: `(activated)`, `(sustained, affects target(s))`, `(while in VR)`, `(unpriced by the
+  rating)`, `(not applied)`. An effect Chummer doesn't count (low confidence, or only sometimes) is text, never an sra2
+  field.
+- An amp whose effects are switchable (a drug's dose, a sustained power: its `switch`) is imported switched off (sra2's
+  feat `active`), as Chummer's sheet prints its bonus in brackets.
+- sra2's feat counts from the amp's bonuses: `sustainedSpellCount` (2 at most), `summonedSpiritCount` (1 at most),
+  `sustainedComplexFormCount`, `riggerConsoleCount`, `hasVehicleControlWiring`.
+- Items carry their effects as narrative effects (a spell's on its target(s) say so); a book's metatype lists its racial
+  quality's effects in its description.
+- The runner's notes list its pools' Advantages and Disadvantages, the Risk Reduction switching effects on adds (`RR 0 (1)`,
+  from Chummer's `switched` totals), social armor and thresholds, Matrix armor, sustained spells, wound modifiers ignored,
+  a forced Risk, VR and rigging, and what its items and racial quality do. sra2 has no Foundry Active Effects: these are
+  its feat fields and the notes.
+- schema/export.schema.json is Chummer's, with those fields.
+
 ## 0.9.0
 
 Import your books again after updating: the compendiums are new. The 0.8.x ones are left alone for you to delete.

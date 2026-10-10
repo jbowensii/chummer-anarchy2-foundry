@@ -164,6 +164,48 @@
         },
         "note": {
           "type": "string"
+        },
+        "applied": {
+          "type": "boolean",
+          "description": "false: shown, not counted (low confidence, or only `when`)"
+        },
+        "switch": {
+          "enum": [
+            "wireless",
+            "activated",
+            "sustained",
+            "conditional"
+          ],
+          "description": "how it is turned on; absent: always on"
+        },
+        "when": {
+          "type": "string",
+          "description": "only then (not counted)"
+        },
+        "confidence": {
+          "enum": [
+            "low"
+          ],
+          "description": "read from a sentence the importer is not sure of (not counted)"
+        },
+        "from": {
+          "type": "string",
+          "description": "the catalog id of the entry it is given by"
+        },
+        "line": {
+          "type": "string",
+          "description": "the effect as the sheet says it"
+        },
+        "affects": {
+          "enum": [
+            "caster",
+            "target"
+          ],
+          "description": "a spell's or complex form's: on its caster (counted while sustained) or its target(s)"
+        },
+        "unpriced": {
+          "const": true,
+          "description": "the book states it, its printed rating doesn't pay for it: it applies, at rating 0"
         }
       }
     },
@@ -271,6 +313,14 @@
         },
         "name": {
           "type": "string"
+        },
+        "switch": {
+          "enum": [
+            "wireless",
+            "activated",
+            "sustained"
+          ],
+          "description": "every counted effect turned on this way"
         }
       }
     },
@@ -788,6 +838,15 @@
               },
               "minItems": 3,
               "maxItems": 3
+            },
+            "social": {
+              "type": "array",
+              "items": {
+                "type": "integer"
+              },
+              "minItems": 3,
+              "maxItems": 3,
+              "description": "Willpower + social armor, only with social armor"
             }
           }
         },
@@ -860,6 +919,37 @@
               },
               "rr": {
                 "type": "number"
+              },
+              "notes": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "required": [
+                    "ref",
+                    "text",
+                    "from"
+                  ],
+                  "properties": {
+                    "ref": {
+                      "enum": [
+                        "advantage",
+                        "edge-advantage",
+                        "disadvantage",
+                        "rr-spec"
+                      ]
+                    },
+                    "text": {
+                      "type": "string"
+                    },
+                    "from": {
+                      "type": "string"
+                    },
+                    "how": {
+                      "type": "string"
+                    }
+                  }
+                },
+                "description": "Advantages and Disadvantages on this Test (never dice)"
               }
             }
           }
@@ -918,6 +1008,337 @@
                 "high",
                 "extreme"
               ]
+            }
+          }
+        },
+        "effects": {
+          "type": "object",
+          "description": "what the runner effects do beyond the numbers",
+          "required": [
+            "sustain",
+            "extraSpirits",
+            "socialArmor",
+            "matrixArmor",
+            "forcedRisk",
+            "rcc",
+            "vcr",
+            "list"
+          ],
+          "properties": {
+            "sustain": {
+              "type": "object"
+            },
+            "extraSpirits": {
+              "type": "integer"
+            },
+            "socialArmor": {
+              "type": "integer"
+            },
+            "matrixArmor": {
+              "type": "integer"
+            },
+            "ignoreWounds": {
+              "type": "string"
+            },
+            "forcedRisk": {
+              "type": "boolean"
+            },
+            "vr": {
+              "enum": [
+                "cold",
+                "hot"
+              ]
+            },
+            "rcc": {
+              "type": "integer"
+            },
+            "vcr": {
+              "type": "boolean"
+            },
+            "list": {
+              "type": "array",
+              "description": "the narrative effect kinds and the switchable, by-reference or uncounted effects, from its amps, items and racial quality",
+              "items": {
+                "type": "object",
+                "required": [
+                  "ref",
+                  "text",
+                  "from",
+                  "how",
+                  "applied",
+                  "rule",
+                  "type"
+                ],
+                "properties": {
+                  "ref": {
+                    "type": "string"
+                  },
+                  "text": {
+                    "type": "string"
+                  },
+                  "from": {
+                    "type": "string"
+                  },
+                  "fromId": {
+                    "type": "string"
+                  },
+                  "how": {
+                    "type": "string"
+                  },
+                  "applied": {
+                    "type": "boolean"
+                  },
+                  "rule": {
+                    "type": "boolean"
+                  },
+                  "type": {
+                    "type": "string"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "switched": {
+          "type": "object",
+          "description": "the same totals with the switchable effects (wireless, activated, sustained) on; pools in the order of `pools`",
+          "required": [
+            "monitor",
+            "thresholds",
+            "armor",
+            "initiative",
+            "pools",
+            "weapons",
+            "effects"
+          ],
+          "properties": {
+            "monitor": {
+              "type": "object",
+              "required": [
+                "light",
+                "serious",
+                "incap"
+              ],
+              "properties": {
+                "light": {
+                  "type": "number"
+                },
+                "serious": {
+                  "type": "number"
+                },
+                "incap": {
+                  "type": "number"
+                }
+              }
+            },
+            "thresholds": {
+              "type": "object",
+              "required": [
+                "physicalNone",
+                "physicalMain",
+                "physicalAlt",
+                "mental"
+              ],
+              "additionalProperties": false,
+              "properties": {
+                "physicalNone": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "physicalMain": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "physicalAlt": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "mental": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "matrix": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3
+                },
+                "social": {
+                  "type": "array",
+                  "items": {
+                    "type": "integer"
+                  },
+                  "minItems": 3,
+                  "maxItems": 3,
+                  "description": "Willpower + social armor, only with social armor"
+                }
+              }
+            },
+            "armor": {
+              "type": "object",
+              "required": [
+                "main",
+                "alt"
+              ],
+              "properties": {
+                "main": {
+                  "type": "number"
+                },
+                "alt": {
+                  "type": "number"
+                }
+              }
+            },
+            "initiative": {
+              "oneOf": [
+                {
+                  "type": "null"
+                },
+                {
+                  "type": "object",
+                  "required": [
+                    "level",
+                    "source"
+                  ],
+                  "properties": {
+                    "level": {
+                      "type": "number"
+                    },
+                    "source": {
+                      "type": "string"
+                    },
+                    "realm": {
+                      "type": "string"
+                    }
+                  }
+                }
+              ]
+            },
+            "pools": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "rr"
+                ],
+                "properties": {
+                  "rr": {
+                    "type": "number"
+                  },
+                  "notes": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "required": [
+                        "ref",
+                        "text",
+                        "from"
+                      ],
+                      "properties": {
+                        "ref": {
+                          "enum": [
+                            "advantage",
+                            "edge-advantage",
+                            "disadvantage",
+                            "rr-spec"
+                          ]
+                        },
+                        "text": {
+                          "type": "string"
+                        },
+                        "from": {
+                          "type": "string"
+                        },
+                        "how": {
+                          "type": "string"
+                        }
+                      }
+                    },
+                    "description": "Advantages and Disadvantages on this Test (never dice)"
+                  }
+                }
+              }
+            },
+            "weapons": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "uid",
+                  "dv"
+                ],
+                "properties": {
+                  "uid": {
+                    "type": "string"
+                  },
+                  "dv": {
+                    "type": "string"
+                  }
+                }
+              }
+            },
+            "effects": {
+              "type": "object",
+              "description": "what the runner effects do beyond the numbers",
+              "required": [
+                "sustain",
+                "extraSpirits",
+                "socialArmor",
+                "matrixArmor",
+                "forcedRisk",
+                "rcc",
+                "vcr"
+              ],
+              "properties": {
+                "sustain": {
+                  "type": "object"
+                },
+                "extraSpirits": {
+                  "type": "integer"
+                },
+                "socialArmor": {
+                  "type": "integer"
+                },
+                "matrixArmor": {
+                  "type": "integer"
+                },
+                "ignoreWounds": {
+                  "type": "string"
+                },
+                "forcedRisk": {
+                  "type": "boolean"
+                },
+                "vr": {
+                  "enum": [
+                    "cold",
+                    "hot"
+                  ]
+                },
+                "rcc": {
+                  "type": "integer"
+                },
+                "vcr": {
+                  "type": "boolean"
+                }
+              }
             }
           }
         }

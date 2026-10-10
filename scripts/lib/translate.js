@@ -116,12 +116,13 @@ export function translateRunner(runner, { exportedAt, appVersion, sanitize = esc
 
   for (const k of runner.knowledge ?? []) textOnly.push(`Knowledge: ${k.name} (${k.kind}${k.native ? ', native' : ''}) → notes`)
 
-  const init = runner.initiative
+  const init = runner.initiative, sw = runner.switched
   const facts = [
     `Real name: ${runner.realName ?? ''}`, ...runner.gender ? [`Gender: ${runner.gender}`] : [], `Metatype: ${runner.metatype?.name ?? ''}`, `Level: ${runner.level?.name ?? ''}`,
     `Edge: ${runner.edge ?? ''}`, `Essence: ${runner.essence ?? ''}`, `Lifestyle: ${runner.lifestyle?.name ?? ''}`,
     `Initiative: ${init ? `${init.level}${init.source ? ` (${init.source})` : ''}` : 'none'}`,
-    `Armor: ${runner.armor?.main ?? 0} (alternative ${runner.armor?.alt ?? 0})`,
+    `Armor: ${bracket(runner.armor?.main ?? 0, sw?.armor?.main)} (alternative ${bracket(runner.armor?.alt ?? 0, sw?.armor?.alt)})`,
+    ...effectFacts(runner),
     ...(runner.ledger ?? []).map(l => `${String(l.at ?? '').slice(0, 10)} · ${l.summary} · ${l.amount}¥`),
     ...textOnly,
   ]
@@ -148,6 +149,31 @@ export function translateRunner(runner, { exportedAt, appVersion, sanitize = esc
     if (img) { actor.img = img; actor.prototypeToken.texture = { src: img } }
   }
   return { actor, items, vehicles, textOnly }
+}
+
+// A total as the books print a switchable bonus: `1`, or `1 (2)` when switching effects on changes it.
+export const bracket = (off, on) => (on === undefined || on === null || String(on) === String(off) ? `${off}` : `${off} (${on})`)
+/** A runner's effects beyond sra2's fields (Chummer's), as note lines: Advantages and Disadvantages on its Tests, Risk
+ *  Reduction switching effects on adds (the sheet's brackets), social armor, sustained spells, VR and rigging. */
+export function effectFacts(runner) {
+  const out = [], sw = runner.switched, fx = runner.effects
+  ;(runner.pools ?? []).forEach((p, i) => {
+    const on = sw?.pools?.[i]?.rr
+    if (on != null && on !== p.rr) out.push(`${p.label} (${String(p.attr).toUpperCase()}): RR ${bracket(p.rr, on)}`)
+    for (const n of p.notes ?? []) out.push(`${p.label}: ${n.text} (${[n.from, n.how].filter(Boolean).join(', ')})`)
+  })
+  if (!fx) return out
+  if (fx.socialArmor) out.push(`Social armor ${fx.socialArmor}${runner.thresholds?.social ? `: social thresholds ${runner.thresholds.social.join('/')}` : ''}`)
+  if (fx.matrixArmor) out.push(`Matrix armor ${fx.matrixArmor}`)
+  out.push(`Sustained spells: ${bracket(fx.sustain?.free, sw?.effects?.sustain?.free)} without a Disadvantage, ${bracket(fx.sustain?.max, sw?.effects?.sustain?.max)} at most`)
+  if (fx.ignoreWounds || sw?.effects?.ignoreWounds) out.push(`Ignores ${fx.ignoreWounds ?? sw.effects.ignoreWounds} wound modifiers${fx.ignoreWounds ? '' : ' (switched on)'}`)
+  if (fx.forcedRisk || sw?.effects?.forcedRisk) out.push(`Must take a High or Extreme Risk${fx.forcedRisk ? '' : ' (switched on)'}`)
+  if (fx.vr) out.push(`${fx.vr === 'hot' ? 'Hot' : 'Cold'}-sim VR`)
+  if (fx.rcc) out.push(`Rigger command console: ${fx.rcc} drones`)
+  if (fx.vcr) out.push('Vehicle control rig')
+  // what its items and racial quality do (an amp's own are its feat's narrative effects)
+  for (const e of fx.list ?? []) if (e.type === 'item' || e.type === 'metatype') out.push(`${e.text} (${[e.from, e.how].filter(Boolean).join(', ')})`)
+  return out
 }
 
 // Average hits on a dice pool dp with Risk Reduction rr (CRB p.81), as Chummer's engine/npc.ts.
@@ -186,6 +212,21 @@ export const rrResolver = skills => l => {
   return specFor(skillFor({ id: skillId }).slug, { id: l.id, name: spec.name, attr: spec.attr }).slug
 }
 
+// How an effect is turned on and whether it counts (Chummer's effects: switch, when, affects, unpriced, applied), as text.
+export function effectHow(e) {
+  const when = e.when && (/^(?:when|whenever|while|if|unless|as long as|during|at|in|once|against|on)\b/i.test(e.when) ? e.when : `when ${e.when}`)
+  return [e.switch && e.switch !== 'conditional' ? e.switch : '', when, e.affects === 'target' ? 'affects target(s)' : '',
+    e.unpriced ? 'unpriced by the rating' : '', e.applied === false && !e.when ? 'not applied' : ''].filter(Boolean).join(', ')
+}
+// An effect as a narrative line: its sheet line (Chummer's) or its name with param, value and note; and how.
+export const effectText = e => {
+  const extra = [e.param, e.value, e.note].filter(x => x != null && x !== '')
+  const base = e.line ?? (extra.length ? `${e.name} (${extra.join(', ')})` : e.name), how = effectHow(e)
+  return how ? `${base} (${how})` : base
+}
+// What an export's effect gives sra2 as narrative text: every effect but those that are sra2 fields (and counted).
+const textEffects = effects => (effects ?? []).filter(e => !NOT_TEXT.has(e.id) || e.applied === false)
+
 // An amp's rr lines and text effects (shared by feats and vehicle actors, which both have rrList + narrativeEffects).
 function ampParts(amp, { rrTarget, say: note }) {
   const narrative = [], rrList = []
@@ -196,11 +237,7 @@ function ampParts(amp, { rrTarget, say: note }) {
     rrList.push({ rrType: RR_TYPE[l.on], rrValue: Math.min(3, value), rrTarget: target })
     if (value > 3) note(`${amp.name}: Risk Reduction ${label} ${value} → 3 (sra2 maximum)`)
   }
-  for (const e of amp.effects ?? []) {
-    if (NOT_TEXT.has(e.id)) continue
-    const extra = [e.param, e.value, e.note].filter(x => x != null && x !== '')
-    say(extra.length ? `${e.name} (${extra.join(', ')})` : e.name, e.category === 'negative' || e.id === 'negative')
-  }
+  for (const e of textEffects(amp.effects)) say(effectText(e), e.category === 'negative' || e.id === 'negative' || e.id === 'disadvantage')
   return { narrative, rrList }
 }
 
@@ -229,6 +266,14 @@ export function ampFeat(amp, ctx) {
     description: text(amp.description) + notes + sanitize(`Chummer: ${amp.typeName ?? amp.type}${amp.source ? `, ${ref(amp)}` : ''}`) }
   // a deck's wound box is its own (the export gives it bonus 0): sra2's boolean deck field
   if (type === 'cyberdeck' && (amp.effects ?? []).some(e => e.id === 'wound-light')) system.cyberdeckBonusLightDamage = true
+  // sra2's own counts (Chummer's bonuses), within sra2's limits
+  if (b.sustainedSpells) system.sustainedSpellCount = Math.min(2, b.sustainedSpells)
+  if (b.summonedSpirits) system.summonedSpiritCount = Math.min(1, b.summonedSpirits)
+  if (b.sustainedForms) system.sustainedComplexFormCount = b.sustainedForms
+  if (b.riggerConsoles) system.riggerConsoleCount = b.riggerConsoles
+  if (b.vehicleControlRig) system.hasVehicleControlWiring = true
+  // a switchable amp (a drug's dose, a sustained power): off until the player switches it on, as the sheet's brackets
+  if (amp.switch) { system.active = false; say(`${amp.name}: ${amp.switch}, imported switched off (sra2 feat "active")`) }
   return ctx.icon({ name: amp.name, type: 'feat', flags: ctx.flag(amp), system }, ampIconKey(amp), amp)
 }
 
@@ -252,6 +297,9 @@ export function itemFeat(it, ctx) {
     }
   }
   if (it.kind === 'armor') system.armorValue = Math.max(0, Math.min(5, it.armor?.value ?? 0))
+  // what it does (Chummer's): narrative effects; a spell's on its target(s) say so
+  const fx = textEffects(it.effects)
+  if (fx.length) system.narrativeEffects = fx.map(e => ({ text: effectText(e), isNegative: e.id === 'disadvantage' || e.id === 'self-wound', value: 0 }))
   if (it.kind === 'spell') system.spellType = 'direct'
   system.description = text(it.description) + sanitize(it.note) + extra + (it.price != null ? sanitize(`Chummer price: ${it.price}¥`) : '')
   return ctx.icon({ name: it.name, type: 'feat', flags: ctx.flag(it), system }, itemIconKey(it), it)
