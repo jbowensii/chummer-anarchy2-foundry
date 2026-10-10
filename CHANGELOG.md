@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.10.0
 
 Reads Chummer Anarchy's effect fields (its next release, branch feat/ca2-effects); files from earlier versions translate as before.
 
