@@ -4,7 +4,7 @@ import { MODULE_ID } from './constants.js'
 import { chummerFlags, keysOf, planUpsert } from './chummer-id.js'
 import { ATTR, featType, metatypeAnarchy, skillFor, specFor, vehicleType } from './sra2.js'
 import { negative, skillIconKey, withIcon } from './icons.js'
-import { ampFeat, escapeText, itemFeat, metatypeMax, PACK_OF, rrResolver, translateRunner, vehicleActor } from './translate.js'
+import { ampFeat, effectText, escapeText, itemFeat, metatypeMax, PACK_OF, rrResolver, translateRunner, vehicleActor } from './translate.js'
 
 /**
  * The by-type compendiums (0.9.0): one pack per type with every book merged into it, folders inside by category
@@ -233,7 +233,8 @@ export function translateBook(book, { exportedAt, appVersion, descriptions = fal
     const anarchy = metatypeAnarchy(m.name)
     if (anarchy == null) textOnly.push(`Metatype ${m.name}: not an sra2 metatype → Anarchy bonus 0`)
     add('metatypes', inFolder(doc(m, icon({ name: m.name, type: 'metatype', flags: flags(m.id, m.page, m.canon), system: {
-      ...metatypeMax(m.ranges), anarchyBonus: anarchy ?? 0, description: sanitize(`Edge: ${m.edge}`) + (m.racialQuality ? sanitize(`Racial quality: ${m.racialQuality}`) : '') } }, 'metatype'), 'metatypes'),
+      ...metatypeMax(m.ranges), anarchyBonus: anarchy ?? 0, description: sanitize(`Edge: ${m.edge}`) + (m.racialQuality ? sanitize(`Racial quality: ${m.racialQuality}`) : '')
+        + (m.effects?.length ? sanitize(m.effects.map(effectText).join('\n\n')) : '') } }, 'metatype'), 'metatypes'),
     anarchy == null ? 'Metavariants' : 'Core metatypes'))
   }
 
