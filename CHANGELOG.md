@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+Chummer Anarchy's books with one entry per level (its branch feat/ca2-per-level, owner's rule 2026-10-11): an entry a book
+prints with several levels (Freefall 1–3, a cyberdeck's Attack +1…+5) comes as one book amp per level, each with
+`family` and `level`. No code change was needed: each level is its own sra2 feat with its rating, in its type's folder,
+and the lowest level keeps the old entry's id, so re-importing a book updates the feat it made before as that level and
+adds the others (test/levels.test.js). The export schema copy takes the new fields.
+
 ## 0.10.0
 
 Reads Chummer Anarchy's effect fields (its next release, branch feat/ca2-effects); files from earlier versions translate as before.
