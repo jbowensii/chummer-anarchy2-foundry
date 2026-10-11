@@ -1410,26 +1410,11 @@
                     "type": "boolean"
                   },
                   "family": {
-                    "description": "one level of an entry the book prints with several: the id the entry had before it was split",
+                    "description": "one level of an entry the book prints with several: the id the entry had before it was split (the lowest level keeps it as its id)",
                     "type": "string"
                   },
                   "level": {
                     "type": "number"
-                  },
-                  "aliases": {
-                    "description": "ids this entry had in earlier exports (the lowest level carries its family's)",
-                    "type": "array",
-                    "items": {
-                      "type": "object",
-                      "required": [
-                        "id"
-                      ],
-                      "properties": {
-                        "id": {
-                          "type": "string"
-                        }
-                      }
-                    }
                   },
                   "vehicle": {
                     "type": "string"
