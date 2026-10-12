@@ -27,8 +27,8 @@ describe('reading a Chummer file', () => {
     expect(r.ok && r.file.runners.map(x => x.streetName)).toEqual(['Made-Up Mara', 'Test Two'])
   })
   test.each([
-    ['not JSON', 'nope', /isn’t a Chummer Anarchy export/],
-    ['another format', JSON.stringify({ format: 'x', version: 1 }), /isn’t a Chummer Anarchy export/],
+    ['not JSON', 'nope', /isn’t a Nova Prime Chummer Anarchy export/],
+    ['another format', JSON.stringify({ format: 'x', version: 1 }), /isn’t a Nova Prime Chummer Anarchy export/],
     ['a newer version', JSON.stringify({ format: 'chummer-anarchy2-export', version: 2, kind: 'runners' }), /version 2.*update this module/],
     ['no books', JSON.stringify({ format: 'chummer-anarchy2-export', version: 1, kind: 'books', books: [] }), /no books/],
     ['a book without a name', JSON.stringify({ format: 'chummer-anarchy2-export', version: 1, kind: 'books', books: [{ source: { id: 'X' } }] }), /a book is missing its id or name/],
@@ -36,7 +36,7 @@ describe('reading a Chummer file', () => {
     ['a runner with null attributes', JSON.stringify({ format: 'chummer-anarchy2-export', version: 1, kind: 'runners', runners: [{ id: 'a', streetName: 'A', attributes: null }] }), /damaged/],
     ['a runner with array attributes', JSON.stringify({ format: 'chummer-anarchy2-export', version: 1, kind: 'runners', runners: [{ id: 'a', streetName: 'A', attributes: [] }] }), /damaged/],
     ['no runners', JSON.stringify({ format: 'chummer-anarchy2-export', version: 1, kind: 'runners' }), /no runners/],
-    ['an SR6 file', JSON.stringify({ format: 'chummer-sr6-export', version: 1, kind: 'runners', runners: [{}] }), /Chummer Shadowrun 6 file.*Chummer SR6 Importer/],
+    ['an SR6 file', JSON.stringify({ format: 'chummer-sr6-export', version: 1, kind: 'runners', runners: [{}] }), /Nova Prime Chummer Shadowrun 6 file.*SR6 Importer/],
   ])('refuses %s', (_, text, reason) => {
     const r = readExport(text)
     expect(r.ok).toBe(false)

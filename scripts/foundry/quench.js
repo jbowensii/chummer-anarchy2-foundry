@@ -61,13 +61,13 @@ async function byKey(pack, key) {
 
 export function registerQuench(quench) {
   const batch = (name, fn) => quench.registerBatch(`${MODULE_ID}.${name.replace(/\W+/g, '-')}`, fn,
-    { displayName: `Chummer Importer: ${name}` })
+    { displayName: `Nova Prime Chummer — Anarchy 2 Importer: ${name}` })
 
   batch('file checks', ({ describe, it, assert }) => {
     describe('readExport refuses what it cannot read, with a reason', function () {
       const refused = (text, re) => { const r = readExport(text); assert.isFalse(r.ok); assert.match(r.reason, re) }
-      it('not JSON', () => refused('not json {', /isn’t a Chummer Anarchy export/))
-      it('another format', () => refused(JSON.stringify({ format: 'something-else' }), /isn’t a Chummer Anarchy export/))
+      it('not JSON', () => refused('not json {', /isn’t a Nova Prime Chummer Anarchy export/))
+      it('another format', () => refused(JSON.stringify({ format: 'something-else' }), /isn’t a Nova Prime Chummer Anarchy export/))
       it('a newer format version', () => refused(JSON.stringify({ format: 'chummer-anarchy2-export', version: 99 }), /version 99.*update this module/))
       it('the book-data sample is accepted', async () => {
         const r = readExport(await (await fetch(BOOKS)).text())

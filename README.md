@@ -1,6 +1,6 @@
-# Chummer Anarchy 2.0 Importer
+# Nova Prime Chummer — Anarchy 2 Importer
 
-A Foundry VTT module that imports runners and book data exported from [Chummer Anarchy 2.0](https://github.com/jbowensii/chummer-anarchy2) into the Shadowrun Anarchy 2 (`sra2`) system.
+A Foundry VTT module that imports runners and book data exported from [Nova Prime Chummer](https://github.com/jbowensii/nova-prime-chummer) into the Shadowrun Anarchy 2 (`sra2`) system.
 
 Tested with sra2 14.3.3 on Foundry 14.
 
@@ -12,9 +12,9 @@ In Foundry, go to Add-on Modules, choose Install Module, and paste the manifest 
 https://github.com/jbowensii/chummer-anarchy2-foundry/releases/latest/download/module.json
 ```
 
-Then enable "Chummer Anarchy 2.0 Importer" in your sra2 world.
+Then enable "Nova Prime Chummer — Anarchy 2 Importer" in your sra2 world.
 
-## Export from Chummer
+## Export from Nova Prime Chummer
 
 - One runner: in the runner editor, choose **Export for Foundry**.
 - Several runners: in the runner list, choose **Export for Foundry…** and tick the runners you want.
@@ -23,8 +23,8 @@ You get a file ending in `.ca2foundry.json`.
 
 ## Import into Foundry
 
-1. As the GM, open the Actors sidebar (or the Compendium sidebar) and click **Import from Chummer** at the bottom (players don't see the button).
-2. Choose the file. The module checks it before anything in your world changes; a file it can't use says why. A Chummer Shadowrun 6 file is refused with a pointer to the Chummer SR6 Importer (for shadowrun6-eden worlds).
+1. As the GM, open the Actors sidebar (or the Compendium sidebar) and click **Import from Nova Prime Chummer** at the bottom (players don't see the button).
+2. Choose the file. The module checks it before anything in your world changes; a file it can't use says why. A Nova Prime Chummer Shadowrun 6 file is refused with a pointer to the Nova Prime Chummer — SR6 Importer (for shadowrun6-eden worlds).
 3. Untick any runner you don't want, pick what to do with runners already in the world, and click **Import**.
 
 Imported runners go in the Actors folder "Chummer Anarchy", each runner's vehicles in a subfolder. The report at the end lists anything that was turned into text.
@@ -53,13 +53,13 @@ A book's NPCs go in the compendium **NPCs**, its critters and spirits in **Critt
 
 The GM can bring the catalogues of the books they own into Foundry as compendiums.
 
-### Export from Chummer
+### Export from Nova Prime Chummer
 
 In Chummer, choose **Game data → Export book data for Foundry** (GMs only). For your own Foundry only. Don’t share this file.
 
 ### Import into Foundry
 
-In the Compendium sidebar (or the Actors sidebar), click **Import from Chummer**, choose the book-data file, untick any book you don't want, and click **Import**. Since 0.9.0 there is **one compendium per type, with every book merged into it**, all in the Compendium folder "Chummer Anarchy". Inside each compendium the entries are in folders by category (Chummer's category: the table or section they come from). Each entry keeps its book and page (sra2's reference field, and the module's flags `source`, `page`, `chummerID`).
+In the Compendium sidebar (or the Actors sidebar), click **Import from Nova Prime Chummer**, choose the book-data file, untick any book you don't want, and click **Import**. Since 0.9.0 there is **one compendium per type, with every book merged into it**, all in the Compendium folder "Chummer Anarchy". Inside each compendium the entries are in folders by category (Chummer's category: the table or section they come from). Each entry keeps its book and page (sra2's reference field, and the module's flags `source`, `page`, `chummerID`).
 
 | Compendium | What goes in it (sra2 type) | Folders, for example |
 | --- | --- | --- |
@@ -98,7 +98,7 @@ A runner's or NPC's amps and items from a book are linked to their entries in th
 
 ## GM compendiums
 
-A compendium a GM made in Chummer (0.8.0: their own amps, weapons, armor, gear, spells, complex forms, vehicles and NPCs) exports from its Compendiums page as a book-data file with one book, and imports the same way as a book (**Import from Chummer**). The window marks it as a GM's compendium. It is never merged with the books: it gets its own compendiums, one per type as above (named `ca2h-<id>-<type>`), labelled "(House)", e.g. "Weapons — MYH (House)", in its own folder, "<compendium name> (<id>)", inside the Compendium folder **"Chummer compendiums"** (books stay in "Chummer Anarchy"), with the same folders by category inside. Its entries are non-canon, carry the compendium's id as their source, are flagged `compendium`, and have the GM's own descriptions. Importing it again works as for a book: entries from the file are replaced by id, the rest are left alone, and no compendium is made empty.
+A compendium a GM made in Chummer (0.8.0: their own amps, weapons, armor, gear, spells, complex forms, vehicles and NPCs) exports from its Compendiums page as a book-data file with one book, and imports the same way as a book (**Import from Nova Prime Chummer**). The window marks it as a GM's compendium. It is never merged with the books: it gets its own compendiums, one per type as above (named `ca2h-<id>-<type>`), labelled "(House)", e.g. "Weapons — MYH (House)", in its own folder, "<compendium name> (<id>)", inside the Compendium folder **"Chummer compendiums"** (books stay in "Chummer Anarchy"), with the same folders by category inside. Its entries are non-canon, carry the compendium's id as their source, are flagged `compendium`, and have the GM's own descriptions. Importing it again works as for a book: entries from the file are replaced by id, the rest are left alone, and no compendium is made empty.
 
 ## Icons
 
@@ -109,7 +109,7 @@ Imported items, skills, specializations, vehicles and metatypes (on runners, in 
 
 A picture you pick in Foundry is never replaced, not by Apply icons and not by importing the runner or book again: only empty images, Foundry's and sra2's stock images, the module's own icons and portraits and token images imported from Chummer are.
 
-**Apply icons** (Game Settings → Configure Settings → Chummer Anarchy 2.0 Importer, GM only) re-applies the icons to everything already imported, so it picks up newly shipped art after a module update. Character portraits and tokens are never touched.
+**Apply icons** (Game Settings → Configure Settings → Nova Prime Chummer — Anarchy 2 Importer, GM only) re-applies the icons to everything already imported, so it picks up newly shipped art after a module update. Character portraits and tokens are never touched.
 
 Entries imported before 0.4.0 carry no icon information, so they get no icons, from Apply icons either: import the runner or book once more to give them icons.
 
@@ -135,7 +135,7 @@ For your own Foundry only. Don’t share the export file. A file exported with d
 
 1. Install and enable [Quench](https://github.com/Ethaks/FVTT-Quench) in an sra2 world alongside this module.
 2. Open the Quench test runner.
-3. Tick the "Chummer Importer" batches and run them.
+3. Tick the "Nova Prime Chummer — Anarchy 2 Importer" batches and run them.
 
 The batches import `samples/test-export.json` (a made-up file with no book text) into a throwaway Actors folder, "Chummer Importer tests", `samples/test-npcs.json` (made-up NPCs) into "Chummer NPCs" (that folder is deleted again if the batch made it and it is left empty), `samples/test-books.json` (a made-up book file) into compendiums named `ca2test-ca2t-…` in a Compendium folder of the same name (next to a made-up old-style `ca2test-ca2-muc-amps` it must not touch), and `samples/test-compendium.json` (a made-up GM compendium) into compendiums named `ca2test-ca2h-myh-…` in "Chummer compendiums" (that folder is deleted again if the batch made it and it is left empty). They delete what they made when they finish and don't touch anything else in the world.
 
